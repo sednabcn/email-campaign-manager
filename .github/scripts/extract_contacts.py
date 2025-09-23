@@ -182,23 +182,26 @@ def main():
     for txt_file in sorted(txt_files):
         file_contacts = extract_contacts_from_file(txt_file)
         all_contacts.extend(file_contacts)
-    
-    # Remove duplicates based on email
+
     print(f"Removing duplicates from {len(all_contacts)} contacts...")
+
     unique_contacts = {}
     for contact in all_contacts:
-        email = contact['email']
-        if email not in unique_contacts:
-            unique_contacts[email] = contact
+        # Use a tuple of (email, name, organization) as the deduplication key
+        key = (
+            contact['email'].lower().strip(),
+            contact['name'].strip().lower(),
+            contact['organization'].strip().lower()
+        )
+
+        if key not in unique_contacts:
+            unique_contacts[key] = contact
         else:
-            # Keep the contact with more complete information
-            existing = unique_contacts[email]
-            if not existing['name'] or existing['name'].startswith('Contact '):
-                if contact['name'] and not contact['name'].startswith('Contact '):
-                    existing['name'] = contact['name']
+            existing = unique_contacts[key]
+            # Optionally merge phone numbers if one is missing
             if not existing['phone'] and contact['phone']:
                 existing['phone'] = contact['phone']
-    
+
     final_contacts = list(unique_contacts.values())
     print(f"After deduplication: {len(final_contacts)} unique contacts")
     
