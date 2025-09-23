@@ -93,13 +93,49 @@ jobs:
           mkdir -p contacts campaigns-resutls tracking
           echo "Directory structure ready"
 
-      - name: Use real campaign script
+      # Replace your current "Use real campaign script" step with this:
+      - name: Execute campaign script
         run: |
-          # Check if utils/docx_parser.py exists in repository
-          if [ -f "utils/docx_parser.py" ]; then
-            echo "✅ Using existing utils/docx_parser.py from repository"
+          # Find the most recent CSV file
+          CSV_FILE=$(find ./contacts -name "*.csv" -type f -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+          
+          if [ -n "$CSV_FILE" ] && [ -f "$CSV_FILE" ]; then
+            echo "✅ Using contact file: $CSV_FILE"
+            echo "📊 Contact file contents:"
+            head -3 "$CSV_FILE"
+            echo ""
+            
+            # Execute the campaign script
+            echo "🚀 Running campaign with utils/docx_parser.py"
+            echo "Command: python utils/docx_parser.py --input \"$CSV_FILE\""
+            
+            # Create output directory
+            mkdir -p campaigns-results
+            
+            # Run your actual campaign script
+            # Adjust parameters based on your script's interface
+            python utils/docx_parser.py --input "$CSV_FILE" --output campaigns-results/ || {
+              echo "❌ Campaign script failed, checking script help:"
+              python utils/docx_parser.py --help || echo "No help available"
+              exit 1
+            }
+            
+            echo "✅ Campaign execution completed"
+            echo "📁 Output directory contents:"
+            ls -la campaigns-results/ || echo "No output directory created"
+            
           else
-            echo "❌ utils/docx_parser.py not found in repository"
-            echo "The real campaign script should be at utils/docx_parser.py"
+            echo "❌ No contact CSV file found"
+            ls -la ./contacts/
             exit 1
           fi
+          
+      - name: Upload campaign results
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-results-${{ github.run_number }}
+          path: campaigns-results/
+          retention-days: 30
+          if-no-files-found: warn
+
+      
