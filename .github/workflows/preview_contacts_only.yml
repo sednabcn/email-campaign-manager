@@ -43,18 +43,19 @@ jobs:
 
       - name: Preview extracted CSV
         run: |
+          ROWS_TO_SHOW=${{ inputs.rows_to_show }}
           echo "🔍 Looking for CSV in ./contacts/"
-          CSV_FILE=$(find ./contacts -type f -name "*.csv" | sort | tail -1)
+          CSV_FILE=$(find ./contacts -type f -name "*.csv" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2-)
 
           if [ -z "$CSV_FILE" ]; then
-            echo "❌ No CSV files found"
-            exit 1
+             echo "❌ No CSV files found"
+             exit 1
           fi
 
           echo "✅ Found: $CSV_FILE"
           echo ""
-          echo "📊 Preview of first ${{ inputs.rows_to_show }} lines:"
-          head -n ${{ inputs.rows_to_show }} "$CSV_FILE"
+          echo "📊 Preview of first $ROWS_TO_SHOW lines:"
+          head -n "$ROWS_TO_SHOW" "$CSV_FILE"
           echo ""
           echo "📦 Total rows (excluding header):"
           tail -n +2 "$CSV_FILE" | wc -l
