@@ -2,7 +2,7 @@
 name: Contact Details Extractor - Using Separate Script
 
 permissions:
-  contents: read
+  contents: write
 
 on:
   push:
@@ -49,6 +49,12 @@ on:
       artifact_name:
         description: 'Name of the uploaded artifact'
         value: ${{ jobs.extract-contacts.outputs.artifact_name }}
+
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
 
 env:
   PYTHON_VERSION: '3.11'
@@ -217,20 +223,17 @@ jobs:
     - name: Commit and push results
       if: steps.extraction.outputs.csv_file && github.event_name != 'workflow_call'
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
 
-        # Ensure repo is up to date
         git fetch origin
-        git checkout ${{ github.ref }}
+        BRANCH="${GITHUB_REF#refs/heads/}"
+        git checkout "$BRANCH"
         git pull --rebase --autostash || true
 
-        # Stage and commit new CSVs
         git add contacts/*.csv
         git commit -m "Add contacts CSV: ${{ steps.extraction.outputs.csv_filename }}" || echo "No changes to commit"
-
-        # Push changes
-        git push origin HEAD:${{ github.ref }}
+        git push origin HEAD:$BRANCH
 
     - name: Job summary
       if: always()
