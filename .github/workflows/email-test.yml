@@ -2,7 +2,7 @@ name: Quick Email Test
 
 on:
   push:
-    branches: [main, dev, develop]
+    branches: [master, dev, develop]
   workflow_dispatch:
 
 jobs:
@@ -20,14 +20,15 @@ jobs:
           echo '{"quick": "test"}' > test.json
 
       - name: Send test email
+        id: send_email
         uses: dawidd6/action-send-mail@v4
         with:
           server_address: smtp.gmail.com
           server_port: 587
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
-          subject: "🚀 Quick Test Email"
-          to: ${{ secrets.SMTP_USER }}
+          subject: "🚀 Quick Test Email - ${{ github.run_number }}"
+          to: alerts@modelphysmat.com
           from: ${{ secrets.SMTP_USER }}
           body: file://email_body.txt
           convert_markdown: true
@@ -35,3 +36,16 @@ jobs:
             campaign_execution.log
             tracking/**/*
             *.json
+
+      - name: Check email status
+        if: always()
+        run: |
+          if [ "${{ steps.send_email.outcome }}" == "success" ]; then
+            echo "✅ EMAIL SENT SUCCESSFULLY!"
+            echo "📧 Check inbox: alerts@modelphysmat.com"
+            echo "📋 Subject: 🚀 Quick Test Email - ${{ github.run_number }}"
+          else
+            echo "❌ EMAIL FAILED TO SEND"
+            echo "Check the logs above for error details"
+            exit 1
+          fi
