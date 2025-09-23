@@ -61,7 +61,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: sednabcn/checkout@v4
       with:
         fetch-depth: 0  # fetch full history for file timestamps
 

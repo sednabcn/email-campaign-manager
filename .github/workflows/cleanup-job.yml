@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: sednbacn/checkout@v4
 
       - name: Setup Python environment
         uses: actions/setup-python@v4

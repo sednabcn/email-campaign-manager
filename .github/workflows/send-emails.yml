@@ -31,7 +31,7 @@ jobs:
       MAIL_FROM: ${{ secrets.MAIL_FROM }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: sednabcn/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v4

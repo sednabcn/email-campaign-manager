@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: sednabcn/checkout@v4
 
       - name: Decode Google Service Account credentials
         run: |
