@@ -138,6 +138,13 @@ jobs:
           name: latest-contact-extraction-results
           path: ./contacts
 
+      - name: Debug downloaded artifacts
+        run: |
+          echo "=== Checking downloaded artifacts ==="
+          ls -la ./contacts/
+          find ./contacts -name "*.csv" -type f
+          echo "=== All CSV files in workspace ==="
+          find . -name "*.csv" -type f
       # -------------------------------
       # Campaign Execution
       # -------------------------------
@@ -234,7 +241,7 @@ jobs:
         with:
           server_address: ${{ secrets.SMTP_HOST }}
           server_port: ${{ steps.smtp-config.outputs.port }}
-          secure: false
+          secure: true
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
           subject: "Campaign Summary - ${{ github.run_started_at }}"
