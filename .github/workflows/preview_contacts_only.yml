@@ -44,6 +44,11 @@ jobs:
       - name: Preview extracted CSV
         run: |
           ROWS_TO_SHOW=${{ inputs.rows_to_show }}
+          if [ -z "$ROWS_TO_SHOW" ]; then
+              ROWS_TO_SHOW=10
+          fi
+
+          echo "Rows to show: $ROWS_TO_SHOW"
           echo "🔍 Looking for CSV in ./contacts/"
           CSV_FILE=$(find ./contacts -type f -name "*.csv" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2-)
 
