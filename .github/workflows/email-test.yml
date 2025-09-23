@@ -1,6 +1,8 @@
 name: Quick Email Test
 
 on:
+  push:
+    branches: [master, dev, develop]
   workflow_dispatch:
 
 jobs:
@@ -33,3 +35,4 @@ jobs:
             campaign_execution.log
             tracking/**/*
             *.json
+ 
