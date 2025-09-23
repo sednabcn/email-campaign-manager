@@ -17,7 +17,8 @@ on:
         type: boolean
 
 permissions:
-  contents: read
+  contents: write
+  actions: read
 
 jobs:
   contact-extraction:
