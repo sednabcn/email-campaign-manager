@@ -219,10 +219,18 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git pull --rebase
-        git add "contacts/*.csv"
+
+        # Ensure repo is up to date
+        git fetch origin
+        git checkout ${{ github.ref }}
+        git pull --rebase --autostash || true
+
+        # Stage and commit new CSVs
+        git add contacts/*.csv
         git commit -m "Add contacts CSV: ${{ steps.extraction.outputs.csv_filename }}" || echo "No changes to commit"
-        git push
+
+        # Push changes
+        git push origin HEAD:${{ github.ref }}
 
     - name: Job summary
       if: always()
