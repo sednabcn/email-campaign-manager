@@ -1,6 +1,8 @@
 name: Daily Delete CSV Files
 
 on:
+  push:
+    branches: ["dev", "master"]
   schedule:
     - cron: '30 20 * * *'  # Runs every day at 20:30 UTC
 
