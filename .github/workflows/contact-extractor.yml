@@ -1,6 +1,6 @@
-name: Contact Details Extractor
+# .github/workflows/contact-extractor.yml
+name: Contact Details Extractor - Fixed Version
 
-# Grant the workflow permission to write to the repo (only when needed)
 permissions:
   contents: read
 
@@ -8,7 +8,6 @@ on:
   push:
     branches: ["dev"]
   
-  # Manual trigger
   workflow_dispatch:
     inputs:
       source_directory:
@@ -27,7 +26,6 @@ on:
         default: false
         type: boolean
 
-  # FIXED: workflow_call must have proper inputs structure
   workflow_call:
     inputs:
       source_directory:
@@ -38,114 +36,361 @@ on:
         required: false
         type: string
         default: 'contacts'
-    # ADDED: outputs for reusable workflows
     outputs:
       csv_file:
         description: 'Path to the generated CSV file'
         value: ${{ jobs.extract-contacts.outputs.csv_file }}
+      csv_filename:
+        description: 'Name of the generated CSV file'
+        value: ${{ jobs.extract-contacts.outputs.csv_filename }}
       record_count:
         description: 'Number of records extracted'
         value: ${{ jobs.extract-contacts.outputs.record_count }}
+      artifact_name:
+        description: 'Name of the uploaded artifact'
+        value: ${{ jobs.extract-contacts.outputs.artifact_name }}
 
 env:
-  PYTHON_VERSION: '3.9'
+  PYTHON_VERSION: '3.11'
 
 jobs:
   extract-contacts:
     runs-on: ubuntu-latest
-    # ADDED: outputs for the job
     outputs:
       csv_file: ${{ steps.extraction.outputs.csv_file }}
+      csv_filename: ${{ steps.extraction.outputs.csv_filename }}
       record_count: ${{ steps.extraction.outputs.record_count }}
       file_size: ${{ steps.extraction.outputs.file_size }}
+      artifact_name: ${{ steps.upload.outputs.artifact_name }}
 
     steps:
     - name: Checkout repository
-      uses: sednabcn/checkout@v4
+      uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # fetch full history for file timestamps
+        fetch-depth: 0
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ env.PYTHON_VERSION }}
-        cache: 'pip'
 
-    - name: Install dependencies
+    - name: Debug workspace structure
       run: |
-        python -m pip install --upgrade pip
-        # pip install -r requirements.txt  # if you add requirements later
-
-    - name: Verify source directory exists
-      run: |
+        echo "=== Current workspace structure ==="
+        pwd
+        ls -la
+        echo ""
+        echo "=== Looking for source directory ==="
         SOURCE_DIR="${{ inputs.source_directory || 'contact_details' }}"
-        if [ ! -d "$SOURCE_DIR" ]; then
-          echo "⚠️  Source directory '$SOURCE_DIR' does not exist"
-          echo "Creating it for future use..."
-          mkdir -p "$SOURCE_DIR"
-          echo "Please add .txt files under '$SOURCE_DIR/[education|finance|healthcare]/sub_dirs'"
-        else
-          echo "✅ Source directory '$SOURCE_DIR' exists"
-          echo "Found $(find "$SOURCE_DIR" -type f -name "*.txt" | wc -l) .txt files"
-        fi
-
-    - name: List input files (recursive)
-      run: |
-        SOURCE_DIR="${{ inputs.source_directory || 'contact_details' }}"
-        echo "📁 Scanning for .txt files under $SOURCE_DIR recursively..."
         if [ -d "$SOURCE_DIR" ]; then
-          find "$SOURCE_DIR" -type f -name "*.txt" | sort | tee /tmp/contact_files.txt | head -20
-          TOTAL_FILES=$(wc -l < /tmp/contact_files.txt)
-          echo "Total .txt files found: $TOTAL_FILES"
-          if [ $TOTAL_FILES -eq 0 ]; then
-            echo "⚠️  No .txt files found to process"
-          fi
-        fi
-        
-    - name: Use existing real extraction script
-      run: |
-        # The real extract_contacts.py should already be at .github/scripts/extract_contacts.py
-        if [ -f ".github/scripts/extract_contacts.py" ]; then
-          echo "✅ Using existing real extraction script"
-          chmod +x .github/scripts/extract_contacts.py
+          echo "Source directory '$SOURCE_DIR' exists"
+          echo "Contents:"
+          find "$SOURCE_DIR" -type f -name "*.txt" | head -10
+          echo "Total .txt files: $(find "$SOURCE_DIR" -type f -name "*.txt" | wc -l)"
         else
-          echo "❌ Real extraction script not found at .github/scripts/extract_contacts.py"
-          echo "Please move your extract_contacts.py to .github/scripts/"
-          exit 1
+          echo "ERROR: Source directory '$SOURCE_DIR' does not exist"
+          echo "Available directories:"
+          ls -la
         fi
 
+    - name: Create enhanced extraction script
+      run: |
+        mkdir -p .github/scripts
+        cat > .github/scripts/extract_contacts.py << 'EXTRACT_SCRIPT_EOF'
+#!/usr/bin/env python3
+"""
+Enhanced Contact Extraction Script for GitHub Actions
+Handles the specific directory structure: contact_details/education/adult_education/
+"""
+
+import os
+import sys
+import csv
+import re
+from datetime import datetime
+from pathlib import Path
+
+def extract_email_from_line(line):
+    """Extract email addresses from a text line"""
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    return re.findall(email_pattern, line)
+
+def extract_phone_from_line(line):
+    """Extract phone numbers from a text line"""
+    phone_patterns = [
+        r'\+?1?[-.\s]?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}',
+        r'\+?[0-9]{1,3}[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{3,4}',
+        r'\([0-9]{3}\)\s?[0-9]{3}-[0-9]{4}',
+        r'\+44\s?[0-9]{4}\s?[0-9]{6}',
+    ]
+    
+    for pattern in phone_patterns:
+        phones = re.findall(pattern, line)
+        if phones:
+            return phones[0].strip()
+    return ""
+
+def extract_name_from_line(line, email):
+    """Extract name from line containing email"""
+    line_without_email = line.replace(email, '').strip()
+    name = re.sub(r'[<>\[\](){}:;,\-\|]+', ' ', line_without_email).strip()
+    name = ' '.join(name.split())
+    
+    if len(name) < 2 or name.isdigit() or not name.replace(' ', '').replace('.', '').isalpha():
+        return ""
+    
+    return name
+
+def get_organization_from_filename(filename):
+    """Extract organization name from filename"""
+    org = filename.replace('-contacts.txt', '').replace('.txt', '')
+    
+    # Handle specific cases
+    if 'St.George' in org:
+        return "St. George's University"
+    elif 'Birbeck' in org:
+        return "Birkbeck College"  
+    elif 'open-univ' in org:
+        return "The Open University"
+    else:
+        org = org.replace('=', ' ').replace('-', ' ').replace('_', ' ')
+        return ' '.join(word.capitalize() for word in org.split())
+
+def extract_contacts_from_file(file_path):
+    """Extract contacts from a single text file"""
+    contacts = []
+    filename = os.path.basename(file_path)
+    organization = get_organization_from_filename(filename)
+    
+    print(f"  Processing: {file_path}")
+    print(f"  Organization: {organization}")
+    
+    try:
+        encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']
+        content = None
         
-    - name: Run contact extraction
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding) as f:
+                    content = f.read()
+                print(f"  Read with encoding: {encoding}")
+                break
+            except UnicodeDecodeError:
+                continue
+        
+        if content is None:
+            print(f"  ERROR: Could not decode file")
+            return contacts
+        
+        for line_number, line in enumerate(content.splitlines(), 1):
+            line = line.strip()
+            
+            if not line or line.startswith('#') or len(line) < 5:
+                continue
+            
+            emails = extract_email_from_line(line)
+            for email in emails:
+                name = extract_name_from_line(line, email)
+                phone = extract_phone_from_line(line)
+                
+                contact = {
+                    'name': name if name else f"Contact {len(contacts) + 1}",
+                    'email': email.lower().strip(),
+                    'phone': phone,
+                    'organization': organization,
+                    'source_file': filename
+                }
+                
+                contacts.append(contact)
+                print(f"    Found: {contact['name']} <{contact['email']}> at {organization}")
+    
+    except Exception as e:
+        print(f"  ERROR processing {file_path}: {str(e)}")
+    
+    return contacts
+
+def main():
+    if len(sys.argv) < 3:
+        print("Usage: python extract_contacts.py <source_directory> <output_directory>")
+        sys.exit(1)
+    
+    source_dir = sys.argv[1]
+    output_dir = sys.argv[2]
+    
+    print(f"Contact Extraction Script - Enhanced Version")
+    print(f"Source: {source_dir}")
+    print(f"Output: {output_dir}")
+    print("-" * 60)
+    
+    # Ensure output directory exists with full path
+    output_path = Path(output_dir).resolve()
+    output_path.mkdir(parents=True, exist_ok=True)
+    print(f"Output directory: {output_path}")
+    
+    # Find all .txt files recursively
+    txt_files = []
+    source_path = Path(source_dir)
+    
+    if source_path.exists():
+        txt_files = list(source_path.rglob("*.txt"))
+        print(f"Searching in: {source_path.resolve()}")
+    else:
+        print(f"ERROR: Source directory {source_dir} does not exist")
+    
+    if not txt_files:
+        print(f"No .txt files found in {source_dir}")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_filename = f"edu_adults_contacts_{timestamp}.csv"
+        csv_path = output_path / csv_filename
+        
+        with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['name', 'email', 'phone', 'organization', 'source_file']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+        
+        print(f"Created empty CSV file: {csv_path}")
+        return
+    
+    print(f"Found {len(txt_files)} text files:")
+    for txt_file in sorted(txt_files):
+        print(f"  - {txt_file}")
+    print()
+    
+    # Extract contacts from all files
+    all_contacts = []
+    for txt_file in sorted(txt_files):
+        file_contacts = extract_contacts_from_file(txt_file)
+        all_contacts.extend(file_contacts)
+    
+    # Remove duplicates
+    print(f"Removing duplicates from {len(all_contacts)} contacts...")
+    unique_contacts = {}
+    for contact in all_contacts:
+        email = contact['email']
+        if email not in unique_contacts:
+            unique_contacts[email] = contact
+        else:
+            existing = unique_contacts[email]
+            if not existing['name'] or existing['name'].startswith('Contact '):
+                if contact['name'] and not contact['name'].startswith('Contact '):
+                    existing['name'] = contact['name']
+            if not existing['phone'] and contact['phone']:
+                existing['phone'] = contact['phone']
+    
+    final_contacts = list(unique_contacts.values())
+    print(f"After deduplication: {len(final_contacts)} unique contacts")
+    
+    # Generate output CSV
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_filename = f"edu_adults_contacts_{timestamp}.csv"
+    csv_path = output_path / csv_filename
+    
+    print(f"Creating CSV file: {csv_path}")
+    
+    # Write to CSV
+    try:
+        with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['name', 'email', 'phone', 'organization', 'source_file']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for contact in final_contacts:
+                writer.writerow(contact)
+        
+        # Verify file exists
+        if csv_path.exists():
+            file_size = csv_path.stat().st_size
+            print(f"SUCCESS: CSV file created!")
+            print(f"  Path: {csv_path}")
+            print(f"  Size: {file_size} bytes")
+        else:
+            print(f"ERROR: CSV file was not created")
+            sys.exit(1)
+            
+    except Exception as e:
+        print(f"ERROR writing CSV: {e}")
+        sys.exit(1)
+    
+    # Summary
+    print("-" * 60)
+    print(f"Extraction completed successfully!")
+    print(f"Summary:")
+    print(f"  - Files processed: {len(txt_files)}")
+    print(f"  - Contacts extracted: {len(all_contacts)}")
+    print(f"  - Unique contacts: {len(final_contacts)}")
+    print(f"  - Output file: {csv_filename}")
+    
+    # Show preview
+    print(f"\nCSV Preview:")
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        for i, line in enumerate(f):
+            if i < 6:
+                print(f"  {line.strip()}")
+            else:
+                break
+
+if __name__ == "__main__":
+    main()
+EXTRACT_SCRIPT_EOF
+
+        chmod +x .github/scripts/extract_contacts.py
+        echo "Extraction script created successfully"
+
+    - name: Run contact extraction with enhanced debugging
       id: extraction
       run: |
         SOURCE_DIR="${{ inputs.source_directory || 'contact_details' }}"
         OUTPUT_DIR="${{ inputs.output_directory || 'contacts' }}"
 
-        echo "🚀 Starting contact extraction..."
+        echo "=== Starting contact extraction ==="
         echo "Source: $SOURCE_DIR"
         echo "Output: $OUTPUT_DIR"
+        echo "Python version: $(python --version)"
+        echo "Current directory: $(pwd)"
+        echo ""
 
+        # Run the extraction script
         python .github/scripts/extract_contacts.py "$SOURCE_DIR" "$OUTPUT_DIR"
 
+        echo ""
+        echo "=== Verifying output ==="
+        
+        # Check if output directory was created
         if [ -d "$OUTPUT_DIR" ]; then
-          CSV_FILE=$(find "$OUTPUT_DIR" -type f -name "*.csv" -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- || find "$OUTPUT_DIR" -type f -name "*.csv" | head -1)
-          if [ -n "$CSV_FILE" ]; then
-            echo "✅ CSV file created: $CSV_FILE"
-            echo "csv_file=$CSV_FILE" >> $GITHUB_OUTPUT
-
-            FILE_SIZE=$(stat -f%z "$CSV_FILE" 2>/dev/null || stat -c%s "$CSV_FILE" 2>/dev/null || echo "unknown")
+          echo "Output directory exists: $OUTPUT_DIR"
+          echo "Directory contents:"
+          ls -la "$OUTPUT_DIR"
+          
+          # Find the CSV file
+          CSV_FILE=$(find "$OUTPUT_DIR" -type f -name "*.csv" | head -1)
+          if [ -n "$CSV_FILE" ] && [ -f "$CSV_FILE" ]; then
+            echo "CSV file found: $CSV_FILE"
+            CSV_FILENAME=$(basename "$CSV_FILE")
+            
+            # Get file details
+            FILE_SIZE=$(stat -c%s "$CSV_FILE" 2>/dev/null || stat -f%z "$CSV_FILE" 2>/dev/null || echo "unknown")
             RECORD_COUNT=$(tail -n +2 "$CSV_FILE" | wc -l)
-
-            echo "📊 File size: $FILE_SIZE bytes"
-            echo "📊 Records extracted: $RECORD_COUNT"
+            
+            echo "File details:"
+            echo "  Filename: $CSV_FILENAME"
+            echo "  Full path: $CSV_FILE" 
+            echo "  Size: $FILE_SIZE bytes"
+            echo "  Records: $RECORD_COUNT"
+            
+            # Set outputs
+            echo "csv_file=$CSV_FILE" >> $GITHUB_OUTPUT
+            echo "csv_filename=$CSV_FILENAME" >> $GITHUB_OUTPUT
             echo "file_size=$FILE_SIZE" >> $GITHUB_OUTPUT
             echo "record_count=$RECORD_COUNT" >> $GITHUB_OUTPUT
+            
+            echo "SUCCESS: All outputs set"
           else
-            echo "❌ No CSV file was created"
+            echo "ERROR: No CSV file found in output directory"
+            echo "Available files:"
+            find "$OUTPUT_DIR" -type f || echo "No files found"
             exit 1
           fi
         else
-          echo "❌ Output directory was not created"
+          echo "ERROR: Output directory was not created"
           exit 1
         fi
 
@@ -153,24 +398,28 @@ jobs:
       if: steps.extraction.outputs.csv_file
       run: |
         CSV_FILE="${{ steps.extraction.outputs.csv_file }}"
-        echo "📋 Extraction Summary:"
-        echo "====================="
-        echo "• Output file: $CSV_FILE"
-        echo "• File size: ${{ steps.extraction.outputs.file_size }} bytes"
-        echo "• Records: ${{ steps.extraction.outputs.record_count }}"
+        echo "=== Extraction Results ==="
+        echo "Output file: $CSV_FILE"
+        echo "File size: ${{ steps.extraction.outputs.file_size }} bytes"
+        echo "Records: ${{ steps.extraction.outputs.record_count }}"
         echo ""
-        echo "📄 First 10 rows of CSV:"
-        head -n 11 "$CSV_FILE" | column -t -s, || head -n 11 "$CSV_FILE"
+        echo "CSV content preview:"
+        head -n 10 "$CSV_FILE" || echo "Could not read CSV file"
 
     - name: Upload CSV as artifact
+      id: upload
       if: steps.extraction.outputs.csv_file
       uses: actions/upload-artifact@v4
       with:
         name: latest-contact-extraction-results
-        path: ${{ steps.extraction.outputs.csv_file }}
+        path: ${{ inputs.output_directory || 'contacts' }}/
         retention-days: 30
 
-    - name: Commit and push results
+    - name: Set artifact name output
+      run: |
+        echo "artifact_name=latest-contact-extraction-results" >> $GITHUB_OUTPUT
+
+    - name: Commit and push results (if requested)
       if: >
         steps.extraction.outputs.csv_file &&
         (inputs.commit_results == true) &&
@@ -179,35 +428,23 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add "${{ steps.extraction.outputs.csv_file }}"
-        git commit -m "Add extracted contacts: ${{ steps.extraction.outputs.csv_file }}" || echo "No changes to commit"
+        git commit -m "Add extracted contacts: ${{ steps.extraction.outputs.csv_filename }}" || echo "No changes to commit"
         git push || echo "Nothing to push"
-
-    - name: Send notification on failure
-      if: failure()
-      run: |
-        echo "❌ Contact extraction workflow failed!"
-        echo "Check the logs above for details."
-        echo "Common issues:"
-        echo "• No .txt files in source directory"
-        echo "• Invalid file formats"
-        echo "• Permission issues"
 
     - name: Job summary
       if: always()
       run: |
-        echo "## 📊 Contact Extraction Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## Contact Extraction Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         if [ "${{ steps.extraction.outputs.csv_file }}" ]; then
-          echo "✅ **Success**: Contact extraction completed" >> $GITHUB_STEP_SUMMARY
-          echo "- **Output file**: \`${{ steps.extraction.outputs.csv_file }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Contact extraction completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- **Output file**: \`${{ steps.extraction.outputs.csv_filename }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Records extracted**: ${{ steps.extraction.outputs.record_count }}" >> $GITHUB_STEP_SUMMARY
           echo "- **File size**: ${{ steps.extraction.outputs.file_size }} bytes" >> $GITHUB_STEP_SUMMARY
-          echo "- **Artifact name**: \`contact-extraction-results-${{ github.run_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact name**: \`latest-contact-extraction-results\`" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ **Failed**: Contact extraction did not complete successfully" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Contact extraction failed" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Workflow run**: #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Run ID**: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-
+        echo "**Run**: #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY

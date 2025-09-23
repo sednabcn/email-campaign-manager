@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """
-Contact Details Extractor
-Extracts contact information from text files and converts to CSV format.
-Supports hierarchical directory structure: contacts/subdir_contacts_DATE.csv
-
-This script should be placed at: .github/scripts/extract_contacts.py
+Fixed Contact Extraction Script for GitHub Actions
+Handles your specific directory structure: contact_details/education/adult_education/
 """
 
 import os
@@ -13,247 +10,123 @@ import csv
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
-import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-logger = logging.getLogger(__name__)
+def extract_email_from_line(line):
+    """Extract email addresses from a text line"""
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    return re.findall(email_pattern, line)
 
-class ContactExtractor:
-    """Extracts and processes contact information from text files."""
+def extract_phone_from_line(line):
+    """Extract phone numbers from a text line"""
+    phone_patterns = [
+        r'\+?1?[-.\s]?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}',  # US format
+        r'\+?[0-9]{1,3}[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{3,4}',  # International
+        r'\([0-9]{3}\)\s?[0-9]{3}-[0-9]{4}',  # (xxx) xxx-xxxx
+        r'\+44\s?[0-9]{4}\s?[0-9]{6}',  # UK format
+    ]
     
-    def __init__(self):
-        self.email_pattern = re.compile(r'📧\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', re.IGNORECASE)
-        self.phone_pattern = re.compile(r'📞\s*([+]?[\d\s\-\(\)\.]{8,20})', re.IGNORECASE)
-        self.website_pattern = re.compile(r'🌐\s*(https?://[^\s]+|www\.[^\s]+)', re.IGNORECASE)
-        
-        # Alternative patterns without emojis
-        self.email_fallback = re.compile(r'\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b')
-        self.phone_fallback = re.compile(r'(?:phone|tel|mobile|call):\s*([+]?[\d\s\-\(\)\.]{8,20})', re.IGNORECASE)
-        self.website_fallback = re.compile(r'(?:website|web|url):\s*(https?://[^\s]+|www\.[^\s]+)', re.IGNORECASE)
+    for pattern in phone_patterns:
+        phones = re.findall(pattern, line)
+        if phones:
+            return phones[0].strip()
+    return ""
 
-    def extract_contact_from_text(self, text: str, filename: str) -> Dict[str, str]:
-        """Extract contact information from a text block."""
-        lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
-        
-        if not lines:
-            return {}
-        
-        contact = {
-            'source_file': filename,
-            'name': '',
-            'title': '',
-            'organization': '',
-            'department': '',
-            'email': '',
-            'phone': '',
-            'website': '',
-            'address': '',
-            'notes': ''
-        }
-        
-        # Extract email (priority: emoji pattern, then fallback)
-        email_match = self.email_pattern.search(text) or self.email_fallback.search(text)
-        if email_match:
-            contact['email'] = email_match.group(1)
-        
-        # Extract phone
-        phone_match = self.phone_pattern.search(text) or self.phone_fallback.search(text)
-        if phone_match:
-            contact['phone'] = phone_match.group(1).strip()
-        
-        # Extract website
-        website_match = self.website_pattern.search(text) or self.website_fallback.search(text)
-        if website_match:
-            contact['website'] = website_match.group(1)
-        
-        # Process lines to extract structured information
-        current_section = []
-        
-        for i, line in enumerate(lines):
-            # Skip lines with contact info we've already extracted
-            if any(pattern.search(line) for pattern in [
-                self.email_pattern, self.phone_pattern, self.website_pattern,
-                self.email_fallback, self.phone_fallback, self.website_fallback
-            ]):
-                continue
-            
-            # First non-empty line is likely the name
-            if i == 0 or (not contact['name'] and not any(keyword in line.lower() for keyword in 
-                ['school', 'university', 'college', 'department', 'faculty', 'institute'])):
-                if not contact['name'] and not line.startswith(('Prof', 'Dr', 'Mr', 'Ms', 'Mrs')):
-                    # Check if this looks like a name (not an organization)
-                    if not any(org_keyword in line.lower() for org_keyword in 
-                        ['school', 'university', 'college', 'department', 'ltd', 'inc', 'corp']):
-                        contact['name'] = line
-                        continue
-            
-            # Detect titles
-            if any(title in line for title in ['Professor', 'Prof', 'Dr', 'Head of', 'Director', 'Manager', 'Coordinator']):
-                if not contact['title']:
-                    contact['title'] = line
-                else:
-                    contact['title'] += f" / {line}"
-                continue
-            
-            # Detect organizations/departments
-            if any(keyword in line.lower() for keyword in 
-                ['school', 'university', 'college', 'department', 'faculty', 'institute']):
-                if 'school' in line.lower() or 'department' in line.lower():
-                    if not contact['department']:
-                        contact['department'] = line
-                    else:
-                        contact['department'] += f" / {line}"
-                else:
-                    if not contact['organization']:
-                        contact['organization'] = line
-                    else:
-                        contact['organization'] += f" / {line}"
-                continue
-            
-            # Everything else goes to notes or address
-            current_section.append(line)
-        
-        # Process remaining lines as notes/address
-        if current_section:
-            # Try to identify address vs notes
-            address_lines = []
-            notes_lines = []
-            
-            for line in current_section:
-                # Simple heuristic: lines with postal codes, street numbers, or common address terms
-                if re.search(r'\d{4,5}|\d+\s+\w+\s+(street|road|avenue|lane|drive)|postcode|zip', 
-                           line.lower()):
-                    address_lines.append(line)
-                else:
-                    notes_lines.append(line)
-            
-            contact['address'] = ' | '.join(address_lines)
-            contact['notes'] = ' | '.join(notes_lines)
-        
-        # Clean up the contact - remove empty fields and trim
-        for key in contact:
-            if isinstance(contact[key], str):
-                contact[key] = contact[key].strip()
-        
-        return contact
+def extract_name_from_line(line, email):
+    """Extract name from line containing email"""
+    # Remove email from line to get potential name
+    line_without_email = line.replace(email, '').strip()
+    
+    # Remove common separators and clean up
+    name = re.sub(r'[<>\[\](){}:;,\-\|]+', ' ', line_without_email).strip()
+    name = ' '.join(name.split())  # Normalize whitespace
+    
+    # If name is too short or seems invalid, return empty
+    if len(name) < 2 or name.isdigit() or not name.replace(' ', '').replace('.', '').isalpha():
+        return ""
+    
+    return name
 
-    def process_text_file(self, file_path: Path) -> List[Dict[str, str]]:
-        """Process a single text file and extract all contacts."""
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except UnicodeDecodeError:
+def get_organization_from_filename(filename):
+    """Extract organization name from filename - handles your specific naming convention"""
+    # Remove file extension
+    org = filename.replace('-contacts.txt', '').replace('.txt', '')
+    
+    # Handle special cases in your files
+    if 'St.George' in org:
+        org = org.replace("St.George's=Univ", "St. George's University")
+    elif 'Birbeck' in org:
+        org = "Birkbeck College"
+    elif 'open-univ' in org:
+        org = "The Open University"
+    else:
+        # General cleanup
+        org = org.replace('=', ' ')
+        org = org.replace('-', ' ')
+        org = org.replace('_', ' ')
+        org = ' '.join(word.capitalize() for word in org.split())
+    
+    return org
+
+def extract_contacts_from_file(file_path):
+    """Extract contacts from a single text file"""
+    contacts = []
+    filename = os.path.basename(file_path)
+    organization = get_organization_from_filename(filename)
+    
+    print(f"  Processing: {file_path}")
+    print(f"  Organization: {organization}")
+    
+    try:
+        # Try different encodings to handle various file formats
+        encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
+        content = None
+        
+        for encoding in encodings:
             try:
-                with open(file_path, 'r', encoding='latin-1') as f:
+                with open(file_path, 'r', encoding=encoding) as f:
                     content = f.read()
-            except Exception as e:
-                logger.warning(f"Could not read file {file_path}: {e}")
-                return []
-        except Exception as e:
-            logger.warning(f"Error reading file {file_path}: {e}")
-            return []
-        
-        if not content.strip():
-            logger.warning(f"File {file_path} is empty")
-            return []
-        
-        contacts = []
-        
-        # Split by double newlines or other clear separators
-        contact_blocks = re.split(r'\n\s*\n|---+|\*\*\*+|===+', content)
-        
-        for block in contact_blocks:
-            block = block.strip()
-            if not block:
+                print(f"  Successfully read with encoding: {encoding}")
+                break
+            except UnicodeDecodeError:
                 continue
-                
-            # Skip blocks that don't look like contacts (too short or no key info)
-            if len(block) < 20 and not any(pattern.search(block) for pattern in 
-                [self.email_pattern, self.email_fallback]):
+        
+        if content is None:
+            print(f"  ERROR: Could not decode file with any encoding")
+            return contacts
+        
+        line_number = 0
+        for line in content.splitlines():
+            line_number += 1
+            line = line.strip()
+            
+            # Skip empty lines, comments, and lines that are too short
+            if not line or line.startswith('#') or line.startswith('//') or len(line) < 5:
                 continue
             
-            contact = self.extract_contact_from_text(block, file_path.name)
+            # Look for email addresses in the line
+            emails = extract_email_from_line(line)
             
-            # Only add if we extracted meaningful information
-            if contact and (contact['email'] or contact['name'] or contact['organization']):
-                contacts.append(contact)
-        
-        # If no contacts found but file has content, treat whole file as one contact
-        if not contacts and content.strip():
-            contact = self.extract_contact_from_text(content, file_path.name)
-            if contact and (contact['email'] or contact['name'] or contact['organization']):
-                contacts.append(contact)
-        
-        logger.info(f"Extracted {len(contacts)} contacts from {file_path.name}")
-        return contacts
-
-    def generate_csv_filename(self, path_parts: List[str]) -> str:
-        """Generate CSV filename based on directory structure."""
-        date_str = datetime.now().strftime("%Y%m%d")
-        
-        if len(path_parts) >= 2:
-            # For structure like education/adult_education -> edu_adults_contacts_DATE.csv
-            main_category = path_parts[0][:3]  # First 3 chars of main category
-            sub_category = path_parts[1].replace('_', '').replace('-', '')
-            
-            # Simplify subcategory name
-            if 'adult' in sub_category.lower():
-                sub_short = 'adults'
-            elif 'child' in sub_category.lower():
-                sub_short = 'children'
-            else:
-                sub_short = sub_category[:6]  # First 6 chars
+            for email in emails:
+                # Extract associated information
+                name = extract_name_from_line(line, email)
+                phone = extract_phone_from_line(line)
                 
-            filename = f"{main_category}_{sub_short}_contacts_{date_str}.csv"
-        else:
-            # Fallback for single directory
-            category = path_parts[0] if path_parts else 'general'
-            filename = f"{category}_contacts_{date_str}.csv"
-        
-        return filename
-
-    def save_to_csv(self, contacts: List[Dict[str, str]], output_path: Path):
-        """Save contacts to CSV file."""
-        if not contacts:
-            logger.warning("No contacts to save")
-            return
-        
-        # Ensure output directory exists
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        fieldnames = [
-            'source_file', 'name', 'title', 'organization', 'department',
-            'email', 'phone', 'website', 'address', 'notes'
-        ]
-        
-        try:
-            with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(contacts)
-            
-            logger.info(f"Successfully saved {len(contacts)} contacts to {output_path}")
-            
-            # Print sample of what was saved
-            print(f"\n📊 Sample from {output_path.name}:")
-            print("-" * 50)
-            for i, contact in enumerate(contacts[:3]):  # Show first 3 contacts
-                print(f"Contact {i+1}:")
-                print(f"  Name: {contact['name']}")
-                print(f"  Email: {contact['email']}")
-                print(f"  Organization: {contact['organization']}")
-                print(f"  Title: {contact['title']}")
-                if i < len(contacts) - 1:
-                    print()
-            
-            if len(contacts) > 3:
-                print(f"... and {len(contacts) - 3} more contacts")
-            
-        except Exception as e:
-            logger.error(f"Error saving CSV to {output_path}: {e}")
-            raise
+                # Create contact record
+                contact = {
+                    'name': name if name else f"Contact {len(contacts) + 1}",
+                    'email': email.lower().strip(),
+                    'phone': phone,
+                    'organization': organization,
+                    'source_file': filename
+                }
+                
+                contacts.append(contact)
+                print(f"    Found: {contact['name']} <{contact['email']}> at {organization}")
+    
+    except Exception as e:
+        print(f"  ERROR processing {file_path}: {str(e)}")
+    
+    return contacts
 
 def main():
     if len(sys.argv) < 3:
@@ -261,91 +134,127 @@ def main():
         print("Example: python extract_contacts.py contact_details contacts")
         sys.exit(1)
     
-    source_dir = Path(sys.argv[1])
-    output_dir = Path(sys.argv[2])
+    source_dir = sys.argv[1]
+    output_dir = sys.argv[2]
     
-    if not source_dir.exists():
-        logger.error(f"Source directory {source_dir} does not exist")
-        sys.exit(1)
+    print(f"Contact Extraction Script - Fixed Version")
+    print(f"Source: {source_dir}")
+    print(f"Output: {output_dir}")
+    print("-" * 60)
     
-    extractor = ContactExtractor()
+    # Ensure output directory exists
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    print(f"Created/verified output directory: {output_path.absolute()}")
     
     # Find all .txt files recursively
-    txt_files = list(source_dir.rglob("*.txt"))
+    txt_files = []
+    source_path = Path(source_dir)
+    
+    if source_path.exists():
+        txt_files = list(source_path.rglob("*.txt"))
+        print(f"Searching recursively in: {source_path.absolute()}")
+    else:
+        print(f"WARNING: Source directory {source_dir} does not exist")
     
     if not txt_files:
-        logger.warning(f"No .txt files found in {source_dir}")
-        # Create a sample file structure
-        sample_dir = source_dir / "education" / "adult_education"
-        sample_dir.mkdir(parents=True, exist_ok=True)
-        sample_file = sample_dir / "sample-contacts.txt"
+        print(f"No .txt files found in {source_dir}")
+        # Create empty CSV file to avoid pipeline failure
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_filename = f"edu_adults_contacts_{timestamp}.csv"
+        csv_path = output_path / csv_filename
         
-        with open(sample_file, 'w') as f:
-            f.write("""Professor Rachel Hilliam
-Head of School
-School of Mathematics & Statistics
-The Open University
-📧 rachel.hilliam@open.ac.uk
-📞 +44 1908 274066
-
-Dr. Sarah Johnson
-Senior Lecturer
-Department of Computer Science
-Birkbeck College
-📧 s.johnson@bbk.ac.uk
-📞 +44 20 7631 6000
-""")
+        with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['name', 'email', 'phone', 'organization', 'source_file']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
         
-        logger.info(f"Created sample file: {sample_file}")
-        txt_files = [sample_file]
+        print(f"Created empty CSV file: {csv_path}")
+        return
     
-    logger.info(f"Found {len(txt_files)} .txt files to process")
+    print(f"Found {len(txt_files)} text files:")
+    for txt_file in sorted(txt_files):
+        print(f"  - {txt_file}")
+    print()
     
-    # Group files by their directory structure
-    grouped_files = {}
-    for txt_file in txt_files:
-        # Get relative path from source directory
-        rel_path = txt_file.relative_to(source_dir)
-        path_parts = rel_path.parts[:-1]  # Exclude filename
-        
-        key = tuple(path_parts) if path_parts else ('general',)
-        if key not in grouped_files:
-            grouped_files[key] = []
-        grouped_files[key].append(txt_file)
+    # Extract contacts from all files
+    all_contacts = []
+    for txt_file in sorted(txt_files):
+        file_contacts = extract_contacts_from_file(txt_file)
+        all_contacts.extend(file_contacts)
     
-    logger.info(f"Processing {len(grouped_files)} directory groups")
-    
-    total_contacts = 0
-    
-    for path_parts, files in grouped_files.items():
-        logger.info(f"Processing directory: {' / '.join(path_parts)}")
-        
-        all_contacts = []
-        for file_path in files:
-            logger.info(f"  Processing file: {file_path.name}")
-            contacts = extractor.process_text_file(file_path)
-            all_contacts.extend(contacts)
-        
-        if all_contacts:
-            csv_filename = extractor.generate_csv_filename(list(path_parts))
-            csv_path = output_dir / csv_filename
-            
-            extractor.save_to_csv(all_contacts, csv_path)
-            total_contacts += len(all_contacts)
+    # Remove duplicates based on email
+    print(f"Removing duplicates from {len(all_contacts)} contacts...")
+    unique_contacts = {}
+    for contact in all_contacts:
+        email = contact['email']
+        if email not in unique_contacts:
+            unique_contacts[email] = contact
         else:
-            logger.warning(f"No contacts found in directory: {' / '.join(path_parts)}")
+            # Keep the contact with more complete information
+            existing = unique_contacts[email]
+            if not existing['name'] or existing['name'].startswith('Contact '):
+                if contact['name'] and not contact['name'].startswith('Contact '):
+                    existing['name'] = contact['name']
+            if not existing['phone'] and contact['phone']:
+                existing['phone'] = contact['phone']
     
-    print(f"\n🎉 Extraction completed!")
-    print(f"📊 Total contacts extracted: {total_contacts}")
-    print(f"📁 Output directory: {output_dir}")
+    final_contacts = list(unique_contacts.values())
+    print(f"After deduplication: {len(final_contacts)} unique contacts")
     
-    # List generated CSV files
-    csv_files = list(output_dir.glob("*.csv"))
-    if csv_files:
-        print(f"📄 Generated CSV files:")
-        for csv_file in csv_files:
-            file_size = csv_file.stat().st_size
-            print(f"  - {csv_file.name} ({file_size} bytes)")
+    # Generate output CSV filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_filename = f"edu_adults_contacts_{timestamp}.csv"
+    csv_path = output_path / csv_filename
+    
+    print(f"Creating CSV file: {csv_path.absolute()}")
+    
+    # Write to CSV
+    try:
+        with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['name', 'email', 'phone', 'organization', 'source_file']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            writer.writeheader()
+            for contact in final_contacts:
+                writer.writerow(contact)
+        
+        # Verify file was created
+        if csv_path.exists():
+            file_size = csv_path.stat().st_size
+            print(f"SUCCESS: CSV file created successfully!")
+            print(f"  File path: {csv_path.absolute()}")
+            print(f"  File size: {file_size} bytes")
+            print(f"  Records written: {len(final_contacts)}")
+        else:
+            print(f"ERROR: CSV file was not created at {csv_path}")
+            sys.exit(1)
+            
+    except Exception as e:
+        print(f"ERROR writing CSV file: {e}")
+        sys.exit(1)
+    
+    # Summary
+    print("-" * 60)
+    print(f"Extraction completed successfully!")
+    print(f"Summary:")
+    print(f"  - Files processed: {len(txt_files)}")
+    print(f"  - Contacts extracted: {len(all_contacts)}")
+    print(f"  - Unique contacts: {len(final_contacts)}")
+    print(f"  - Output file: {csv_filename}")
+    print(f"  - Full path: {csv_path.absolute()}")
+    
+    # Show preview
+    print(f"\nCSV Preview (first 5 records):")
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            for i, line in enumerate(f):
+                if i < 6:  # Header + 5 records
+                    print(f"  {line.strip()}")
+                else:
+                    break
+    except Exception as e:
+        print(f"Error reading preview: {e}")
 
 if __name__ == "__main__":
     main()

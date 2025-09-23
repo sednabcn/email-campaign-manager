@@ -1,0 +1,213 @@
+name: Contact Details Extractor
+
+# Grant the workflow permission to write to the repo (only when needed)
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: ["dev"]
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      source_directory:
+        description: 'Top-level directory containing .txt files (recursively searched)'
+        required: false
+        default: 'contact_details'
+        type: string
+      output_directory:
+        description: 'Output directory for generated CSV files'
+        required: false
+        default: 'contacts'
+        type: string
+      commit_results:
+        description: 'Commit the generated CSV back to the repository'
+        required: false
+        default: false
+        type: boolean
+
+  # FIXED: workflow_call must have proper inputs structure
+  workflow_call:
+    inputs:
+      source_directory:
+        required: false
+        type: string
+        default: 'contact_details'
+      output_directory:
+        required: false
+        type: string
+        default: 'contacts'
+    # ADDED: outputs for reusable workflows
+    outputs:
+      csv_file:
+        description: 'Path to the generated CSV file'
+        value: ${{ jobs.extract-contacts.outputs.csv_file }}
+      record_count:
+        description: 'Number of records extracted'
+        value: ${{ jobs.extract-contacts.outputs.record_count }}
+
+env:
+  PYTHON_VERSION: '3.9'
+
+jobs:
+  extract-contacts:
+    runs-on: ubuntu-latest
+    # ADDED: outputs for the job
+    outputs:
+      csv_file: ${{ steps.extraction.outputs.csv_file }}
+      record_count: ${{ steps.extraction.outputs.record_count }}
+      file_size: ${{ steps.extraction.outputs.file_size }}
+
+    steps:
+    - name: Checkout repository
+      uses: sednabcn/checkout@v4
+      with:
+        fetch-depth: 0  # fetch full history for file timestamps
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # pip install -r requirements.txt  # if you add requirements later
+
+    - name: Verify source directory exists
+      run: |
+        SOURCE_DIR="${{ inputs.source_directory || 'contact_details' }}"
+        if [ ! -d "$SOURCE_DIR" ]; then
+          echo "⚠️  Source directory '$SOURCE_DIR' does not exist"
+          echo "Creating it for future use..."
+          mkdir -p "$SOURCE_DIR"
+          echo "Please add .txt files under '$SOURCE_DIR/[education|finance|healthcare]/sub_dirs'"
+        else
+          echo "✅ Source directory '$SOURCE_DIR' exists"
+          echo "Found $(find "$SOURCE_DIR" -type f -name "*.txt" | wc -l) .txt files"
+        fi
+
+    - name: List input files (recursive)
+      run: |
+        SOURCE_DIR="${{ inputs.source_directory || 'contact_details' }}"
+        echo "📁 Scanning for .txt files under $SOURCE_DIR recursively..."
+        if [ -d "$SOURCE_DIR" ]; then
+          find "$SOURCE_DIR" -type f -name "*.txt" | sort | tee /tmp/contact_files.txt | head -20
+          TOTAL_FILES=$(wc -l < /tmp/contact_files.txt)
+          echo "Total .txt files found: $TOTAL_FILES"
+          if [ $TOTAL_FILES -eq 0 ]; then
+            echo "⚠️  No .txt files found to process"
+          fi
+        fi
+        
+    - name: Use existing real extraction script
+      run: |
+        # The real extract_contacts.py should already be at .github/scripts/extract_contacts.py
+        if [ -f ".github/scripts/extract_contacts.py" ]; then
+          echo "✅ Using existing real extraction script"
+          chmod +x .github/scripts/extract_contacts.py
+        else
+          echo "❌ Real extraction script not found at .github/scripts/extract_contacts.py"
+          echo "Please move your extract_contacts.py to .github/scripts/"
+          exit 1
+        fi
+
+        
+    - name: Run contact extraction
+      id: extraction
+      run: |
+        SOURCE_DIR="${{ inputs.source_directory || 'contact_details' }}"
+        OUTPUT_DIR="${{ inputs.output_directory || 'contacts' }}"
+
+        echo "🚀 Starting contact extraction..."
+        echo "Source: $SOURCE_DIR"
+        echo "Output: $OUTPUT_DIR"
+
+        python .github/scripts/extract_contacts.py "$SOURCE_DIR" "$OUTPUT_DIR"
+
+        if [ -d "$OUTPUT_DIR" ]; then
+          CSV_FILE=$(find "$OUTPUT_DIR" -type f -name "*.csv" -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- || find "$OUTPUT_DIR" -type f -name "*.csv" | head -1)
+          if [ -n "$CSV_FILE" ]; then
+            echo "✅ CSV file created: $CSV_FILE"
+            echo "csv_file=$CSV_FILE" >> $GITHUB_OUTPUT
+
+            FILE_SIZE=$(stat -f%z "$CSV_FILE" 2>/dev/null || stat -c%s "$CSV_FILE" 2>/dev/null || echo "unknown")
+            RECORD_COUNT=$(tail -n +2 "$CSV_FILE" | wc -l)
+
+            echo "📊 File size: $FILE_SIZE bytes"
+            echo "📊 Records extracted: $RECORD_COUNT"
+            echo "file_size=$FILE_SIZE" >> $GITHUB_OUTPUT
+            echo "record_count=$RECORD_COUNT" >> $GITHUB_OUTPUT
+          else
+            echo "❌ No CSV file was created"
+            exit 1
+          fi
+        else
+          echo "❌ Output directory was not created"
+          exit 1
+        fi
+
+    - name: Display extraction results
+      if: steps.extraction.outputs.csv_file
+      run: |
+        CSV_FILE="${{ steps.extraction.outputs.csv_file }}"
+        echo "📋 Extraction Summary:"
+        echo "====================="
+        echo "• Output file: $CSV_FILE"
+        echo "• File size: ${{ steps.extraction.outputs.file_size }} bytes"
+        echo "• Records: ${{ steps.extraction.outputs.record_count }}"
+        echo ""
+        echo "📄 First 10 rows of CSV:"
+        head -n 11 "$CSV_FILE" | column -t -s, || head -n 11 "$CSV_FILE"
+
+    - name: Upload CSV as artifact
+      if: steps.extraction.outputs.csv_file
+      uses: actions/upload-artifact@v4
+      with:
+        name: latest-contact-extraction-results
+        path: ${{ steps.extraction.outputs.csv_file }}
+        retention-days: 30
+
+    - name: Commit and push results
+      if: >
+        steps.extraction.outputs.csv_file &&
+        (inputs.commit_results == true) &&
+        github.event_name != 'workflow_call'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add "${{ steps.extraction.outputs.csv_file }}"
+        git commit -m "Add extracted contacts: ${{ steps.extraction.outputs.csv_file }}" || echo "No changes to commit"
+        git push || echo "Nothing to push"
+
+    - name: Send notification on failure
+      if: failure()
+      run: |
+        echo "❌ Contact extraction workflow failed!"
+        echo "Check the logs above for details."
+        echo "Common issues:"
+        echo "• No .txt files in source directory"
+        echo "• Invalid file formats"
+        echo "• Permission issues"
+
+    - name: Job summary
+      if: always()
+      run: |
+        echo "## 📊 Contact Extraction Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.extraction.outputs.csv_file }}" ]; then
+          echo "✅ **Success**: Contact extraction completed" >> $GITHUB_STEP_SUMMARY
+          echo "- **Output file**: \`${{ steps.extraction.outputs.csv_file }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Records extracted**: ${{ steps.extraction.outputs.record_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **File size**: ${{ steps.extraction.outputs.file_size }} bytes" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact name**: \`contact-extraction-results-${{ github.run_id }}\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Failed**: Contact extraction did not complete successfully" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Workflow run**: #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Run ID**: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+
