@@ -176,17 +176,6 @@ jobs:
           exit 1
         fi
 
-    - name: Rename CSV with timestamp
-      if: steps.extraction.outputs.csv_file
-      run: |
-        ts=$(date +%Y%m%d_%H%M%S)
-        dir=$(dirname "${{ steps.extraction.outputs.csv_file }}")
-        base="edu_adults_contacts_${ts}.csv"
-        newfile="$dir/$base"
-        mv "${{ steps.extraction.outputs.csv_file }}" "$newfile"
-        echo "csv_file=$newfile" >> $GITHUB_OUTPUT
-        echo "csv_filename=$base" >> $GITHUB_OUTPUT
-
         
     - name: Display extraction results
       if: steps.extraction.outputs.csv_file
