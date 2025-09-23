@@ -2,7 +2,7 @@ name: Quick Email Test
 
 on:
   push:
-    branches: [master, dev, develop]
+    branches: [main, dev, develop]
   workflow_dispatch:
 
 jobs:
@@ -24,15 +24,14 @@ jobs:
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          secure: true
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
           subject: "🚀 Quick Test Email"
           to: ${{ secrets.SMTP_USER }}
           from: ${{ secrets.SMTP_USER }}
           body: file://email_body.txt
+          convert_markdown: true
           attachments: |
             campaign_execution.log
             tracking/**/*
             *.json
- 
