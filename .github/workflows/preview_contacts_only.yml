@@ -1,4 +1,4 @@
-name: Creating_real_csv_contacts_Test
+name: CV contacts preview Test
 
 on:
   workflow_dispatch:
