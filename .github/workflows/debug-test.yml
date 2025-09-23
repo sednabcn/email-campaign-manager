@@ -1,0 +1,11 @@
+name: Debug Test Workflow
+on:
+  workflow_dispatch:
+  push:
+    branches: ["dev"]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hello World
+        run: echo "This is a test workflow"

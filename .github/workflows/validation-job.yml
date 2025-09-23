@@ -1,0 +1,310 @@
+name: validation-job
+on:
+  workflow_call:
+    inputs:
+      force_validation:
+        description: 'Force validation even if files exist'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Run in dry-run mode'
+        required: false
+        default: true
+        type: boolean
+    outputs:
+      validation_status:
+        description: 'Validation status (success/failure)'
+        value: ${{ jobs.validate.outputs.validation_status }}
+      contact_count:
+        description: 'Number of contacts found'
+        value: ${{ jobs.validate.outputs.contact_count }}
+      campaign_count:
+        description: 'Number of campaigns found'
+        value: ${{ jobs.validate.outputs.campaign_count }}
+      status:
+        description: 'Legacy status output'
+        value: ${{ jobs.validate.outputs.status }}
+      report:
+        description: 'Validation report'
+        value: ${{ jobs.validate.outputs.report }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      validation_status: ${{ steps.final-status.outputs.validation_status }}
+      contact_count: ${{ steps.count-data.outputs.contact_count }}
+      campaign_count: ${{ steps.count-data.outputs.campaign_count }}
+      status: ${{ steps.validation.outputs.status }}
+      report: ${{ steps.validation.outputs.report }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas openpyxl google-api-python-client google-auth-httplib2 google-auth-oauthlib python-docx
+
+      - name: Create directory structure
+        run: |
+          echo "Creating required directories..."
+          mkdir -p contacts scheduled utils templates tracking logs
+          touch utils/__init__.py
+          echo "Force validation: ${{ inputs.force_validation }}"
+          echo "Dry run mode: ${{ inputs.dry_run }}"
+
+      - name: Create sample data if needed
+        if: inputs.force_validation == true
+        run: |
+          echo "Force validation enabled - creating sample data..."
+          
+          # Create sample contacts
+          cat > contacts/sample_contacts.csv << 'CSVEOF'
+          name,email,company,title,consent_date,source
+          John Doe,john.doe@example.com,Example Corp,Senior Manager,2024-01-15,website
+          Jane Smith,jane.smith@test.org,Test Organization,Director,2024-01-20,conference
+          Bob Johnson,bob.johnson@demo.net,Demo Company,CEO,2024-02-01,referral
+          Alice Brown,alice.brown@sample.com,Sample Inc,CTO,2024-02-10,linkedin
+          Charlie Wilson,charlie.wilson@testing.org,Testing LLC,VP Sales,2024-02-15,webinar
+          CSVEOF
+          
+          # Create sample campaign
+          cat > scheduled/welcome_campaign.json << 'JSONEOF'
+          {
+          "subject": "Welcome {{Contact Name}}!",
+          "content": "Dear {{Contact Name}},\n\nThank you for connecting with us at {{Company}}!\n\nAs a {{Title}}, we believe you'll find value in our updates.\n\nBest regards,\nThe Team",
+          "from_name": "Campaign Team",
+          "content_type": "text"
+          }
+          JSONEOF
+          
+          echo "Sample data created"
+
+      - name: System validation for utils/ scripts
+        id: validation
+        run: |
+          echo "Running system validation for utils/ directory structure..."
+          
+          overall_status=0
+          validation_report="# System Validation Report\n\n"
+          
+          # Check utils directory exists
+          if [ ! -d "utils" ]; then
+            echo "❌ utils/ directory not found"
+            validation_report+="## utils/ Directory: MISSING\n"
+            overall_status=1
+          else
+            echo "✅ utils/ directory found"
+            validation_report+="## utils/ Directory: FOUND\n"
+          fi
+          
+          # Check for required utils/docx_parser.py
+          if [ -f "utils/docx_parser.py" ]; then
+            echo "✅ Found utils/docx_parser.py"
+            
+            # Test if utils/docx_parser.py can be imported
+            python << 'EOF'
+          import sys
+          import os
+          sys.path.insert(0, 'utils')
+
+          try:
+            # Test basic import from utils/
+            import docx_parser
+            print('✅ utils/docx_parser.py imports successfully')
+
+            # Check if it has expected functions/classes
+            if hasattr(docx_parser, 'campaign_main') or hasattr(docx_parser, 'main'):
+              print('  - Main execution function detected')
+            else:
+              print('  - Script appears to be executable as module')
+
+          except Exception as e:
+           print(f'❌ utils/docx_parser.py import error: {e}')
+           sys.exit(1)
+          EOF
+            
+            if [ $? -eq 0 ]; then
+              validation_report+="## Main Campaign Processor (utils/docx_parser.py): PASSED\n"
+            else
+              validation_report+="## Main Campaign Processor (utils/docx_parser.py): IMPORT FAILED\n"
+              overall_status=1
+            fi
+          else
+            echo "❌ utils/docx_parser.py not found"
+            validation_report+="## Main Campaign Processor (utils/docx_parser.py): MISSING\n"
+            overall_status=1
+          fi
+          
+          # Check for required utils/data_loader.py
+          if [ -f "utils/data_loader.py" ]; then
+            echo "✅ Found utils/data_loader.py"
+            
+            # Test if utils/data_loader.py has required functions
+            python << 'EOF'
+          import sys
+          sys.path.insert(0, 'utils')
+
+          try:
+            from data_loader import load_contacts_directory, validate_contact_data
+            print('✅ utils/data_loader.py with required functions available')
+            print('  - load_contacts_directory function: available')
+            print('  - validate_contact_data function: available')
+
+            # Test if it supports multiple formats
+            import inspect
+            sig = inspect.signature(load_contacts_directory)
+            params = list(sig.parameters.keys())
+            if 'svc_account_json' in params:
+              print('  - Google Sheets support: available')
+            else:
+              print('  - Google Sheets support: limited')
+
+          except ImportError as e:
+            print(f'❌ utils/data_loader.py import error: {e}')
+            sys.exit(1)
+          except Exception as e:
+            print(f'⚠️ utils/data_loader.py warning: {e}')
+          EOF
+            
+            if [ $? -eq 0 ]; then
+              validation_report+="## Data Loader (utils/data_loader.py): PASSED\n"
+            else
+              validation_report+="## Data Loader (utils/data_loader.py): ISSUES\n"
+              overall_status=1
+            fi
+          else
+            echo "❌ utils/data_loader.py not found"
+            validation_report+="## Data Loader (utils/data_loader.py): MISSING\n"
+            overall_status=1
+          fi
+          
+          # Check for optional utils scripts
+          optional_scripts=(
+            "utils/email_sender.py"
+            "utils/reply_tracker.py" 
+            "utils/email_feedback_injector.py"
+          )
+          
+          optional_available=0
+          for script in "${optional_scripts[@]}"; do
+            if [ -f "$script" ]; then
+              echo "✅ Found optional $script"
+              optional_available=$((optional_available + 1))
+            else
+              echo "ℹ️ Optional $script not found"
+            fi
+          done
+          
+          validation_report+="## Optional Scripts: $optional_available/${#optional_scripts[@]} available\n"
+          
+          # Check Python dependencies for utils/ scripts
+          echo "Checking Python dependencies for utils/ scripts..."
+          python << 'EOF'
+          import sys
+
+          required_modules = [
+          'pandas', 'requests', 'pathlib', 'json', 'os',
+          'datetime', 'argparse', 'traceback'
+          ]
+
+          optional_modules = [
+          'docx', 'gspread', 'oauth2client', 'openpyxl', 
+          'jinja2', 'email', 'smtplib'
+          ]
+
+          missing_required = []
+          missing_optional = []
+
+          for module in required_modules:
+            try:
+              __import__(module)
+            except ImportError:
+              missing_required.append(module)
+
+          for module in optional_modules:
+            try:
+              __import__(module)
+            except ImportError:
+              missing_optional.append(module)
+
+          if missing_required:
+            print(f'❌ Missing required modules: {missing_required}')
+            sys.exit(1)
+          else:
+            print('✅ All required Python modules available')
+
+          if missing_optional:
+            print(f'⚠️ Missing optional modules: {missing_optional}')
+            print('  Some features may be limited')
+          else:
+            print('✅ All optional Python modules available')
+          EOF
+          
+          if [ $? -eq 0 ]; then
+            validation_report+="## Python Dependencies: SATISFIED\n"
+          else
+            validation_report+="## Python Dependencies: MISSING REQUIRED\n"
+            overall_status=1
+          fi
+          
+          # Final validation assessment
+          if [ $overall_status -eq 0 ]; then
+            echo "✅ System validation passed - utils/ scripts are properly configured"
+            validation_report+="\n## Overall Status: PASSED - Ready for execution\n"
+          else
+            echo "❌ System validation failed - check utils/ directory structure"
+            validation_report+="\n## Overall Status: FAILED - Fix required before execution\n"
+          fi
+          
+          # Create structure report using a different approach to avoid special character issues
+          structure_info="\n### Required Structure:\n\`\`\`\nutils/\n|-- docx_parser.py     # Main campaign processor\n|-- data_loader.py     # Multi-format data loader\n|-- email_sender.py    # Optional: Email sending\n\`-- reply_tracker.py   # Optional: Reply tracking\n\`\`\`\n"
+          validation_report+="$structure_info"
+          
+          echo "status=$overall_status" >> $GITHUB_OUTPUT
+          cat << EOF >> $GITHUB_OUTPUT
+          report<<REPORT_EOF
+          $(echo -e "$validation_report")
+          REPORT_EOF
+          EOF
+
+      - name: Count data files
+        id: count-data
+        run: |
+          echo "Counting data files..."
+          
+          # Count contacts
+          contact_files=$(find contacts/ -name "*.csv" -o -name "*.xlsx" -o -name "*.json" 2>/dev/null | wc -l)
+          echo "Contact files found: $contact_files"
+          echo "contact_count=$contact_files" >> $GITHUB_OUTPUT
+          
+          # Count campaigns  
+          campaign_files=$(find scheduled/ -name "*.txt" -o -name "*.html" -o -name "*.json" -o -name "*.md" 2>/dev/null | wc -l)
+          echo "Campaign files found: $campaign_files"
+          echo "campaign_count=$campaign_files" >> $GITHUB_OUTPUT
+
+      - name: Set final status
+        id: final-status
+        run: |
+          validation_passed="${{ steps.validation.outputs.status }}"
+          contact_count="${{ steps.count-data.outputs.contact_count }}"
+          campaign_count="${{ steps.count-data.outputs.campaign_count }}"
+          
+          if [ "$validation_passed" = "0" ] && [ "$contact_count" -gt "0" ] && [ "$campaign_count" -gt "0" ]; then
+            echo "validation_status=success" >> $GITHUB_OUTPUT
+            echo "✅ Final validation status: SUCCESS"
+          else
+            echo "validation_status=failure" >> $GITHUB_OUTPUT
+            echo "❌ Final validation status: FAILURE"
+            echo "  - Validation passed: $validation_passed"
+            echo "  - Contact files: $contact_count"
+            echo "  - Campaign files: $campaign_count"
+          fi

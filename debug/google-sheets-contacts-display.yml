@@ -1,0 +1,328 @@
+name: Display Google Sheets Contacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_contacts:
+        description: 'Maximum number of contacts to display'
+        required: false
+        default: '50'
+        type: string
+      show_emails:
+        description: 'Show email addresses (privacy consideration)'
+        required: false
+        default: false
+        type: boolean
+      filter_domain:
+        description: 'Filter contacts by email domain'
+        required: false
+        default: ''
+        type: string
+  push:
+    branches: ["dev", "main", "master"]
+    paths:
+      - "contacts/**"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  display-contacts:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install Google Sheets dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install gspread google-auth google-auth-oauthlib pandas
+
+    - name: Create Google Sheets reader script
+      run: |
+        cat > read_contacts.py << 'PYTHON_EOF'
+        import os
+        import sys
+        import re
+        import json
+        import pandas as pd
+        from urllib.parse import urlparse, parse_qs
+        
+        def extract_sheet_id_from_url_file(url_file_path):
+            """Extract Google Sheets ID from .url file"""
+            try:
+                with open(url_file_path, 'r') as f:
+                    content = f.read()
+                
+                # Look for Google Sheets URL in the content
+                url_match = re.search(r'https://docs\.google\.com/spreadsheets/d/([a-zA-Z0-9-_]+)', content)
+                if url_match:
+                    return url_match.group(1)
+                
+                # Alternative: look for direct URL line
+                lines = content.strip().split('\n')
+                for line in lines:
+                    if 'docs.google.com/spreadsheets' in line:
+                        url_match = re.search(r'/spreadsheets/d/([a-zA-Z0-9-_]+)', line)
+                        if url_match:
+                            return url_match.group(1)
+                
+                return None
+            except Exception as e:
+                print(f"❌ Error reading URL file: {e}")
+                return None
+
+        def read_google_sheets_public(sheet_id, sheet_name='Sheet1'):
+            """Read public Google Sheets using CSV export URL"""
+            try:
+                # Public Google Sheets CSV export URL
+                csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
+                
+                print(f"📊 Attempting to read from: {csv_url}")
+                
+                # Try to read the CSV data
+                df = pd.read_csv(csv_url)
+                return df
+                
+            except Exception as e:
+                print(f"❌ Error reading public Google Sheets: {e}")
+                return None
+
+        def simulate_contact_data():
+            """Create simulated contact data for demonstration"""
+            import random
+            
+            companies = ['TechCorp', 'HealthPlus', 'EduSystems', 'FinanceGroup', 'InnovateLab']
+            domains = ['tech.com', 'health.org', 'edu.net', 'finance.co', 'innovate.io']
+            industries = ['Technology', 'Healthcare', 'Education', 'Finance', 'Research']
+            
+            contacts = []
+            for i in range(1, 21):  # Generate 20 sample contacts
+                company = random.choice(companies)
+                domain = random.choice(domains)
+                industry = random.choice(industries)
+                
+                contact = {
+                    'name': f'Contact {i}',
+                    'email': f'contact{i}@{domain}',
+                    'company': f'{company} {i}',
+                    'industry': industry,
+                    'status': random.choice(['active', 'pending', 'inactive']),
+                    'last_contact': f'2024-{random.randint(1,12):02d}-{random.randint(1,28):02d}'
+                }
+                contacts.append(contact)
+            
+            return pd.DataFrame(contacts)
+
+        def main():
+            print("=== GOOGLE SHEETS CONTACT READER ===")
+            
+            # Configuration
+            max_contacts = int("${{ github.event.inputs.max_contacts || '50' }}")
+            show_emails = "${{ github.event.inputs.show_emails || 'false' }}" == "true"
+            filter_domain = "${{ github.event.inputs.filter_domain || '' }}"
+            
+            print(f"📋 Max contacts to display: {max_contacts}")
+            print(f"📧 Show emails: {show_emails}")
+            if filter_domain:
+                print(f"🔍 Filter domain: {filter_domain}")
+            print()
+            
+            # Check if URL file exists
+            url_file_path = "contacts/client_test.url"
+            
+            if os.path.exists(url_file_path):
+                print(f"✅ Found Google Sheets URL file: {url_file_path}")
+                
+                # Extract Sheet ID
+                sheet_id = extract_sheet_id_from_url_file(url_file_path)
+                
+                if sheet_id:
+                    print(f"📊 Google Sheets ID: {sheet_id}")
+                    
+                    # Try to read the sheet
+                    df = read_google_sheets_public(sheet_id)
+                    
+                    if df is not None and not df.empty:
+                        print(f"✅ Successfully loaded {len(df)} contacts from Google Sheets")
+                    else:
+                        print("⚠️  Could not read Google Sheets data (may be private)")
+                        print("📝 Using simulated contact data for demonstration...")
+                        df = simulate_contact_data()
+                else:
+                    print("❌ Could not extract Google Sheets ID from URL file")
+                    print("📝 Using simulated contact data...")
+                    df = simulate_contact_data()
+            else:
+                print(f"⚠️  URL file not found: {url_file_path}")
+                print("📝 Using simulated contact data for demonstration...")
+                df = simulate_contact_data()
+            
+            # Process and filter data
+            if df is not None and not df.empty:
+                # Apply domain filter if specified
+                if filter_domain and 'email' in df.columns:
+                    original_count = len(df)
+                    df = df[df['email'].str.contains(filter_domain, case=False, na=False)]
+                    print(f"🔍 Filtered by domain '{filter_domain}': {original_count} → {len(df)} contacts")
+                
+                # Limit number of contacts
+                if len(df) > max_contacts:
+                    df = df.head(max_contacts)
+                    print(f"📊 Limited to first {max_contacts} contacts")
+                
+                print("\n" + "="*80)
+                print("📋 CONTACT LIST")
+                print("="*80)
+                
+                # Display contacts
+                for idx, row in df.iterrows():
+                    print(f"\n👤 Contact #{idx + 1}:")
+                    
+                    for column in df.columns:
+                        value = row[column]
+                        
+                        # Handle email privacy
+                        if column.lower() == 'email' and not show_emails:
+                            if pd.notna(value) and '@' in str(value):
+                                domain = str(value).split('@')[1] if '@' in str(value) else 'unknown'
+                                value = f"***@{domain}"
+                        
+                        # Format output
+                        if pd.notna(value):
+                            column_display = column.replace('_', ' ').title()
+                            print(f"   {column_display}: {value}")
+                
+                # Summary statistics
+                print("\n" + "="*80)
+                print("📊 SUMMARY STATISTICS")
+                print("="*80)
+                print(f"📧 Total contacts displayed: {len(df)}")
+                
+                # Show column statistics
+                print(f"📋 Available fields: {', '.join(df.columns.tolist())}")
+                
+                # Industry breakdown if available
+                if 'industry' in df.columns:
+                    industry_counts = df['industry'].value_counts()
+                    print(f"🏭 Industries represented:")
+                    for industry, count in industry_counts.items():
+                        print(f"   - {industry}: {count} contacts")
+                
+                # Company breakdown if available
+                if 'company' in df.columns:
+                    company_counts = df['company'].value_counts().head(5)
+                    print(f"🏢 Top companies:")
+                    for company, count in company_counts.items():
+                        print(f"   - {company}: {count} contacts")
+                
+                # Save summary for artifact
+                summary = {
+                    'total_contacts': len(df),
+                    'fields_available': df.columns.tolist(),
+                    'sample_data': df.head(3).to_dict('records') if len(df) > 0 else [],
+                    'source': 'google_sheets' if os.path.exists(url_file_path) else 'simulated'
+                }
+                
+                with open('contact_summary.json', 'w') as f:
+                    json.dump(summary, f, indent=2)
+                
+                print(f"\n✅ Contact summary saved to contact_summary.json")
+                
+            else:
+                print("❌ No contact data available to display")
+                sys.exit(1)
+
+        if __name__ == "__main__":
+            main()
+        PYTHON_EOF
+        
+    - name: Display contacts from Google Sheets
+      run: |
+        python read_contacts.py
+        
+    - name: Create contact visualization
+      run: |
+        python -c "
+import json
+import os
+
+if os.path.exists('contact_summary.json'):
+    with open('contact_summary.json') as f:
+        summary = json.load(f)
+    
+    print('\n' + '='*60)
+    print('📈 CONTACT DATA VISUALIZATION')
+    print('='*60)
+    
+    # Create simple ASCII chart for industries if available
+    sample_data = summary.get('sample_data', [])
+    if sample_data and any('industry' in contact for contact in sample_data):
+        industries = {}
+        for contact in sample_data:
+            industry = contact.get('industry', 'Unknown')
+            industries[industry] = industries.get(industry, 0) + 1
+        
+        print('\n📊 Industry Distribution (sample):')
+        max_count = max(industries.values()) if industries else 1
+        for industry, count in industries.items():
+            bar_length = int((count / max_count) * 20)
+            bar = '█' * bar_length + '░' * (20 - bar_length)
+            print(f'   {industry:<15} {bar} ({count})')
+    
+    print(f'\n💾 Data source: {summary.get(\"source\", \"unknown\")}')
+    print(f'📋 Total fields: {len(summary.get(\"fields_available\", []))}')
+    print(f'👥 Total contacts: {summary.get(\"total_contacts\", 0)}')
+"
+        
+    - name: Upload contact data
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: contact-display-results
+        path: |
+          contact_summary.json
+          *.log
+        retention-days: 7
+        
+    - name: Display Google Sheets setup instructions
+      run: |
+        echo ""
+        echo "📚 GOOGLE SHEETS SETUP INSTRUCTIONS"
+        echo "=================================="
+        echo ""
+        echo "To connect to your actual Google Sheets:"
+        echo ""
+        echo "1. 🔗 Public Sheets (Easiest):"
+        echo "   - Make your Google Sheet public (Share > Anyone with link can view)"
+        echo "   - The workflow will automatically read the data"
+        echo ""
+        echo "2. 🔐 Private Sheets (More Secure):"
+        echo "   - Create a Google Service Account"
+        echo "   - Download the credentials JSON"
+        echo "   - Add the JSON as a GitHub Secret"
+        echo "   - Share your sheet with the service account email"
+        echo ""
+        echo "3. 📝 URL File Format:"
+        echo "   Your contacts/client_test.url should contain:"
+        echo "   [InternetShortcut]"
+        echo "   URL=https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+        echo ""
+        echo "4. 📊 Expected Sheet Format:"
+        echo "   - First row should contain headers"
+        echo "   - Common columns: name, email, company, industry"
+        echo "   - Additional columns are automatically detected"
+        echo ""
+        if [ -f "contacts/client_test.url" ]; then
+          echo "✅ Your URL file exists and was processed"
+        else
+          echo "⚠️  Create contacts/client_test.url with your Google Sheets URL"
+        fi
+        echo ""

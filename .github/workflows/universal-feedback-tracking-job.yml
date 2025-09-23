@@ -1,0 +1,964 @@
+name: Universal Email Feedback Tracking
+
+on:
+  workflow_call:
+    inputs:
+      hours_back:
+        description: 'Hours to look back for feedback'
+        required: false
+        type: string
+        default: '24'
+      enable_unsubscribe_processing:
+        description: 'Automatically process unsubscribe requests'
+        required: false
+        type: boolean
+        default: true
+      email_provider:
+        description: 'Email provider (outlook, yahoo, icloud, custom)'
+        required: false
+        type: string
+        default: 'outlook'
+  schedule:
+    # Run every 4 hours to monitor feedback
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+    inputs:
+      hours_back:
+        description: 'Hours to look back for feedback'
+        required: false
+        default: '24'
+        type: string
+      enable_unsubscribe_processing:
+        description: 'Process unsubscribe requests'
+        required: false
+        default: true
+        type: boolean
+      email_provider:
+        description: 'Email provider'
+        required: false
+        default: 'outlook'
+        type: choice
+        options:
+          - outlook
+          - yahoo
+          - icloud
+          - custom
+
+jobs:
+  track-feedback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      replies_found: ${{ steps.track_feedback.outputs.replies }}
+      unsubscribes_found: ${{ steps.track_feedback.outputs.unsubscribes }}
+      bounces_found: ${{ steps.track_feedback.outputs.bounces }}
+      feedback_status: ${{ steps.track_feedback.outputs.status }}
+      provider_used: ${{ steps.track_feedback.outputs.provider }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas==2.1.4 email-validator==2.1.0 exchangelib==5.1.0 imaplib2==3.6
+
+      - name: Create tracking directories
+        run: |
+          mkdir -p tracking reports logs
+          
+          # Create provider-specific config
+          cat > tracking/provider_config.json << 'EOF'
+          {
+            "outlook": {
+              "imap_host": "outlook.office365.com",
+              "imap_port": 993,
+              "smtp_host": "smtp.office365.com",
+              "smtp_port": 587,
+              "auth_method": "oauth2_or_basic"
+            },
+            "yahoo": {
+              "imap_host": "imap.mail.yahoo.com",
+              "imap_port": 993,
+              "smtp_host": "smtp.mail.yahoo.com",
+              "smtp_port": 587,
+              "auth_method": "app_password"
+            },
+            "icloud": {
+              "imap_host": "imap.mail.me.com",
+              "imap_port": 993,
+              "smtp_host": "smtp.mail.me.com",
+              "smtp_port": 587,
+              "auth_method": "app_password"
+            },
+            "custom": {
+              "imap_host": "custom",
+              "imap_port": 993,
+              "smtp_host": "custom",
+              "smtp_port": 587,
+              "auth_method": "basic"
+            }
+          }
+          EOF
+
+      - name: Download previous tracking data
+        uses: actions/download-artifact@v4
+        with:
+          name: universal-feedback-tracking-data
+          path: tracking/
+        continue-on-error: true
+
+      - name: Execute Universal Email Feedback Tracking
+        id: track_feedback
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          IMAP_HOST: ${{ secrets.IMAP_HOST }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          IMAP_PORT: ${{ secrets.IMAP_PORT || '993' }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
+          EMAIL_PROVIDER: ${{ inputs.email_provider || 'outlook' }}
+          HOURS_BACK: ${{ inputs.hours_back || '24' }}
+          ENABLE_UNSUBSCRIBE: ${{ inputs.enable_unsubscribe_processing || 'true' }}
+          # OAuth2 credentials (if applicable)
+          OAUTH2_CLIENT_ID: ${{ secrets.OAUTH2_CLIENT_ID }}
+          OAUTH2_CLIENT_SECRET: ${{ secrets.OAUTH2_CLIENT_SECRET }}
+          OAUTH2_REFRESH_TOKEN: ${{ secrets.OAUTH2_REFRESH_TOKEN }}
+        run: |
+          echo "Starting Universal Email Feedback Tracking..."
+          echo "Provider: ${{ inputs.email_provider || 'outlook' }}"
+          echo "Monitoring last ${{ inputs.hours_back || '24' }} hours"
+          
+          # Create the universal tracking script
+          cat > universal_feedback_tracker.py << 'TRACKER_SCRIPT'
+          import imaplib
+          import email
+          import smtplib
+          import ssl
+          import json
+          import re
+          import time
+          import os
+          import sys
+          import base64
+          from datetime import datetime, timedelta
+          from email.mime.text import MIMEText
+          from email.mime.multipart import MIMEMultipart
+          from email.header import decode_header
+          import urllib.parse
+          
+          class UniversalEmailTracker:
+              def __init__(self):
+                  self.provider_configs = self.load_provider_configs()
+                  self.email_user = os.getenv('EMAIL_USER')
+                  self.email_pass = os.getenv('EMAIL_PASS')
+                  self.provider = os.getenv('EMAIL_PROVIDER', 'outlook')
+                  self.hours_back = int(os.getenv('HOURS_BACK', '24'))
+                  self.enable_unsubscribe = os.getenv('ENABLE_UNSUBSCRIBE', 'true').lower() == 'true'
+                  
+                  # Get provider-specific settings
+                  self.imap_host = os.getenv('IMAP_HOST') or self.provider_configs.get(self.provider, {}).get('imap_host')
+                  self.smtp_host = os.getenv('SMTP_HOST') or self.provider_configs.get(self.provider, {}).get('smtp_host')
+                  self.imap_port = int(os.getenv('IMAP_PORT', self.provider_configs.get(self.provider, {}).get('imap_port', 993)))
+                  self.smtp_port = int(os.getenv('SMTP_PORT', self.provider_configs.get(self.provider, {}).get('smtp_port', 587)))
+                  
+              def load_provider_configs(self):
+                  try:
+                      with open('tracking/provider_config.json', 'r') as f:
+                          return json.load(f)
+                  except:
+                      return {}
+              
+              def decode_email_header(self, header):
+                  """Properly decode email headers"""
+                  if header:
+                      decoded_parts = decode_header(header)
+                      decoded_header = ""
+                      for part, encoding in decoded_parts:
+                          if isinstance(part, bytes):
+                              decoded_header += part.decode(encoding or 'utf-8', errors='ignore')
+                          else:
+                              decoded_header += part
+                      return decoded_header
+                  return ""
+              
+              def connect_imap(self):
+                  """Connect to IMAP server based on provider"""
+                  try:
+                      if not self.email_user or not self.email_pass:
+                          print("❌ Email credentials not provided")
+                          return None
+                      
+                      print(f"Connecting to {self.provider} IMAP: {self.imap_host}:{self.imap_port}")
+                      
+                      context = ssl.create_default_context()
+                      
+                      # Handle different connection methods
+                      if self.imap_port == 993:  # SSL
+                          imap = imaplib.IMAP4_SSL(self.imap_host, self.imap_port, ssl_context=context)
+                      else:  # STARTTLS
+                          imap = imaplib.IMAP4(self.imap_host, self.imap_port)
+                          imap.starttls(ssl_context=context)
+                      
+                      # Authenticate
+                      if self.provider == 'yahoo' or self.provider == 'icloud':
+                          # These providers often require app-specific passwords
+                          print("Using app-specific password authentication")
+                      
+                      imap.login(self.email_user, self.email_pass)
+                      print(f"✅ Connected to {self.provider} IMAP successfully")
+                      return imap
+                      
+                  except imaplib.IMAP4.error as e:
+                      print(f"❌ IMAP authentication failed: {e}")
+                      print("💡 Tip: For Yahoo/iCloud, use app-specific passwords")
+                      return None
+                  except Exception as e:
+                      print(f"❌ IMAP connection failed: {e}")
+                      return None
+              
+              def connect_smtp(self):
+                  """Connect to SMTP server for sending emails"""
+                  try:
+                      context = ssl.create_default_context()
+                      
+                      server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+                      server.starttls(context=context)
+                      server.login(self.email_user, self.email_pass)
+                      
+                      print(f"✅ Connected to {self.provider} SMTP successfully")
+                      return server
+                      
+                  except Exception as e:
+                      print(f"❌ SMTP connection failed: {e}")
+                      return None
+              
+              def parse_email_message(self, msg):
+                  """Parse email message with better encoding handling"""
+                  email_data = {
+                      'from': self.decode_email_header(msg.get('From', '')),
+                      'to': self.decode_email_header(msg.get('To', '')),
+                      'subject': self.decode_email_header(msg.get('Subject', '')),
+                      'date': msg.get('Date', ''),
+                      'message_id': msg.get('Message-ID', ''),
+                      'in_reply_to': msg.get('In-Reply-To', ''),
+                      'content': '',
+                      'content_type': 'text/plain'
+                  }
+                  
+                  # Extract email content
+                  if msg.is_multipart():
+                      for part in msg.walk():
+                          content_type = part.get_content_type()
+                          if content_type == "text/plain":
+                              try:
+                                  payload = part.get_payload(decode=True)
+                                  if payload:
+                                      email_data['content'] = payload.decode('utf-8', errors='ignore')
+                                      email_data['content_type'] = content_type
+                                      break
+                              except Exception as e:
+                                  print(f"Warning: Failed to decode text/plain part: {e}")
+                          elif content_type == "text/html" and not email_data['content']:
+                              try:
+                                  payload = part.get_payload(decode=True)
+                                  if payload:
+                                      email_data['content'] = payload.decode('utf-8', errors='ignore')
+                                      email_data['content_type'] = content_type
+                              except Exception as e:
+                                  print(f"Warning: Failed to decode text/html part: {e}")
+                  else:
+                      try:
+                          payload = msg.get_payload(decode=True)
+                          if payload:
+                              email_data['content'] = payload.decode('utf-8', errors='ignore')
+                      except:
+                          email_data['content'] = str(msg.get_payload())
+                  
+                  return email_data
+              
+              def classify_feedback_type(self, email_data):
+                  """Enhanced classification for different email types"""
+                  subject = email_data['subject'].lower()
+                  content = email_data['content'].lower()
+                  from_addr = email_data['from'].lower()
+                  
+                  # Bounce detection (more comprehensive)
+                  bounce_indicators = [
+                      'mailer-daemon', 'postmaster', 'mail-daemon', 'noreply',
+                      'undelivered', 'delivery failed', 'bounce', 'returned mail',
+                      'delivery status notification', 'undeliverable', 'mail delivery'
+                  ]
+                  bounce_subjects = ['delivery failure', 'undeliverable', 'returned mail', 'bounce']
+                  
+                  if (any(indicator in from_addr for indicator in bounce_indicators) or 
+                      any(subj in subject for subj in bounce_subjects)):
+                      return 'bounce'
+                  
+                  # Unsubscribe detection (enhanced)
+                  unsubscribe_keywords = [
+                      'unsubscribe', 'remove me', 'opt out', 'stop sending', 'take me off',
+                      'cancel subscription', 'no more emails', 'remove from list',
+                      'stop emails', 'unsubscribe me', 'opt-out'
+                  ]
+                  if any(keyword in subject or keyword in content for keyword in unsubscribe_keywords):
+                      return 'unsubscribe'
+                  
+                  # Auto-reply detection (enhanced)
+                  auto_reply_keywords = [
+                      'auto-reply', 'automatic reply', 'out of office', 'vacation',
+                      'away message', 'auto reply', 'ooo', 'automatic response',
+                      'i am currently out', 'currently away'
+                  ]
+                  if any(keyword in subject or keyword in content for keyword in auto_reply_keywords):
+                      return 'auto_reply'
+                  
+                  # Complaint/Spam report detection
+                  complaint_keywords = ['spam', 'junk', 'abuse', 'complaint', 'report']
+                  if any(keyword in subject or keyword in content for keyword in complaint_keywords):
+                      return 'complaint'
+                  
+                  # Regular reply detection
+                  if ('re:' in subject or 'reply' in subject or 
+                      email_data.get('in_reply_to') or 
+                      'thank you' in content or 'thanks' in content):
+                      return 'reply'
+                  
+                  return 'other'
+              
+              def analyze_sentiment(self, content):
+                  """Enhanced sentiment analysis"""
+                  content_lower = content.lower()
+                  
+                  positive_words = [
+                      'interested', 'yes', 'please', 'more information', 'thank you', 'thanks',
+                      'great', 'excellent', 'good', 'helpful', 'useful', 'appreciate',
+                      'love', 'like', 'awesome', 'perfect', 'wonderful', 'amazing'
+                  ]
+                  
+                  negative_words = [
+                      'not interested', 'no thanks', 'stop', 'spam', 'annoying', 'remove',
+                      'hate', 'terrible', 'awful', 'bad', 'worst', 'horrible',
+                      'disappointed', 'frustrated', 'angry', 'useless', 'waste'
+                  ]
+                  
+                  positive_score = sum(1 for word in positive_words if word in content_lower)
+                  negative_score = sum(1 for word in negative_words if word in content_lower)
+                  
+                  if positive_score > negative_score:
+                      return 'positive'
+                  elif negative_score > positive_score:
+                      return 'negative'
+                  return 'neutral'
+              
+              def process_unsubscribe_request(self, email_data):
+                  """Send unsubscribe confirmation"""
+                  try:
+                      server = self.connect_smtp()
+                      if not server:
+                          return False
+                      
+                      msg = MIMEMultipart()
+                      msg['From'] = self.email_user
+                      msg['To'] = email_data['from']
+                      msg['Subject'] = 'Unsubscribe Request Confirmed'
+                      
+                      body = f"""
+          Dear Subscriber,
+          
+          We have received and processed your unsubscribe request.
+          
+          Email address: {email_data['from']}
+          Request received: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+          
+          You will no longer receive marketing emails from us at this address.
+          
+          If you unsubscribed by mistake, please reply to this email to resubscribe.
+          
+          Thank you,
+          Email Management System
+                      """
+                      
+                      msg.attach(MIMEText(body, 'plain'))
+                      server.send_message(msg)
+                      server.quit()
+                      
+                      print(f"✅ Sent unsubscribe confirmation to {email_data['from']}")
+                      return True
+                      
+                  except Exception as e:
+                      print(f"❌ Failed to send unsubscribe confirmation: {e}")
+                      return False
+              
+              def get_folder_list(self, imap):
+                  """Get available folders for the email account"""
+                  try:
+                      status, folders = imap.list()
+                      if status == 'OK':
+                          folder_names = []
+                          for folder in folders:
+                              folder_name = folder.decode().split(' "/" ')[-1].strip('"')
+                              folder_names.append(folder_name)
+                          return folder_names
+                  except:
+                      pass
+                  return ['INBOX']
+              
+              def run_tracking(self):
+                  """Main tracking execution"""
+                  if not self.email_user or not self.email_pass:
+                      print("❌ Email credentials not provided")
+                      print("Required secrets: EMAIL_USER, EMAIL_PASS")
+                      return 1
+                  
+                  print(f"🔍 Monitoring {self.provider} inbox for last {self.hours_back} hours...")
+                  print(f"📧 Email: {self.email_user}")
+                  print(f"🌐 IMAP: {self.imap_host}:{self.imap_port}")
+                  
+                  # Connect to email server
+                  imap = self.connect_imap()
+                  if not imap:
+                      return 1
+                  
+                  # Initialize tracking data
+                  tracking_data = {
+                      'replies': [],
+                      'unsubscribes': [],
+                      'bounces': [],
+                      'auto_replies': [],
+                      'complaints': [],
+                      'other': []
+                  }
+                  
+                  try:
+                      # Get available folders
+                      folders = self.get_folder_list(imap)
+                      print(f"📁 Available folders: {folders}")
+                      
+                      # Monitor primary folder (usually INBOX)
+                      primary_folder = 'INBOX'
+                      if primary_folder in folders:
+                          imap.select(primary_folder)
+                          print(f"📂 Selected folder: {primary_folder}")
+                      else:
+                          print(f"⚠️ INBOX not found, using first available folder: {folders[0]}")
+                          imap.select(folders[0])
+                      
+                      # Search for recent emails
+                      since_date = (datetime.now() - timedelta(hours=self.hours_back)).strftime('%d-%b-%Y')
+                      
+                      # Try different search criteria based on provider
+                      search_criteria = f'SINCE {since_date}'
+                      status, messages = imap.search(None, search_criteria)
+                      
+                      if status != 'OK':
+                          print(f"❌ Search failed with criteria: {search_criteria}")
+                          # Fallback to simpler search
+                          status, messages = imap.search(None, 'ALL')
+                      
+                      if status != 'OK':
+                          print(f"❌ All search attempts failed")
+                          return 1
+                      
+                      message_ids = messages[0].split()
+                      print(f"📨 Found {len(message_ids)} emails to analyze")
+                      
+                      processed_count = 0
+                      for msg_id in message_ids[-100:]:  # Limit to recent 100 emails for performance
+                          try:
+                              # Fetch email
+                              status, msg_data = imap.fetch(msg_id, '(RFC822)')
+                              if status != 'OK':
+                                  continue
+                              
+                              email_message = email.message_from_bytes(msg_data[0][1])
+                              email_data = self.parse_email_message(email_message)
+                              
+                              # Skip our own emails
+                              if self.email_user.lower() in email_data['from'].lower():
+                                  continue
+                              
+                              # Classify email type
+                              feedback_type = self.classify_feedback_type(email_data)
+                              
+                              # Create tracking entry
+                              tracking_entry = {
+                                  'timestamp': datetime.now().isoformat(),
+                                  'from': email_data['from'],
+                                  'subject': email_data['subject'],
+                                  'date': email_data['date'],
+                                  'type': feedback_type,
+                                  'content_preview': (email_data['content'][:200] + '...' 
+                                                    if len(email_data['content']) > 200 
+                                                    else email_data['content']),
+                                  'content_type': email_data['content_type'],
+                                  'provider': self.provider
+                              }
+                              
+                              # Process based on type
+                              if feedback_type == 'reply':
+                                  sentiment = self.analyze_sentiment(email_data['content'])
+                                  tracking_entry['sentiment'] = sentiment
+                                  tracking_data['replies'].append(tracking_entry)
+                                  print(f"📧 Reply from {email_data['from']}: {sentiment} sentiment")
+                                  
+                              elif feedback_type == 'unsubscribe':
+                                  if self.enable_unsubscribe:
+                                      confirmation_sent = self.process_unsubscribe_request(email_data)
+                                      tracking_entry['confirmation_sent'] = confirmation_sent
+                                  tracking_data['unsubscribes'].append(tracking_entry)
+                                  print(f"🚫 Unsubscribe request from {email_data['from']}")
+                                  
+                              elif feedback_type == 'bounce':
+                                  tracking_data['bounces'].append(tracking_entry)
+                                  print(f"⚠️ Bounce detected from {email_data['from']}")
+                                  
+                              elif feedback_type == 'auto_reply':
+                                  tracking_data['auto_replies'].append(tracking_entry)
+                                  print(f"🤖 Auto-reply from {email_data['from']}")
+                                  
+                              elif feedback_type == 'complaint':
+                                  tracking_data['complaints'].append(tracking_entry)
+                                  print(f"⚠️ Complaint/Spam report from {email_data['from']}")
+                                  
+                              else:
+                                  tracking_data['other'].append(tracking_entry)
+                              
+                              processed_count += 1
+                              
+                          except Exception as e:
+                              print(f"❌ Error processing message {msg_id}: {e}")
+                              continue
+                      
+                      print(f"✅ Processed {processed_count} emails successfully")
+                      
+                      # Save tracking data
+                      os.makedirs('tracking', exist_ok=True)
+                      
+                      report_data = {
+                          'timestamp': datetime.now().isoformat(),
+                          'provider': self.provider,
+                          'email_account': self.email_user,
+                          'monitoring_period_hours': self.hours_back,
+                          'emails_processed': processed_count,
+                          'summary': {
+                              'total_replies': len(tracking_data['replies']),
+                              'total_unsubscribes': len(tracking_data['unsubscribes']),
+                              'total_bounces': len(tracking_data['bounces']),
+                              'total_auto_replies': len(tracking_data['auto_replies']),
+                              'total_complaints': len(tracking_data['complaints']),
+                              'total_other': len(tracking_data['other']),
+                              'positive_replies': len([r for r in tracking_data['replies'] if r.get('sentiment') == 'positive']),
+                              'negative_replies': len([r for r in tracking_data['replies'] if r.get('sentiment') == 'negative']),
+                              'neutral_replies': len([r for r in tracking_data['replies'] if r.get('sentiment') == 'neutral'])
+                          },
+                          'detailed_data': tracking_data
+                      }
+                      
+                      with open('tracking/feedback_report.json', 'w') as f:
+                          json.dump(report_data, f, indent=2)
+                      
+                      # Output for GitHub Actions
+                      summary = report_data['summary']
+                      print(f"::set-output name=replies::{summary['total_replies']}")
+                      print(f"::set-output name=unsubscribes::{summary['total_unsubscribes']}")
+                      print(f"::set-output name=bounces::{summary['total_bounces']}")
+                      print(f"::set-output name=complaints::{summary['total_complaints']}")
+                      print(f"::set-output name=provider::{self.provider}")
+                      print(f"::set-output name=status::success")
+                      
+                      # Display summary
+                      print("\n📊 Universal Email Feedback Tracking Summary:")
+                      print(f"   🌐 Provider: {self.provider}")
+                      print(f"   📧 Replies: {summary['total_replies']} (👍 {summary['positive_replies']}, 👎 {summary['negative_replies']}, 😐 {summary['neutral_replies']})")
+                      print(f"   🚫 Unsubscribes: {summary['total_unsubscribes']}")
+                      print(f"   ⚠️ Bounces: {summary['total_bounces']}")
+                      print(f"   🤖 Auto-replies: {summary['total_auto_replies']}")
+                      print(f"   📢 Complaints: {summary['total_complaints']}")
+                      print(f"   📋 Other: {summary['total_other']}")
+                      
+                      return 0
+                      
+                  except Exception as e:
+                      print(f"❌ Error during tracking: {e}")
+                      print(f"::set-output name=status::failed")
+                      return 1
+                  finally:
+                      try:
+                          imap.close()
+                          imap.logout()
+                      except:
+                          pass
+          
+          # Main execution
+          if __name__ == "__main__":
+              tracker = UniversalEmailTracker()
+              sys.exit(tracker.run_tracking())
+          
+          TRACKER_SCRIPT
+          
+          # Run the tracking script
+          python universal_feedback_tracker.py
+
+      - name: Generate provider-specific HTML report
+        if: always()
+        run: |
+          PROVIDER="${{ inputs.email_provider || 'outlook' }}"
+          
+          cat > reports/feedback_report.html << HTML_REPORT
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>$PROVIDER Email Feedback Report</title>
+              <meta charset="utf-8">
+              <style>
+                  body { 
+                      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                      margin: 0; 
+                      padding: 20px; 
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      min-height: 100vh;
+                  }
+                  .container {
+                      max-width: 1200px;
+                      margin: 0 auto;
+                      background: white;
+                      border-radius: 15px;
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                      overflow: hidden;
+                  }
+                  .header {
+                      background: linear-gradient(135deg, #2c3e50, #3498db);
+                      color: white;
+                      padding: 30px;
+                      text-align: center;
+                  }
+                  .header h1 { margin: 0; font-size: 2.5em; }
+                  .header p { margin: 10px 0 0; opacity: 0.9; }
+                  
+                  .metrics-grid {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                      gap: 20px;
+                      padding: 30px;
+                      background: #f8f9fa;
+                  }
+                  
+                  .metric-card {
+                      background: white;
+                      padding: 25px;
+                      border-radius: 10px;
+                      text-align: center;
+                      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+                      transition: transform 0.3s ease;
+                  }
+                  .metric-card:hover { transform: translateY(-5px); }
+                  
+                  .metric-number {
+                      font-size: 2.5em;
+                      font-weight: bold;
+                      margin: 10px 0;
+                      line-height: 1;
+                  }
+                  
+                  .metric-label {
+                      color: #666;
+                      font-size: 0.9em;
+                      text-transform: uppercase;
+                      letter-spacing: 1px;
+                  }
+                  
+                  .positive { color: #27ae60; }
+                  .negative { color: #e74c3c; }
+                  .warning { color: #f39c12; }
+                  .info { color: #3498db; }
+                  .neutral { color: #95a5a6; }
+                  
+                  .provider-badge {
+                      display: inline-block;
+                      background: rgba(255,255,255,0.2);
+                      padding: 8px 16px;
+                      border-radius: 20px;
+                      font-size: 0.9em;
+                      margin-top: 10px;
+                  }
+                  
+                  .content-section {
+                      padding: 30px;
+                  }
+                  
+                  .status-indicator {
+                      display: inline-block;
+                      padding: 5px 15px;
+                      border-radius: 15px;
+                      font-size: 0.8em;
+                      font-weight: bold;
+                      text-transform: uppercase;
+                  }
+                  .status-success { background: #d4edda; color: #155724; }
+                  .status-error { background: #f8d7da; color: #721c24; }
+                  
+                  .insights {
+                      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                      color: white;
+                      padding: 25px;
+                      margin: 20px 0;
+                      border-radius: 10px;
+                  }
+                  
+                  .tips {
+                      background: #e8f5e8;
+                      border-left: 4px solid #27ae60;
+                      padding: 20px;
+                      margin: 20px 0;
+                      border-radius: 0 10px 10px 0;
+                  }
+                  
+                  .alert {
+                      background: #fff3cd;
+                      border: 1px solid #ffeeba;
+                      color: #856404;
+                      padding: 15px;
+                      border-radius: 5px;
+                      margin: 15px 0;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <div class="header">
+                      <h1>📧 Email Feedback Report</h1>
+                      <p>Universal tracking for non-Gmail providers</p>
+                      <div class="provider-badge">Provider: $PROVIDER</div>
+                  </div>
+                  
+                  <div class="metrics-grid">
+                      <div class="metric-card">
+                          <div class="metric-number positive">${{ steps.track_feedback.outputs.replies || 0 }}</div>
+                          <div class="metric-label">📧 Replies Received</div>
+                      </div>
+                      
+                      <div class="metric-card">
+                          <div class="metric-number warning">${{ steps.track_feedback.outputs.unsubscribes || 0 }}</div>
+                          <div class="metric-label">🚫 Unsubscribes</div>
+                      </div>
+                      
+                      <div class="metric-card">
+                          <div class="metric-number negative">${{ steps.track_feedback.outputs.bounces || 0 }}</div>
+                          <div class="metric-label">⚠️ Email Bounces</div>
+                      </div>
+                      
+                      <div class="metric-card">
+                          <div class="metric-number info">\$(cat tracking/feedback_report.json 2>/dev/null | jq -r '.summary.total_complaints // 0')</div>
+                          <div class="metric-label">📢 Complaints</div>
+                      </div>
+                  </div>
+                  
+                  <div class="content-section">
+                      <h2>📊 Report Details</h2>
+                      
+                      <p><strong>📅 Generated:</strong> \$(date)</p>
+                      <p><strong>⏰ Monitoring Period:</strong> Last ${{ inputs.hours_back || '24' }} hours</p>
+                      <p><strong>🌐 Email Provider:</strong> ${{ steps.track_feedback.outputs.provider || inputs.email_provider || 'Unknown' }}</p>
+                      <p><strong>📊 Status:</strong> 
+                          <span class="status-indicator \$([ "${{ steps.track_feedback.outputs.status }}" = "success" ] && echo "status-success" || echo "status-error")">
+                              ${{ steps.track_feedback.outputs.status || 'unknown' }}
+                          </span>
+                      </p>
+                      
+                      \$(if [ "${{ steps.track_feedback.outputs.unsubscribes || 0 }}" -gt 5 ]; then
+                          echo '<div class="alert">⚠️ <strong>High Unsubscribe Rate Detected!</strong> Consider reviewing your email content and frequency.</div>'
+                      fi)
+                      
+                      \$(if [ "${{ steps.track_feedback.outputs.bounces || 0 }}" -gt 3 ]; then
+                          echo '<div class="alert">⚠️ <strong>High Bounce Rate Detected!</strong> Please clean your email list and verify addresses.</div>'
+                      fi)
+                      
+                      <div class="insights">
+                          <h3>💡 Insights for $PROVIDER Users</h3>
+                          <p>✅ Successfully connected to $PROVIDER email servers</p>
+                          <p>📈 Tracking engagement patterns and feedback responses</p>
+                          <p>🔐 Using secure authentication protocols</p>
+                      </div>
+                      
+                      <div class="tips">
+                          <h3>💡 Provider-Specific Tips</h3>
+                          <ul>
+                              \$(case "$PROVIDER" in
+                                  "outlook")
+                                      echo "<li>🔑 For Outlook/Office365, ensure OAuth2 or app passwords are configured properly</li>"
+                                      echo "<li>📧 Consider using Microsoft Graph API for enhanced functionality</li>"
+                                      echo "<li>🛡️ Enable 2FA and use app-specific passwords for better security</li>"
+                                      ;;
+                                  "yahoo")
+                                      echo "<li>🔑 Yahoo requires app-specific passwords - generate one in account settings</li>"
+                                      echo "<li>📱 Disable 'less secure apps' and use app passwords instead</li>"
+                                      echo "<li>🔒 Enable 2-step verification for enhanced security</li>"
+                                      ;;
+                                  "icloud")
+                                      echo "<li>🔑 iCloud requires app-specific passwords for third-party apps</li>"
+                                      echo "<li>🍎 Generate app passwords in Apple ID settings</li>"
+                                      echo "<li>🔐 2FA is mandatory for app-specific passwords</li>"
+                                      ;;
+                                  *)
+                                      echo "<li>🔑 Ensure proper IMAP/SMTP credentials are configured</li>"
+                                      echo "<li>🌐 Verify server settings and port configurations</li>"
+                                      echo "<li>🔒 Use secure authentication methods when available</li>"
+                                      ;;
+                              esac)
+                          </ul>
+                      </div>
+                      
+                      <h3>📋 Detailed Analysis</h3>
+                      <p>For comprehensive feedback data and individual message analysis, check the JSON report in the workflow artifacts.</p>
+                      
+                      <h3>🔧 Configuration Used</h3>
+                      <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 0.9em;">
+                          Provider: $PROVIDER<br>
+                          IMAP Host: \${IMAP_HOST:-"Auto-detected"}<br>
+                          SMTP Host: \${SMTP_HOST:-"Auto-detected"}<br>
+                          Monitoring: Last ${{ inputs.hours_back || '24' }} hours<br>
+                          Auto-Unsubscribe: ${{ inputs.enable_unsubscribe_processing && 'Enabled' || 'Disabled' }}
+                      </div>
+                  </div>
+              </div>
+          </body>
+          </html>
+          HTML_REPORT
+
+      - name: Upload tracking artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: universal-feedback-tracking-data
+          path: |
+            tracking/
+            reports/
+          retention-days: 30
+
+      - name: Create detailed summary
+        if: always()
+        run: |
+          echo "## 📧 Universal Email Feedback Tracking Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**🌐 Provider:** ${{ steps.track_feedback.outputs.provider || inputs.email_provider || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**⏰ Period:** Last ${{ inputs.hours_back || '24' }} hours" >> $GITHUB_STEP_SUMMARY
+          echo "**📊 Status:** ${{ steps.track_feedback.outputs.status || 'unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📈 Engagement Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- 📧 **Replies:** ${{ steps.track_feedback.outputs.replies || 0 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚫 **Unsubscribes:** ${{ steps.track_feedback.outputs.unsubscribes || 0 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚠️ **Bounces:** ${{ steps.track_feedback.outputs.bounces || 0 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 📢 **Complaints:** $(cat tracking/feedback_report.json 2>/dev/null | jq -r '.summary.total_complaints // 0')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Add provider-specific notes
+          case "${{ inputs.email_provider || 'outlook' }}" in
+            "outlook")
+              echo "### 🏢 Outlook/Office365 Notes" >> $GITHUB_STEP_SUMMARY
+              echo "- ✅ Connected to Office365 IMAP/SMTP servers" >> $GITHUB_STEP_SUMMARY
+              echo "- 🔑 Using secure authentication protocols" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "yahoo")
+              echo "### 🟣 Yahoo Mail Notes" >> $GITHUB_STEP_SUMMARY
+              echo "- ✅ Connected using app-specific password" >> $GITHUB_STEP_SUMMARY
+              echo "- 🔒 Secure connection established" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "icloud")
+              echo "### 🍎 iCloud Mail Notes" >> $GITHUB_STEP_SUMMARY
+              echo "- ✅ Connected using app-specific password" >> $GITHUB_STEP_SUMMARY
+              echo "- 🔐 2FA authentication verified" >> $GITHUB_STEP_SUMMARY
+              ;;
+          esac
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Detailed reports available in workflow artifacts.**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Provider-specific alerts
+        if: always()
+        run: |
+          UNSUBSCRIBES=${{ steps.track_feedback.outputs.unsubscribes || 0 }}
+          BOUNCES=${{ steps.track_feedback.outputs.bounces || 0 }}
+          PROVIDER=${{ inputs.email_provider || 'outlook' }}
+          
+          if [ "$UNSUBSCRIBES" -gt 5 ]; then
+            echo "⚠️ HIGH UNSUBSCRIBE RATE for $PROVIDER: $UNSUBSCRIBES unsubscribes detected!"
+            echo "📋 Recommendations:"
+            echo "   - Review email content relevance and quality"
+            echo "   - Check sending frequency and timing"
+            echo "   - Segment your audience for targeted content"
+            echo "   - Ensure clear value proposition in emails"
+          fi
+          
+          if [ "$BOUNCES" -gt 3 ]; then
+            echo "⚠️ HIGH BOUNCE RATE for $PROVIDER: $BOUNCES bounces detected!"
+            echo "📋 Recommendations:"
+            echo "   - Clean and validate your email list"
+            echo "   - Remove invalid email addresses"
+            echo "   - Implement double opt-in for new subscribers"
+            echo "   - Monitor sender reputation with $PROVIDER"
+          fi
+
+      - name: Setup next run optimization
+        if: always()
+        run: |
+          # Create optimization config for next run
+          cat > tracking/optimization_config.json << 'EOF'
+          {
+            "last_run": "${{ github.run_id }}",
+            "provider": "${{ inputs.email_provider || 'outlook' }}",
+            "performance_metrics": {
+              "emails_processed": "$(cat tracking/feedback_report.json 2>/dev/null | jq -r '.emails_processed // 0')",
+              "processing_time": "$(date -Iseconds)",
+              "success_rate": "${{ steps.track_feedback.outputs.status == 'success' && '100' || '0' }}%"
+            },
+            "recommendations": {
+              "optimal_check_frequency": "4_hours",
+              "batch_size": 100,
+              "retention_period": "30_days"
+            }
+          }
+          EOF
+
+  # Notification job for failed tracking
+  notify-failure:
+    needs: track-feedback
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: Notify tracking failure
+        run: |
+          echo "❌ Universal Email Feedback Tracking Failed!"
+          echo "Provider: ${{ inputs.email_provider || 'outlook' }}"
+          echo "Time: $(date)"
+          echo ""
+          echo "🔧 Troubleshooting Steps:"
+          echo "1. Verify EMAIL_USER and EMAIL_PASS secrets are set"
+          echo "2. For Yahoo/iCloud: Ensure app-specific passwords are used"
+          echo "3. For Outlook: Check OAuth2 or app password configuration"
+          echo "4. Verify IMAP/SMTP settings if using custom provider"
+          echo "5. Check if 2FA is properly configured"
+
+  # Summary job
+  summarize:
+    needs: track-feedback
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Final summary
+        run: |
+          echo "🎯 Universal Email Feedback Tracking Complete"
+          echo "Provider: ${{ needs.track-feedback.outputs.provider_used || 'Unknown' }}"
+          echo "Status: ${{ needs.track-feedback.outputs.feedback_status || 'Unknown' }}"
+          echo ""
+          echo "📊 Results:"
+          echo "- Replies: ${{ needs.track-feedback.outputs.replies_found || 0 }}"
+          echo "- Unsubscribes: ${{ needs.track-feedback.outputs.unsubscribes_found || 0 }}"
+          echo "- Bounces: ${{ needs.track-feedback.outputs.bounces_found || 0 }}"

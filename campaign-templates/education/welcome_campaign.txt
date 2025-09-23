@@ -1,0 +1,24 @@
+Subject: Welcome {{name}} - Your {{domain}} Industry Update
+
+Dear {{name}},
+
+Thank you for your interest in our services. We're excited to connect with professionals in the {{domain}} sector.
+
+As a {{role}} at {{organization}}, we believe you'll find value in our specialized resources designed for your industry.
+
+Key benefits for you:
+- Industry-specific insights for {{domain}} professionals
+- Direct support at {{email}}
+- Customized solutions for {{role}} responsibilities
+- Access to our {{domain}} professional network
+
+We look forward to supporting your work at {{organization}}.
+
+Best regards,
+The Professional Services Team
+
+---
+UNSUBSCRIBE: To stop receiving these emails, reply with "UNSUBSCRIBE" or visit: {{unsubscribe_url}}
+
+This email complies with CAN-SPAM Act requirements.
+Contact us: support@company.com | Privacy Policy: https://company.com/privacy

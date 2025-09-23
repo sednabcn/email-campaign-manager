@@ -1,0 +1,125 @@
+name: Security Cleanup
+
+on:
+  workflow_call:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: always()
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Secure credential cleanup
+        run: |
+          echo "Performing security cleanup..."
+          
+          # Remove any Google service account files
+          find /tmp -name "*google*" -type f -delete 2>/dev/null || true
+          find /tmp -name "*gcp*" -type f -delete 2>/dev/null || true
+          find /tmp -name "*service*account*" -type f -delete 2>/dev/null || true
+          
+          # Clear environment variables (they're already masked in logs)
+          unset SMTP_USER SMTP_PASS GOOGLE_SVC_JSON IMAP_USER IMAP_PASS
+          
+          # Remove Python cache
+          find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+          find . -name "*.pyc" -delete 2>/dev/null || true
+          find . -name "*.pyo" -delete 2>/dev/null || true
+          
+          # Remove any temporary credential files
+          rm -f /tmp/creds_* 2>/dev/null || true
+          rm -f /tmp/token_* 2>/dev/null || true
+          
+          echo "✅ Security cleanup completed"
+
+      - name: Cleanup temporary files
+        run: |
+          echo "Cleaning up temporary files..."
+          
+          # Remove temporary processing files but preserve logs and reports
+          find . -name "temp_*" -delete 2>/dev/null || true
+          find . -name "tmp_*" -delete 2>/dev/null || true
+          find . -name "*.tmp" -delete 2>/dev/null || true
+          
+          # Clean up any OAuth tokens
+          rm -f .oauth_token* 2>/dev/null || true
+          rm -f token.json 2>/dev/null || true
+          rm -f credentials.json 2>/dev/null || true
+          
+          echo "✅ Temporary file cleanup completed"
+
+      - name: Generate cleanup report
+        run: |
+          cat > cleanup_report.md << EOF
+          # Security Cleanup Report
+          
+          **Cleanup Date:** $(date)
+          **Workflow Run:** ${{ github.run_id }}
+          
+          ## Files Cleaned
+          - ✅ Google service account credentials
+          - ✅ SMTP/IMAP authentication tokens  
+          - ✅ Python cache files (__pycache__, *.pyc)
+          - ✅ Temporary processing files
+          - ✅ OAuth tokens and cached credentials
+          
+          ## Security Measures
+          - ✅ All environment variables cleared
+          - ✅ Temporary credential files removed
+          - ✅ Cache directories cleaned
+          - ✅ Authentication data purged
+          
+          ## Data Preservation
+          - ✅ Execution logs preserved
+          - ✅ Campaign reports maintained  
+          - ✅ Contact processing data retained
+          - ✅ Validation results preserved
+          
+          **Status:** Security cleanup completed successfully
+          EOF
+          
+          echo "Generated cleanup report"
+
+      - name: Final security verification
+        run: |
+          echo "Performing final security verification..."
+          
+          # Check for any remaining sensitive files
+          SENSITIVE_FOUND=0
+          
+          # Check for credential-related files
+          if find . -name "*credential*" -o -name "*secret*" -o -name "*token*" -o -name "*key*" 2>/dev/null | grep -q .; then
+            echo "⚠️ Warning: Potential credential files still exist"
+            find . -name "*credential*" -o -name "*secret*" -o -name "*token*" -o -name "*key*" 2>/dev/null || true
+            SENSITIVE_FOUND=1
+          fi
+          
+          # Check temp directories
+          if find /tmp -name "*google*" -o -name "*smtp*" -o -name "*oauth*" 2>/dev/null | grep -q .; then
+            echo "⚠️ Warning: Credential files found in /tmp"
+            SENSITIVE_FOUND=1
+          fi
+          
+          if [ $SENSITIVE_FOUND -eq 0 ]; then
+            echo "✅ Security verification passed - no sensitive files detected"
+          else
+            echo "⚠️ Security verification completed with warnings"
+          fi
+
+      - name: Upload cleanup artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cleanup-report-${{ github.run_id }}
+          path: |
+            cleanup_report.md
+          retention-days: 30

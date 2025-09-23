@@ -1,0 +1,21 @@
+name: Decode Google Service Account
+
+on:
+  workflow_dispatch:   # allows manual trigger
+  push:
+    branches: [dev]           # optional: run only on main branch pushes
+
+jobs:
+  decode-google-creds:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Decode Google Service Account credentials
+        run: |
+          echo "Decoding Base64 Google Service Account JSON..."
+          echo "${{ secrets.GOOGLE_SVC_JSON }}" | base64 --decode > google_service_account.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/google_service_account.json" >> $GITHUB_ENV
+          echo "✅ Google Service Account JSON decoded and ready"
