@@ -1,6 +1,8 @@
 name: 📄 Preview CSV Contacts Only
 
 on:
+  push:
+    branches: ["dev", "master"]
   workflow_dispatch:
     inputs:
       rows_to_show:
