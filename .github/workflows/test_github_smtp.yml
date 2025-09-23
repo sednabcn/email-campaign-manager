@@ -140,11 +140,17 @@ jobs:
 
       - name: Debug downloaded artifacts
         run: |
-          echo "=== Checking downloaded artifacts ==="
-          ls -la ./contacts/
-          find ./contacts -name "*.csv" -type f
-          echo "=== All CSV files in workspace ==="
-          find . -name "*.csv" -type f
+          echo "=== Checking workspace structure ==="
+          ls -la ./
+          echo ""
+          echo "=== Checking contacts directory ==="
+          ls -la ./contacts/ || echo "❌ contacts directory not found"
+          echo ""
+          echo "=== Looking for CSV files anywhere ==="
+          find . -name "*.csv" -type f || echo "❌ No CSV files found"
+          echo ""
+          echo "=== Checking if campaign script exists ==="
+          ls -la utils/docx_parser.py || echo "❌ utils/docx_parser.py not found"
       # -------------------------------
       # Campaign Execution
       # -------------------------------
@@ -241,7 +247,7 @@ jobs:
         with:
           server_address: ${{ secrets.SMTP_HOST }}
           server_port: ${{ steps.smtp-config.outputs.port }}
-          secure: true
+          secure: ${{ steps.smtp-config.outputs.secure }}  
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
           subject: "Campaign Summary - ${{ github.run_started_at }}"
