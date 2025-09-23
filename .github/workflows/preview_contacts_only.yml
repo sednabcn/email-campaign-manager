@@ -1,0 +1,74 @@
+name: Creating_real_csv_contacts_Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      rows_to_show:
+        description: 'Number of rows to preview from extracted CSV'
+        required: false
+        default: 10
+        type: number
+      debug:
+        description: 'Enable debug logging'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: top-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -------------------------------
+  # Contact extraction job (reusable)
+  # -------------------------------
+  contact-extraction:
+    uses: sednabcn/services/.github/workflows/contact-extractor.yml@dev
+    with:
+      source_directory: "contact_details"
+      output_directory: "contacts"
+
+  # -------------------------------
+  # Preview CSV (no campaign)
+  # -------------------------------
+  preview:
+    runs-on: ubuntu-latest
+    needs: contact-extraction
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download contact extraction results
+        uses: actions/download-artifact@v4
+        with:
+          name: latest-contact-extraction-results
+          path: ./contacts
+
+      - name: Preview extracted CSV
+        run: |
+          echo "🔍 Looking for CSV in ./contacts/"
+          CSV_FILE=$(find ./contacts -type f -name "*.csv" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2-)
+
+          if [ -z "$CSV_FILE" ]; then
+            echo "❌ No CSV files found"
+            exit 1
+          fi
+
+          echo "✅ Found: $CSV_FILE"
+          echo ""
+          echo "📊 Preview of first ${{ inputs.rows_to_show }} lines:"
+          head -n ${{ inputs.rows_to_show }} "$CSV_FILE"
+          echo ""
+          echo "📦 Total rows (excluding header):"
+          tail -n +2 "$CSV_FILE" | wc -l
+
+      - name: Add summary to workflow
+        run: |
+          echo "### CSV Preview Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- File: \`$CSV_FILE\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Rows previewed: ${{ inputs.rows_to_show }}" >> $GITHUB_STEP_SUMMARY
