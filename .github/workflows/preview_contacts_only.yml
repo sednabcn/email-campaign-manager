@@ -38,6 +38,8 @@ jobs:
   preview:
     runs-on: ubuntu-latest
     needs: contact-extraction
+    env:
+    ROWS_TO_SHOW: ${{ github.event.inputs.rows_to_show || 10 }}  # default to 10 if missing
 
     steps:
       - name: Checkout repository
