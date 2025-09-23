@@ -176,6 +176,18 @@ jobs:
           exit 1
         fi
 
+    - name: Rename CSV with timestamp
+      if: steps.extraction.outputs.csv_file
+      run: |
+        ts=$(date +%Y%m%d_%H%M%S)
+        dir=$(dirname "${{ steps.extraction.outputs.csv_file }}")
+        base="edu_adults_contacts_${ts}.csv"
+        newfile="$dir/$base"
+        mv "${{ steps.extraction.outputs.csv_file }}" "$newfile"
+        echo "csv_file=$newfile" >> $GITHUB_OUTPUT
+        echo "csv_filename=$base" >> $GITHUB_OUTPUT
+
+        
     - name: Display extraction results
       if: steps.extraction.outputs.csv_file
       run: |
@@ -213,6 +225,16 @@ jobs:
         git commit -m "Add extracted contacts: ${{ steps.extraction.outputs.csv_filename }}" || echo "No changes to commit"
         git push || echo "Nothing to push"
 
+    - name: Commit and push results
+      if: steps.extraction.outputs.csv_file && github.event_name != 'workflow_call'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git pull --rebase
+        git add "contacts/*.csv"
+        git commit -m "Add contacts CSV: ${{ steps.extraction.outputs.csv_filename }}" || echo "No changes to commit"
+        git push
+
     - name: Job summary
       if: always()
       run: |
@@ -241,3 +263,5 @@ jobs:
         echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Run**: #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Script**: \`.github/scripts/extract_contacts.py\`" >> $GITHUB_STEP_SUMMARY
+
+        
