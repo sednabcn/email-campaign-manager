@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Fixed Universal Contact Extraction Script
-Handles academic contact formats properly
+Universal Contact Extraction Script - FIXED VERSION
+Properly handles BOM characters and improved regex patterns
 """
 
 import os
@@ -11,452 +11,354 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+ORG_KEYWORDS = [
+    'university', 'college', 'department', 'school', 'institute', 'bank', 'agency',
+    'house', 'centre', 'center', 'trust', 'hospital', 'office', 'building', 'services',
+    'group', 'ltd', 'limited', 'company', 'street', 'square', 'road', 'avenue', 'london', 'kingdom'
+]
+def clean_text(text):
+    """Remove BOM and other problematic characters but keep newlines"""
+    if not text:
+        return text
+    text = text.replace('\ufeff', '').replace('ï»¿', '')
+    text = text.replace('\xa0', ' ').replace('â€™', "'")
+    # Normalise multiple blank lines but keep newlines
+    text = re.sub(r'\r\n', '\n', text)
+    return text.strip()
+
+def _is_probable_name(text):
+    """Return True if text looks like a personal name (1–3 capitalised words)."""
+    if not text:
+        return False
+    text = clean_text(text)
+    if any(k in text.lower() for k in ORG_KEYWORDS):
+        return False
+    tokens = text.strip().split()
+    if not (1 <= len(tokens) <= 3):
+        return False
+    return all(re.match(r'^[A-Z][a-z\-\']+$', t) for t in tokens)
+
+
 def extract_name_and_rank(text):
-    """Extract name and academic/professional rank separately"""
+    """Extract person name and rank/title from contact text."""
     lines = [line.strip() for line in text.split('\n') if line.strip()]
-    
     if not lines:
         return "", ""
     
-    # Look for title + name patterns
-    for line in lines[:5]:
-        if any(skip in line.lower() for skip in ['email:', 'phone:', 'tel:', 'address:', 'www.', 'http', '@', 'position:', 'school of', 'university']):
-            continue
-        
-        # Academic title patterns - capture name without title
-        title_patterns = [
-            (r'^(Professor)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'Professor'),
-            (r'^(Prof\.?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'Professor'),
-            (r'^(Dr\.?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'Dr'),
-            (r'^(Mr\.?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'Mr'),
-            (r'^(Ms\.?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'Ms'),
-            (r'^(Mrs\.?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'Mrs'),
-        ]
-        
-        for pattern, rank in title_patterns:
-            match = re.search(pattern, line)
-            if match:
-                name = match.group(2).strip()  # Just the name without title
-                print(f"    Found: rank='{rank}', name='{name}' from line: '{line}'")
-                return name, rank
-        
-        # Business title patterns
-        business_patterns = [
-            (r'^(CEO)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'CEO'),
-            (r'^(CTO)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'CTO'),
-            (r'^(CFO)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'CFO'),
-            (r'^(Director)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'Director'),
-            (r'^(Manager)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', 'Manager'),
-        ]
-        
-        for pattern, rank in business_patterns:
-            match = re.search(pattern, line, re.IGNORECASE)
-            if match:
-                name = match.group(2).strip()  # Just the name without title
-                print(f"    Found: rank='{rank}', name='{name}' from line: '{line}'")
-                return name, rank
+    # Enhanced title pattern - complete version
+    title_pattern = re.compile(
+    r'^(Professor|Prof\.?|Dr\.?|Mr\.?|Mrs\.?|Ms\.?|Manager|Director|Head|Dean|Chief|Lecturer|Senior|Principal|Associate|Assistant)\b\.?\s+([A-Z][a-z\'\-]+(?:\s+[A-Z][a-z\'\-]+){0,3})',
+    re.IGNORECASE
+)
+
+    #title_pattern = re.compile(
+    #    r'^(Professor|Prof\.?|Dr\.?|Mr\.?|Mrs\.?|Ms\.?|Manager|Director|Head|Dean|Chief|Lecturer|Senior|Principal|Associate|Assistant)\b\.?\s+([A-Z][a-z\-\']+(?: [A-Z][a-z\-\']+){0,2})\s*$',
+     #   re.IGNORECASE
+    #)
     
-    # Fallback: Look for standalone name in first line
-    first_line = lines[0]
-    if re.match(r'^[A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?$', first_line):
-        if not any(indicator in first_line.lower() for indicator in 
-                  ['university', 'college', 'hospital', 'school', 'company']):
-            print(f"    Found standalone name: '{first_line}'")
-            return first_line, ""
+    # Try to match the pattern in the first few lines
+    for line in lines[:3]:  # Check first 3 lines for title/name
+        match = title_pattern.match(line)
+        if match:
+            title = match.group(1)
+            name = match.group(2)
+            return name, title
     
-    print(f"    No name found in text preview: '{text[:100].replace(chr(10), ' ')}...'")
+    # Fallback: look for standalone name pattern if no title found
+    name_pattern = re.compile(r'^[A-Z][a-z\-\']+(?: [A-Z][a-z\-\']+){1,2}$')
+    for line in lines[:2]:
+        if name_pattern.match(line):
+            return line, ""
+    
     return "", ""
 
-def extract_position_title(text):
-    """Enhanced position extraction"""
+def extract_position_title(text, name="", rank=""):
+    """Extract position/job title separate from rank."""
     lines = [line.strip() for line in text.split('\n') if line.strip()]
-    
-    # Look for position patterns
-    position_patterns = [
-        r'Head of (?:the )?(.+)',
-        r'Professor of (.+)',
-        r'Director of (.+)',
-        r'Manager of (.+)',
-        r'Chief (.+)',
+    position_indicators = [
+        'head of', 'director of', 'chief of', 'dean of', 'school of', 'department of', 
+        'head of school', 'head of department', 'professor of', 'lecturer in'
     ]
     
+    # Look for explicit position fields first
     for line in lines:
-        line_clean = line.strip()
+        if line.lower().startswith(('position:', 'title:', 'role:', 'job title:')):
+            clean = re.sub(r'^(position|title|role|job title):\s*', '', line, flags=re.IGNORECASE).strip()
+            if clean and (not name or name.lower() not in clean.lower()):
+                return clean
+    
+    # Look for specific position patterns that are NOT just title+name combinations
+    for line in lines:
+        line_lower = line.lower()
         
-        # Remove "Position:" prefix if present
-        if line_clean.lower().startswith('position:'):
-            line_clean = re.sub(r'^position:\s*', '', line_clean, flags=re.IGNORECASE)
+        # Skip lines that contain the person's name (avoid extracting "Manager John Doe" as position)
+        if name and name.lower() in line_lower:
+            continue
+            
+        # Skip if this is just the rank we already extracted
+        if rank and line_lower.strip() == rank.lower():
+            continue
+            
+        # Skip lines that are clearly title + name patterns
+        title_name_pattern = r'^(professor|dr\.?|mr\.?|mrs\.?|ms\.?|manager|director|head|dean|chief|lecturer)\s+[A-Z][a-z\-\']+(?:\s+[A-Z][a-z\-\']+)*\s*$'
+        if re.match(title_name_pattern, line, re.IGNORECASE):
+            continue
         
-        # Direct position indicators
-        if any(indicator in line.lower() for indicator in 
-               ['head of school', 'head of department', 'head of the department', 'professor', 'director', 'manager', 'chief']):
-            print(f"    Found position: '{line_clean}'")
-            return line_clean
+        # Skip addresses, emails, phones
+        if re.search(r'(address|email|phone|tel|fax|@|\+\d+|street|road|avenue|building)', line_lower):
+            continue
+            
+        # Look for position indicators first (most specific)
+        for indicator in position_indicators:
+            if indicator in line_lower:
+                return line.strip()
+        
+        # Look for department/school positions
+        if re.search(r'school of|department of|faculty of|college of|institute of', line_lower):
+            return line.strip()
+        
+        # Look for common job titles/positions (not personal titles)
+        position_patterns = [
+            r'^(academic|research|senior|principal|lead|chief|head)\s+(manager|director|coordinator|specialist|analyst|engineer|developer|administrator|officer|supervisor|scientist|fellow|researcher)$',
+            r'^(senior|junior|lead|principal|associate|assistant)\s+\w+(?: \w+)?$',
+            r'^(head|chief|dean|director)\s+of\s+.+$',
+            r'^\w+\s+(head|chief|dean|manager|director|coordinator)$',
+            r'^(professor|lecturer|reader)\s+(of|in)\s+.+$'
+        ]
+        
+        for pattern in position_patterns:
+            if re.match(pattern, line, re.IGNORECASE):
+                return line.strip()
     
     return ""
+
+def process_contact_data(text_content):
+    """Process contact data and return structured information."""
+    name, rank = extract_name_and_rank(text_content)
+    position = extract_position_title(text_content, name, rank)
+    
+    # If name is generic or incomplete, try to fix it
+    if name in ["of School", "Unknown Contact", "Contact"] or len(name.strip()) < 3:
+        # Try alternative extraction for problematic cases
+        lines = [line.strip() for line in text_content.split('\n') if line.strip()]
+        
+        # Look for patterns like "Head of School" and try to find the actual name
+        for i, line in enumerate(lines):
+            if "head of school" in line.lower() and i > 0:
+                # Check previous lines for a name
+                for j in range(max(0, i-3), i):
+                    potential_name = lines[j]
+                    if re.match(r'^[A-Z][a-z\-\']+(?: [A-Z][a-z\-\']+){1,3}$', potential_name):
+                        name = potential_name
+                        break
+                break
+    
+    return {
+        'name': name or "Unknown Contact",
+        'rank': rank,
+        'position': position
+    }
+
+def split_multiple_contacts(text):
+    """Split text containing multiple contacts into individual blocks."""
+    text = clean_text(text)
+    
+    # Enhanced patterns that indicate the start of a new contact
+    contact_patterns = [
+        r'\n(?=Professor [A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s|$))',
+        r'\n(?=Dr\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s|$))',
+        r'\n(?=Manager [A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s|$))',
+        r'\n(?=Director [A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s|$))',
+        r'\n(?=Mr\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s|$))',
+        r'\n(?=Ms\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s|$))',
+        r'\n(?=Mrs\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s|$))',
+        r'\n(?=Head [A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s|$))',
+        r'\n(?=Chief [A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s|$))',
+    ]
+    
+    # Try each pattern
+    for pattern in contact_patterns:
+        parts = re.split(pattern, text)
+        if len(parts) > 1:
+            result = []
+            for part in parts:
+                part = part.strip()
+                if len(part) > 30:  # Minimum viable contact length
+                    result.append(part)
+            if len(result) > 1:
+                return result
+    
+    return [text]
 
 def extract_email_addresses(text):
-    """Extract clean email addresses without placeholder markers"""
-    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    emails = re.findall(email_pattern, text, re.IGNORECASE)
-    
-    if not emails:
-        return ""
-    
-    # Return the first email found, clean (no placeholder markers)
-    return emails[0].lower().strip()
+    text = clean_text(text)
+    pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    emails = re.findall(pattern, text, re.IGNORECASE)
+    return emails[0].lower().strip() if emails else ""
 
 def extract_phone_numbers(text):
-    """Enhanced phone extraction for UK numbers"""
-    # UK-specific patterns
-    uk_patterns = [
-        r'\+44\s?\(0\)\d{2,4}\s?\d{4}\s?\d{4}',    # +44 (0)20 1234 5678
-        r'\+44\s?\d{2,4}\s?\d{4}\s?\d{4}',         # +44 20 1234 5678
-        r'0\d{2,4}\s?\d{4}\s?\d{4}',               # 020 1234 5678
-        r'\+44\s?\d{4}\s?\d{6}',                   # +44 1234 567890
+    text = clean_text(text)
+    patterns = [
+        r'\+44\s*\(0\)\s*\d{2,4}\s+\d{3,4}\s+\d{4}',
+        r'\+44\s*\d{2,4}\s+\d{3,4}\s+\d{4}',
+        r'0\d{2,4}\s+\d{3,4}\s+\d{4}',
+        r'\+44\s*\d{4}\s+\d{6}',
+        r'0\d{10}'
     ]
-    
-    for pattern in uk_patterns:
-        phones = re.findall(pattern, text)
-        if phones:
-            phone = phones[0].strip()
-            print(f"    Found phone: '{phone}'")
-            return phone
-    
+    for p in patterns:
+        match = re.search(p, text)
+        if match:
+            return re.sub(r'\s+', ' ', match.group().strip())
     return ""
 
+def extract_address(text):
+    text = clean_text(text)
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    indicators = ['address', 'located in', 'university address', 'house', 'street', 'road', 'avenue', 'building', 'london', 'kingdom']
+    address_lines = []
+    for line in lines:
+        if any(ind in line.lower() for ind in indicators):
+            address_lines.append(line)
+    return ", ".join(address_lines) if address_lines else ""
+
 def get_organization_from_filename(filename):
-    """Enhanced filename mapping"""
     filename_lower = filename.lower().replace('.txt', '').replace('-contacts', '')
-    
-    org_mappings = {
-        'birbeck': 'Birkbeck, University of London',
-        'open-univ': 'The Open University', 
+    mappings = {
+        'birkbeck': 'Birkbeck, University of London',
+        'birbeck': 'Birkbeck, University of London',  # Handle typo
+        'open-univ': 'The Open University',
         'st.george': "St George's, University of London",
+        'st.george\'s': "St George's, University of London",
         'cambridge': 'University of Cambridge',
         'oxford': 'University of Oxford',
         'barclays': 'Barclays Bank',
+        'hsbc': 'HSBC Bank',
+        'lloyds': 'Lloyds Bank',
+        'natwest': 'NatWest Bank',
     }
-    
-    for key, org in org_mappings.items():
+    for key, org in mappings.items():
         if key in filename_lower:
             return org
-    
-    # Generic cleanup
-    org = filename_lower.replace('=', ' ').replace('-', ' ').replace('_', ' ')
-    org = ' '.join(word.capitalize() for word in org.split())
-    return org if org else "Unknown Organization"
+    return filename.replace('=', ' ').replace('_', ' ').replace('-', ' ')
 
-def get_category_from_path(file_path):
-    """Extract category from file path structure"""
-    path_parts = Path(file_path).parts
-    
-    # Look for meaningful directory names
-    categories = []
-    for part in path_parts:
-        part_lower = part.lower()
-        if part_lower in ['education', 'finance', 'healthcare', 'technology', 'business', 'government']:
-            categories.append(part_lower)
-        elif part_lower in ['adult_education', 'banks', 'hospitals', 'universities']:
-            categories.append(part_lower)
-    
-    if categories:
-        return '_'.join(categories)
-    
-    # Fallback to parent directory name
-    parent = Path(file_path).parent.name.lower()
-    if parent and parent != 'contacts':
-        return parent
-    
+def determine_sector(file_path):
+    parts = [p.lower() for p in Path(file_path).parts]
+    if 'education' in parts:
+        return 'education'
+    if 'finance' in parts or 'bank' in parts:
+        return 'finance'
     return 'general'
 
-def extract_address_info(text):
-    """Enhanced address extraction"""
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    address_lines = []
-    capture_address = False
-    
-    for line in lines:
-        # Start capturing after address indicators
-        if re.search(r'\b(address|location|office):', line, re.IGNORECASE):
-            capture_address = True
-            # Include the cleaned line
-            clean_line = re.sub(r'^.*?(?:address|location|office):\s*', '', line, flags=re.IGNORECASE)
-            if clean_line and len(clean_line) > 5:
-                address_lines.append(clean_line)
-            continue
-        
-        # Stop at contact info
-        if capture_address and re.search(r'[@📧📞]|email:|phone:|tel:', line, re.IGNORECASE):
-            break
-        
-        # Capture lines while in address mode
-        if capture_address:
-            if not any(skip in line.lower() for skip in ['email:', 'phone:', 'tel:', 'profile:']):
-                if len(line) > 5:
-                    address_lines.append(line)
-        
-        # Also capture obvious address lines
-        elif not capture_address:
-            if (re.search(r'\b\d+\s+\w+\s+(street|road|avenue|lane)', line, re.IGNORECASE) or
-                re.search(r'\b[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}\b', line)):  # UK postcode
-                address_lines.append(line)
-    
-    return ' | '.join(address_lines) if address_lines else ""
-
-def detect_sector(text, filename):
-    """Detect sector from content"""
-    text_lower = text.lower()
-    filename_lower = filename.lower()
-    combined = f"{text_lower} {filename_lower}"
-    
-    sectors = {
-        'Academic': ['university', 'college', 'school', 'professor', 'lecturer', 'research'],
-        'Healthcare': ['hospital', 'clinic', 'medical', 'doctor', 'nhs'],
-        'Finance': ['bank', 'financial', 'insurance', 'investment'],
-        'Technology': ['software', 'tech', 'digital', 'IT'],
-        'Business': ['company', 'corporation', 'business', 'executive'],
-        'Government': ['government', 'ministry', 'department', 'council'],
-    }
-    
-    sector_scores = {}
-    for sector, keywords in sectors.items():
-        score = sum(1 for keyword in keywords if keyword in combined)
-        if score > 0:
-            sector_scores[sector] = score
-    
-    return max(sector_scores, key=sector_scores.get) if sector_scores else "General"
-
 def parse_contact_block(contact_text, source_filename, file_path):
-    """Parse contact block with name/rank separation and better categorization"""
-    print(f"  Parsing contact block from {source_filename}:")
-    
-    # Extract components
-    name, rank = extract_name_and_rank(contact_text)
-    position = extract_position_title(contact_text)
-    email = extract_email_addresses(contact_text)
-    phone = extract_phone_numbers(contact_text)
-    organization = get_organization_from_filename(source_filename)
-    address = extract_address_info(contact_text)
-    sector = detect_sector(contact_text, source_filename)
-    category = get_category_from_path(file_path)
-    
-    # Clean raw data
-    raw_data = ' '.join(contact_text.split()).strip()[:500]
-    
-    contact = {
-        'name': name if name else "Unknown Contact",
-        'rank': rank,
-        'position': position,
-        'email': email,
-        'phone': phone,
-        'organization': organization,
-        'address': address,
-        'sector': sector,
-        'category': category,
-        'raw_data': raw_data,
-        'source_file': source_filename
+    """Parse contact block using the working process_contact_data function."""
+  
+    contact_data = process_contact_data(contact_text)
+  
+    result = {
+        'name': contact_data['name'],
+        'rank/title': contact_data['rank'],
+        'position': contact_data['position'],
+        'email': extract_email_addresses(contact_text),
+        'phone': extract_phone_numbers(contact_text),
+        'organization': get_organization_from_filename(source_filename),
+        'address': extract_address(contact_text),
+        'source': source_filename,
+        'sector': determine_sector(file_path)
     }
     
-    print(f"    Result: {contact['name']} | {contact['rank']} | {contact['position']} | {contact['email']}")
-    return contact
+    return result
 
 def extract_contacts_from_file(file_path):
-    """Extract contacts with better content splitting"""
     contacts = []
     filename = os.path.basename(file_path)
-    
-    print(f"📄 Processing: {file_path}")
-    
-    try:
-        # Read file with encoding detection
-        encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']
-        content = None
-        
-        for encoding in encodings:
-            try:
-                with open(file_path, 'r', encoding=encoding) as f:
-                    content = f.read()
-                print(f"  ✅ Read with {encoding} encoding")
-                break
-            except UnicodeDecodeError:
-                continue
-        
-        if content is None:
-            print(f"  ❌ Could not decode file")
-            return contacts
-        
-        print(f"  📝 File content preview: {content[:200].replace(chr(10), ' ')}...")
-        
-        # Split content into blocks
-        contact_blocks = []
-        
-        # Method 1: Split by horizontal lines
-        if re.search(r'^[-=*]{3,}$', content, re.MULTILINE):
-            contact_blocks = re.split(r'^[-=*]{3,}$', content, flags=re.MULTILINE)
-            print(f"  🔗 Split by separators: {len(contact_blocks)} blocks")
-        
-        # Method 2: Split by multiple newlines
-        elif re.search(r'\n\s*\n\s*\n', content):
-            contact_blocks = re.split(r'\n\s*\n\s*\n+', content)
-            print(f"  🔗 Split by blank lines: {len(contact_blocks)} blocks")
-        
-        # Method 3: Split by "Professor" occurrences (for academic files)
-        elif content.count('Professor') > 1:
-            # Split on Professor but keep it in the result
-            parts = re.split(r'(?=Professor)', content)
-            contact_blocks = [part for part in parts if part.strip()]
-            print(f"  🔗 Split by 'Professor': {len(contact_blocks)} blocks")
-        
-        # Fallback: single contact
-        else:
-            contact_blocks = [content]
-            print(f"  🔗 Single contact block")
-        
-        # Process each block
-        for i, block in enumerate(contact_blocks):
-            block = block.strip()
-            if len(block) < 20:
-                continue
-            
-            print(f"  📋 Block {i+1}:")
-            print(f"    Content: {block[:100].replace(chr(10), ' ')}...")
-            
-            contact = parse_contact_block(block, filename, file_path)
-            
-            # Quality check
-            if (contact['name'] != "Unknown Contact" or 
-                (contact['email'] and contact['email'] != "") or
-                contact['phone']):
-                contacts.append(contact)
-                print(f"    ✅ Added contact: {contact['name']}")
-            else:
-                print(f"    ❌ Skipped: insufficient data")
-    
-    except Exception as e:
-        print(f"  ❌ Error: {e}")
-    
-    return contacts
 
+    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        content = f.read().strip()
+
+    if len(content) < 15:
+        return contacts
+
+    blocks = split_multiple_contacts(content)   # instead of re.split(...)
+
+    for block in blocks:
+        block = block.strip()
+        if len(block) < 15:
+            continue
+        contact = parse_contact_block(block, filename, file_path)
+        if contact["name"] != "Unknown Contact" or contact["email"] or contact["phone"]:
+            contacts.append(contact)
+    return contacts
+    
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python fixed_extract_contacts.py <source_directory> <output_directory>")
+        print("Usage: python fixed_extract.py <source_directory> <output_directory>")
         sys.exit(1)
-    
-    source_dir = sys.argv[1]
-    output_dir = sys.argv[2]
-    
-    print(f"🌐 Fixed Universal Contact Extraction Script")
-    print(f"📂 Source: {source_dir}")
-    print(f"📁 Output: {output_dir}")
-    print(f"🕒 Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("=" * 60)
-    
-    # Create output directory
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    
-    # Find source files
-    source_path = Path(source_dir)
-    if not source_path.exists():
-        print(f"❌ Source directory not found: {source_dir}")
-        sys.exit(1)
-    
-    txt_files = list(source_path.rglob("*.txt"))
+
+    source_dir, output_dir = sys.argv[1], sys.argv[2]
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    txt_files = list(Path(source_dir).rglob("*.txt"))
     if not txt_files:
-        print(f"📭 No .txt files found")
+        print("No .txt files found")
         sys.exit(1)
     
-    print(f"📋 Found {len(txt_files)} files:")
-    for txt_file in sorted(txt_files):
-        size = txt_file.stat().st_size
-        print(f"  📄 {txt_file.name} ({size:,} bytes)")
-    print()
-    
-    # Extract contacts
     all_contacts = []
-    for txt_file in sorted(txt_files):
-        file_contacts = extract_contacts_from_file(txt_file)
-        all_contacts.extend(file_contacts)
-        print(f"  → {len(file_contacts)} contacts extracted")
-        print()
+    for txt in txt_files:
+        all_contacts.extend(extract_contacts_from_file(txt))
     
-    # Deduplication (improved to avoid repetition)
-    print(f"🔄 Deduplicating {len(all_contacts)} contacts...")
-    unique_contacts = {}
-    
-    for contact in all_contacts:
-        # Create more specific dedup key to avoid over-merging
-        key = (
-            contact['email'].replace(' [PLACEHOLDER]', '').lower() if contact['email'] else 'no_email',
-            contact['name'].lower(),
-            contact['organization'].lower(),
-            contact['category']  # Add category to avoid merging contacts from different categories
-        )
-        
-        if key not in unique_contacts or key[0] == 'no_email':
-            # Always add if no duplicate or if no email (to avoid losing valid contacts)
-            unique_key = f"{key}_{len([k for k in unique_contacts.keys() if k[:3] == key[:3]])}"
-            unique_contacts[unique_key] = contact
-        else:
-            # Merge: prefer contact with more complete data
-            existing = unique_contacts[key]
-            if (len(contact['email']) > len(existing['email']) or
-                contact['name'] != "Unknown Contact" and existing['name'] == "Unknown Contact"):
-                unique_contacts[key] = contact
-    
-    final_contacts = list(unique_contacts.values())
-    print(f"✨ Final contacts: {len(final_contacts)}")
-    
-    # Generate category-based filename
-    categories = set()
-    for contact in final_contacts:
-        if contact.get('category'):
-            categories.add(contact['category'])
-    
-    if len(categories) == 1:
-        category_name = list(categories)[0]
-    elif categories:
-        category_name = '_'.join(sorted(categories))
-    else:
-        category_name = 'general'
-    
-    # Export to CSV with category-based filename
+  
+    contacts_by_sector = {}
+    for c in all_contacts:
+        sector = c.get('sector', 'general')
+        contacts_by_sector.setdefault(sector, []).append(c)
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_filename = f"{category_name}_contacts_{timestamp}.csv"
-    csv_path = output_path / csv_filename
-    
-    fieldnames = ['name', 'rank', 'position', 'email', 'phone', 'organization', 'address', 'sector', 'category', 'raw_data', 'source_file']
-    
-    with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        for contact in final_contacts:
-            writer.writerow(contact)
-    
-    print(f"💾 Created: {csv_filename}")
-    print(f"📏 Size: {csv_path.stat().st_size:,} bytes")
-    print(f"📊 Records: {len(final_contacts)}")
-    
-    # Preview results
-    print(f"\n👀 Preview:")
-    with open(csv_path, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for i, row in enumerate(reader):
-            if i >= 3:
-                break
-            print(f"  📝 {i+1}. {row['name']} ({row['sector']})")
-            print(f"     🗂️  Category: {row['category']}")
-            print(f"     🎖️  Rank: {row['rank']}")
-            print(f"     💼 Position: {row['position']}")
-            print(f"     📧 Email: {row['email']}")
-            print(f"     📞 Phone: {row['phone']}")
-            print(f"     🏢 Organization: {row['organization']}")
-            print(f"     📄 Source: {row['source_file']}")
-            print()
-    
-    print(f"🎉 Extraction completed!")
+    fieldnames = ['name', 'rank/title', 'position', 'email', 'phone', 'organization', 'sector', 'address', 'source']
+
+    created_files = []
+    for sector, contacts in contacts_by_sector.items():
+        if not contacts:
+            continue
+
+        # Deduplication
+        unique = {}
+        for c in contacts:
+            key = (c['name'].lower().strip(), c['organization'].lower())
+            if key not in unique:
+                unique[key] = c
+            else:
+                existing = unique[key]
+                # Keep the contact with more complete information
+                if (c['email'] and not existing['email']) or \
+                   (c['position'] and not existing['position']) or \
+                   (c['address'] and not existing['address']):
+                    unique[key] = c
+        final_contacts = list(unique.values())
+
+        if sector == 'education':
+            csv_filename = f"edu_adults_contacts_{timestamp}.csv"
+        elif sector == 'finance':
+            csv_filename = f"banks_contacts_{timestamp}.csv"
+        else:
+            csv_filename = f"{sector}_contacts_{timestamp}.csv"
+
+        csv_path = Path(output_dir) / csv_filename
+        with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for c in final_contacts:
+                writer.writerow(c)
+
+        created_files.append((csv_filename, len(final_contacts)))
+
+    print(f"\n✅ Extraction completed: {len(created_files)} files")
+    for filename, count in created_files:
+        print(f"  📊 {filename}: {count} contacts")
+        with open(Path(output_dir)/filename, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for i, row in enumerate(reader):
+                if i >= 3: break
+                print(f"    📄 {row['name']} | {row['rank/title']} | {row['position']} | {row['email']} | {row['phone']} | {row['organization']} | {row['sector']} | {row['address']} | {row['source']}")
 
 if __name__ == "__main__":
     main()
-
