@@ -4,7 +4,7 @@ on:
   push:
     branches: ["dev", "master"]
   schedule:
-    - cron: '30 18 * * *'  # Runs every day at 20:30 UTC
+    - cron: '30 07 * * *'  # Runs every day at 20:30 UTC
 
 jobs:
   clean-csv:
