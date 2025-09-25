@@ -79,7 +79,7 @@ jobs:
           
           # Sort by filename (which contains timestamp) to get the latest
           # Using version sort (-V) to handle the datetime format properly
-          LATEST_CSV=$(echo "$CSV_FILES" | grep -E "(edu_adults_contacts_|contacts_extracted_)[0-9]{8}_[0-9]{6}\.csv" | sort -V | tail -1)
+          LATEST_CSV=$(echo "$CSV_FILES" | grep -E "edu_adults_contacts_[0-9]{8}_[0-9]{6}\.csv" | sort -V | tail -1)
           
           if [ -z "$LATEST_CSV" ]; then
             echo "⚠️  No files matching expected pattern, using any CSV file found:"
