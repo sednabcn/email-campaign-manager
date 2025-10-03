@@ -10,6 +10,9 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for better merge handling
+          
       - name: Keep only the latest CSV per list and remove temp files
         run: |
           echo "Cleaning CSV files in contacts/ directory..."
@@ -121,7 +124,36 @@ jobs:
             
             if ! git diff --cached --quiet; then
               git commit -m "Daily cleanup $TODAY: cleaned lists:${CLEANED_LISTS}" || echo "No changes to commit"
-              git push
+              
+              # Pull with rebase to handle any remote changes, then push
+              MAX_RETRIES=3
+              RETRY_COUNT=0
+              
+              while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                echo "Attempting to push (attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)..."
+                
+                # Pull with rebase strategy to integrate remote changes
+                git pull --rebase origin $(git branch --show-current) || {
+                  echo "Pull failed, attempting to continue rebase..."
+                  git rebase --continue || git rebase --skip || true
+                }
+                
+                # Try to push
+                if git push; then
+                  echo "Successfully pushed changes!"
+                  break
+                else
+                  echo "Push failed, retrying..."
+                  RETRY_COUNT=$((RETRY_COUNT + 1))
+                  
+                  if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                    echo "Failed to push after $MAX_RETRIES attempts"
+                    exit 1
+                  fi
+                  
+                  sleep 2
+                fi
+              done
             else
               echo "No changes to commit after cleanup."
             fi
