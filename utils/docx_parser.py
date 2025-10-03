@@ -50,12 +50,30 @@ try:
     class EmailSender(BaseEmailSender):
         """Enhanced EmailSender with template variable substitution"""
         
-        def substitute_variables(self, content, contact, additional_vars=None):
+        def substitute_variables(self, content, contact, additional_vars=None, contact_mapping=None):
+            """
+            Enhanced variable substitution with contact_mapping support
+            
+            Supports multiple placeholder formats:
+            - [Recipient Name] with contact_mapping
+            - {{variable}}, {variable} for direct field access
+            """
             if not isinstance(content, str):
                 return str(content)
             
+            result = content
             variables = {}
             
+            # Phase 1: Handle contact_mapping for [Placeholder] format (CRITICAL FIX)
+            if contact_mapping and isinstance(contact_mapping, dict) and isinstance(contact, dict):
+                for template_placeholder, csv_field in contact_mapping.items():
+                   value = contact.get(csv_field, '')
+                   # Handle nan, None, and empty values
+                   if value and str(value).lower() not in ['nan', 'none', '']:
+                       placeholder_pattern = f'[{template_placeholder}]'
+                       result = result.replace(placeholder_pattern, str(value))
+            
+            # Phase 2: Build variables dictionary for generic patterns
             if isinstance(contact, dict):
                 for key, value in contact.items():
                     if value is not None:
@@ -88,10 +106,9 @@ try:
                 variables['company'] = 'your organization'
                 variables['Company'] = 'your organization'
             
-            result = content
-            
+            # Phase 3: Handle {{variable}} format
             pattern1 = re.compile(r'\{\{([^}]+)\}\}')
-            for match in pattern1.finditer(content):
+            for match in pattern1.finditer(result):
                 var_name = match.group(1).strip()
                 if var_name in variables:
                     result = result.replace(match.group(0), variables[var_name])
@@ -100,6 +117,7 @@ try:
                     if var_lower in variables:
                         result = result.replace(match.group(0), variables[var_lower])
             
+            # Phase 4: Handle {variable} format
             pattern2 = re.compile(r'\{([^}]+)\}')
             for match in pattern2.finditer(result):
                 var_name = match.group(1).strip().lower()
@@ -108,7 +126,7 @@ try:
             
             return result
         
-        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", tracking_id=None):
+        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", tracking_id=None, contact_mapping=None):
             print(f"\n=== CAMPAIGN: {campaign_name} ===")
             if tracking_id:
                 print(f"Tracking ID: {tracking_id}")
@@ -133,8 +151,8 @@ try:
                     continue
                 
                 try:
-                    personalized_subject = self.substitute_variables(subject, recipient)
-                    personalized_content = self.substitute_variables(content, recipient)
+                    personalized_subject = self.substitute_variables(subject, recipient, contact_mapping=contact_mapping)
+                    personalized_content = self.substitute_variables(content, recipient, contact_mapping=contact_mapping)
                     
                     processed_recipient = {
                         **recipient,
@@ -187,27 +205,38 @@ except ImportError:
             self.dry_run = dry_run
             print(f"Fallback EmailSender initialized - dry_run: {dry_run}, alerts: {alerts_email}")
         
-        def substitute_variables(self, content, contact, additional_vars=None):
-            if not isinstance(content, str) or not isinstance(contact, dict):
+        def substitute_variables(self, content, contact, additional_vars=None, contact_mapping=None):
+            if not isinstance(content, str):
                 return str(content)
             
             result = content
-            name = contact.get('name', contact.get('email', '').split('@')[0] if contact.get('email') else 'Friend')
-            email = contact.get('email', '')
-            company = contact.get('company', 'your organization')
             
-            replacements = {
-                '{{Contact Name}}': name, '{{contact name}}': name, '{{name}}': name, '{name}': name,
-                '{{Contact Email}}': email, '{{contact email}}': email, '{{email}}': email, '{email}': email,
-                '{{Company}}': company, '{{company}}': company, '{company}': company,
-            }
+            # Handle contact_mapping for [Placeholder] format
+            if contact_mapping and isinstance(contact_mapping, dict) and isinstance(contact, dict):
+                for template_placeholder, csv_field in contact_mapping.items():
+                    value = contact.get(csv_field, '')
+                    if value:
+                        placeholder_pattern = f'[{template_placeholder}]'
+                        result = result.replace(placeholder_pattern, str(value))
             
-            for pattern, value in replacements.items():
-                result = result.replace(pattern, str(value))
+            # Handle generic patterns
+            if isinstance(contact, dict):
+                name = contact.get('name', contact.get('email', '').split('@')[0] if contact.get('email') else 'Friend')
+                email = contact.get('email', '')
+                company = contact.get('company', contact.get('organization', 'your organization'))
+                
+                replacements = {
+                    '{{Contact Name}}': name, '{{contact name}}': name, '{{name}}': name, '{name}': name,
+                    '{{Contact Email}}': email, '{{contact email}}': email, '{{email}}': email, '{email}': email,
+                    '{{Company}}': company, '{{company}}': company, '{company}': company,
+                }
+                
+                for pattern, value in replacements.items():
+                    result = result.replace(pattern, str(value))
             
             return result
         
-        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", tracking_id=None):
+        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", tracking_id=None, contact_mapping=None):
             print(f"\n=== CAMPAIGN: {campaign_name} ===")
             if tracking_id:
                 print(f"Tracking ID: {tracking_id}")
@@ -222,8 +251,8 @@ except ImportError:
                 print("DRY-RUN MODE: No emails sent")
                 for i, recipient in enumerate(recipients[:3]):
                     if isinstance(recipient, dict):
-                        personalized_subject = self.substitute_variables(subject, recipient)
-                        personalized_content = self.substitute_variables(content, recipient)
+                        personalized_subject = self.substitute_variables(subject, recipient, contact_mapping=contact_mapping)
+                        personalized_content = self.substitute_variables(content, recipient, contact_mapping=contact_mapping)
                         
                         email = recipient.get('email', 'N/A')
                         name = recipient.get('name', 'N/A')
@@ -570,7 +599,12 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         else:
             print("Using fallback contact loading")
             all_contacts = fallback_load_contacts_from_directory(contacts_root)
-        
+
+        # Get SMTP config from environment variables
+        smtp_host = os.getenv('SMTP_HOST')
+        smtp_port = os.getenv('SMTP_PORT')
+        smtp_user = os.getenv('SMTP_USER')
+        smtp_pass = os.getenv('SMTP_PASS')
         # Initialize emailer
         if GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS'):
             print("Using GitHubActionsEmailSender - SMTP timeouts bypassed")
@@ -584,7 +618,14 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             )
         else:
             print("Using standard EmailSender")
-            emailer = EmailSender(alerts_email=alerts_email, dry_run=dry_run)
+            emailer = EmailSenderemailer = EmailSender(
+                smtp_host=smtp_host,
+                smtp_port=smtp_port,
+                smtp_user=smtp_user,
+                smtp_pass=smtp_pass,
+                alerts_email=alerts_email,
+                dry_run=dry_run
+            )
         
         # Scan for domain-based campaigns
         domain_campaigns = scan_domain_campaigns(scheduled_root)
@@ -671,6 +712,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     content = str(campaign_content)
                     from_name = "Campaign System"
                     config = {}
+                    contact_mapping = {}
                 
                 # Generate tracking ID
                 tracking_id = generate_tracking_id(domain, full_campaign_name, campaign_file.name)
@@ -685,7 +727,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     contact_copy['tracking_id'] = tracking_id
                     contacts_with_ids.append(contact_copy)
                 
-                # Send campaign
+                # Send campaign (FIXED: now passes contact_mapping)
                 try:
                     campaign_result = emailer.send_campaign(
                         campaign_name=f"{domain}/{full_campaign_name}",
@@ -693,7 +735,8 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                         content=content,
                         recipients=contacts_with_ids,
                         from_name=from_name,
-                        tracking_id=tracking_id
+                        tracking_id=tracking_id,
+                        contact_mapping=config.get('contact_mapping', {})
                     )
                     
                     campaigns_processed += 1
@@ -834,3 +877,4 @@ if __name__ == "__main__":
         debug=args.debug
     )
     print("Domain-aware campaign system completed successfully")
+                        

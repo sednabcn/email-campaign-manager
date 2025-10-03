@@ -1,0 +1,28 @@
+{
+  "tracking_id": "DEFAULT_1f0b4718_20251003_220949",
+  "domain": "default",
+  "campaign_name": "test_campaign",
+  "full_path": "test_campaign",
+  "subdirectory": null,
+  "template_file": "test_campaign.json",
+  "subject": "Partnership Opportunity in Education",
+  "from_name": "Outreach Team",
+  "timestamp": "2025-10-03T22:09:49.028675",
+  "total_recipients": 12,
+  "sent": 0,
+  "failed": 0,
+  "dry_run": true,
+  "config_based": true,
+  "sector": "education",
+  "feedback_enabled": true,
+  "tracking_enabled": true,
+  "template_source": "campaign-templates/education/adult_education/adult_education_letter.docx",
+  "contact_mapping": {
+    "Recipient Name": "name",
+    "Title / Position": "position",
+    "Department / School": "organization",
+    "University / Institution": "organization",
+    "Address or Campus, if needed": "address",
+    "Department Name": "organization"
+  }
+}
