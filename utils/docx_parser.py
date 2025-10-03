@@ -774,11 +774,6 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--no-feedback", action="store_true", help="Skip feedback injection")
     parser.add_argument("--remote-only", action="store_true", help="Force remote-only mode")
-     parser.add_argument("--enhanced-mode", action="store_true", help="Enable enhanced processing mode")
-    parser.add_argument("--template-variables", action="store_true", help="Enable template variable processing")
-    parser.add_argument("--comprehensive-tracking", action="store_true", help="Enable comprehensive tracking")
-    parser.add_argument("--batch-size", type=int, default=50, help="Batch size for processing")
-    parser.add_argument("--delay", type=int, default=5, help="Delay between batches")
     
     print("Parsing arguments...")
     args = parser.parse_args()
