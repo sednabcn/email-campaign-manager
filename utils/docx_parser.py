@@ -391,13 +391,14 @@ def load_campaign_content(campaign_path):
 
 
 def load_json_campaign(campaign_path):
-    """Load and process JSON campaign file"""
+    """Load and process JSON campaign file - supports both content and config formats"""
     try:
         with open(campaign_path, 'r', encoding='utf-8') as f:
             campaign_data = json.load(f)
         
         print(f"Loaded JSON campaign: {campaign_path}")
         
+        # Format 1: Simple content format with subject/content
         if 'subject' in campaign_data and 'content' in campaign_data:
             return {
                 'subject': campaign_data['subject'],
@@ -407,6 +408,41 @@ def load_json_campaign(campaign_path):
                 'metadata': campaign_data.get('metadata', {})
             }
         
+        # Format 2: Config format with templates array (like test_campaign.json)
+        elif 'templates' in campaign_data and isinstance(campaign_data['templates'], list):
+            if not campaign_data['templates']:
+                print(f"Warning: No templates specified in config {campaign_path}")
+                return None
+            
+            # Get the first template file
+            template_file = campaign_data['templates'][0]
+            template_path = Path(template_file)
+            
+            # If path is relative, resolve it
+            if not template_path.is_absolute():
+                template_path = Path(campaign_path).parent.parent / template_file
+            
+            if not template_path.exists():
+                print(f"Warning: Template file not found: {template_path}")
+                return None
+            
+            # Load the actual template content
+            template_content = load_campaign_content(str(template_path))
+            if not template_content:
+                print(f"Warning: Could not load template content from {template_path}")
+                return None
+            
+            # Build campaign data from config
+            return {
+                'subject': campaign_data.get('subject', 'Campaign'),
+                'content': template_content if isinstance(template_content, str) else template_content.get('content', ''),
+                'from_name': campaign_data.get('from_name', 'Campaign System'),
+                'content_type': 'html',
+                'config': campaign_data,  # Include full config
+                'template_source': str(template_path)
+            }
+        
+        # Format 3: campaigns array
         elif 'campaigns' in campaign_data:
             if campaign_data['campaigns']:
                 first_campaign = campaign_data['campaigns'][0]
@@ -418,6 +454,7 @@ def load_json_campaign(campaign_path):
                     'metadata': campaign_data.get('metadata', {})
                 }
         
+        # Format 4: Plain string content
         elif isinstance(campaign_data, str):
             return {
                 'subject': 'Campaign',
@@ -432,6 +469,7 @@ def load_json_campaign(campaign_path):
         
     except Exception as e:
         print(f"Error loading JSON campaign {campaign_path}: {str(e)}")
+        traceback.print_exc()
         return None
 
 
@@ -656,10 +694,33 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     subject = campaign_content.get('subject', f"Campaign: {campaign_name}")
                     content = campaign_content.get('content', '')
                     from_name = campaign_content.get('from_name', 'Campaign System')
+                    
+                    # Extract config if present (from JSON config files)
+                    config = campaign_content.get('config', {})
+                    
+                    # Use config values if available
+                    if config:
+                        print(f"Using config-based campaign settings from JSON")
+                        from_name = config.get('from_name', from_name)
+                        subject = config.get('subject', subject)
+                        
+                        # Apply contact mapping if specified
+                        contact_mapping = config.get('contact_mapping', {})
+                        if contact_mapping:
+                            print(f"Contact field mapping active: {list(contact_mapping.keys())}")
+                        
+                        # Show additional config info
+                        if config.get('sector'):
+                            print(f"Sector: {config['sector']}")
+                        if config.get('feedback', {}).get('auto_inject'):
+                            print(f"Feedback auto-injection: ENABLED")
+                        if config.get('tracking', {}).get('enabled'):
+                            print(f"Enhanced tracking: ENABLED")
                 else:
                     subject = extract_subject_from_content(campaign_content) or f"Campaign: {campaign_name}"
                     content = str(campaign_content)
                     from_name = "Campaign System"
+                    config = {}
                 
                 # Generate unique tracking ID (use full path for uniqueness)
                 tracking_id = generate_tracking_id(domain, full_campaign_name, campaign_file.name)
@@ -706,6 +767,16 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                         'failed': campaign_result['failed'],
                         'dry_run': dry_run
                     }
+                    
+                    # Add config data if present
+                    if config:
+                        tracking_data['config_based'] = True
+                        tracking_data['sector'] = config.get('sector')
+                        tracking_data['feedback_enabled'] = config.get('feedback', {}).get('auto_inject', False)
+                        tracking_data['tracking_enabled'] = config.get('tracking', {}).get('enabled', False)
+                        tracking_data['template_source'] = campaign_content.get('template_source')
+                        if 'contact_mapping' in config:
+                            tracking_data['contact_mapping'] = config['contact_mapping']
                     
                     save_tracking_data(tracking_root, domain, tracking_id, tracking_data)
                     
@@ -774,6 +845,12 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--no-feedback", action="store_true", help="Skip feedback injection")
     parser.add_argument("--remote-only", action="store_true", help="Force remote-only mode")
+     parser.add_argument("--enhanced-mode", action="store_true", help="Enable enhanced processing mode")
+    parser.add_argument("--template-variables", action="store_true", help="Enable template variable processing")
+    parser.add_argument("--comprehensive-tracking", action="store_true", help="Enable comprehensive tracking")
+    parser.add_argument("--batch-size", type=int, default=50, help="Batch size for processing")
+    parser.add_argument("--delay", type=int, default=5, help="Delay between batches")
+    
     
     print("Parsing arguments...")
     args = parser.parse_args()
