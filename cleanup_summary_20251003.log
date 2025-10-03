@@ -1,0 +1,13 @@
+Daily CSV Cleanup Report for 20251003
+-----------------------------------
+Total domain lists processed: 3
+Total files deleted: 2
+Temporary contacts_extracted deleted: 0
+Domain lists with no deletion:  education_adult_education_finance_banks
+
+Cleanup summary for 20251003:
+
+- Temporary files: no contacts_extracted files to delete
+- banks: kept 1, deleted 1
+- edu_adults: kept 1, deleted 1
+- education_adult_education_finance_banks: kept 1, deleted 0 (no deletion needed)
