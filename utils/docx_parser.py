@@ -9,6 +9,11 @@ import hashlib
 from datetime import datetime
 from pathlib import Path
 
+# Add current directory to Python path for imports
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
 # Environment detection
 IS_REMOTE = os.getenv('GITHUB_ACTIONS') is not None or os.getenv('CI') is not None
 
