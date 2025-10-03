@@ -1,15 +1,30 @@
-
 {
   "name": "Education Outreach Campaign",
   "sector": "education",
-  "templates": ["campaign-templates/education/outreach.docx"],  
-  "contacts": "contacts/client_test.url",
+  "templates": ["campaign-templates/education/adult_education/adult_education_letter.docx"],
+  "contacts": "contacts/edu_adults_contacts_20251003_124833.csv",
   "mode": "schedule_now",
-  "date": "2025-09-10",
-  "from_email": "campaigns@modelphysmat.com",
+  "date": "2025-10-03",
+  "smtp": {
+    "host": "${SMTP_HOST}",
+    "port": "${SMTP_PORT}",
+    "user": "${SMTP_USER}",
+    "password": "${SMTP_PASSWORD}",
+    "use_tls": true,
+    "timeout": 30
+  },
+  "from_email": "ruperto.bonet@gmail.com",
   "from_name": "Outreach Team",
   "reply_to": "feedback@modelphysmat.com",
   "subject": "Partnership Opportunity in Education",
+  "contact_mapping": {
+    "name": "name",
+    "email": "email",
+    "organization": "organization",
+    "position": "position",
+    "rank_title": "rank/title",
+    "phone": "phone"
+  },
   "feedback": {
     "email": "feedback@modelphysmat.com",
     "injection_type": "footer_signature",
@@ -22,7 +37,7 @@
     ],
     "response_categories": [
       "positive_feedback",
-      "improvement_suggestion", 
+      "improvement_suggestion",
       "complaint",
       "unsubscribe_request",
       "partnership_interest",
@@ -42,10 +57,15 @@
     "style": "professional",
     "include_unsubscribe": true
   },
+  "rate_limiting": {
+    "emails_per_minute": 10,
+    "delay_between_emails": 6,
+    "batch_size": 50
+  },
   "defaults": {
     "Status": "Pending",
     "Follow-up": "TBD",
-    "Region": "Global", 
+    "Region": "Global",
     "Notes": "",
     "Feedback-Enabled": "Yes",
     "Template-Has-Feedback": "Yes",
@@ -63,7 +83,7 @@
     "contacts_validated": true,
     "feedback_injected": true,
     "tracking_setup": true,
-    "last_validated": "2025-09-10T12:00:00Z"
+    "last_validated": "2025-10-03T12:00:00Z"
   },
   "processing_log": {
     "template_backup_created": true,
@@ -71,5 +91,5 @@
     "tracking_id_generated": true,
     "config_enhanced": true
   },
-  "tracking_id": "EDUCATION_a1b2c3d4_20250910_120000"
+  "tracking_id": "EDUCATION_${GITHUB_RUN_ID}_$(date +%Y%m%d_%H%M%S)"
 }

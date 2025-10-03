@@ -1515,6 +1515,113 @@ jobs:
           echo "- **Summary Generation:** ${SUMMARY_METHOD:-integrated} method used" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
+      - name: Debug Contact Processing
+        run: |
+          echo "=== CONTACT FILES DEBUG ==="
+          echo "Contact files found:"
+          find contacts -type f -name "*.csv" -o -name "*.xlsx" -o -name "*.json" 2>/dev/null || echo "No contact files found"
+    
+          echo ""
+          echo "=== FILE CONTENTS PREVIEW ==="
+          for file in contacts/*.csv contacts/*.xlsx contacts/*.json 2>/dev/null; do
+          if [ -f "$file" ]; then
+             echo "File: $file"
+             head -n 3 "$file" 2>/dev/null || echo "Cannot read file"
+             echo "---"
+          fi
+          done
+    
+          echo ""
+          echo "=== PYTHON CONTACT VALIDATION ==="
+          python3 << 'EOF'
+          import os
+          import json
+          import csv
+          from pathlib import Path
+    
+          contacts_dir = Path("contacts")
+    
+          if not contacts_dir.exists():
+            print("❌ Contacts directory does not exist!")
+            exit(1)
+    
+          files = list(contacts_dir.glob("*"))
+          print(f"✓ Found {len(files)} files in contacts directory")
+    
+          # Try to load and validate CSV files
+          csv_files = list(contacts_dir.glob("*.csv"))
+          for csv_file in csv_files:
+            try:
+              with open(csv_file, 'r') as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+                print(f"\n✓ {csv_file.name}: {len(rows)} rows")
+                if rows:
+                    print(f"  Headers: {list(rows[0].keys())}")
+                    # Check for required fields
+                    required = ['email', 'name']
+                    missing = [f for f in required if f not in rows[0]]
+                    if missing:
+                        print(f"  ⚠️  Missing required fields: {missing}")
+                else:
+                    print(f"  ⚠️  File is empty!")
+            except Exception as e:
+                print(f"❌ Error reading {csv_file.name}: {e}")
+    
+          # Check if data_loader.py exists and can be imported
+          try:
+            import sys
+            sys.path.insert(0, 'utils')
+            from data_loader import load_contacts
+            print("\n✓ data_loader.py imported successfully")
+        
+            # Try to load contacts
+            contacts = load_contacts()
+            print(f"✓ Loaded {len(contacts)} contacts via data_loader.py")
+            if contacts:
+              print(f"  Sample contact keys: {list(contacts[0].keys())}")
+          except ImportError as e:
+              print(f"\n❌ Cannot import data_loader: {e}")
+          except Exception as e:
+              print(f"\n❌ Error loading contacts: {e}")
+          EOF
+          continue-on-error: true
+
+      - name: Check Execution Log Details
+        run: |
+          echo "=== EXECUTION LOG ANALYSIS ==="
+          if [ -f "campaign_execution.log" ]; then
+            echo "Last 50 lines of execution log:"
+            tail -n 50 campaign_execution.log
+      
+            echo ""
+            echo "=== ERROR PATTERNS ==="
+            grep -i "error\|fail\|exception" campaign_execution.log || echo "No errors found in log"
+      
+            echo ""
+            echo "=== CONTACT LOADING ==="
+            grep -i "contact\|load" campaign_execution.log || echo "No contact loading logs"
+          else
+             echo "❌ No execution log found"
+          fi
+
+      - name: Validate Data Loader Module
+        run: |
+          echo "=== DATA LOADER VALIDATION ==="
+          if [ -f "utils/data_loader.py" ]; then
+             echo "✓ data_loader.py exists"
+             python3 -m py_compile utils/data_loader.py && echo "✓ Syntax valid" || echo "❌ Syntax errors"
+          else
+            echo "❌ data_loader.py not found"
+          fi
+    
+          if [ -f "utils/docx_parser.py" ]; then
+              echo "✓ docx_parser.py exists"
+              python3 -m py_compile utils/docx_parser.py && echo "✓ Syntax valid" || echo "❌ Syntax errors"
+          else
+              echo "❌ docx_parser.py not found"
+          fi     
+          
       - name: Enhanced final execution validation and report
         if: always()
         run: |
