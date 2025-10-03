@@ -4,6 +4,7 @@ import sys
 import traceback
 import json
 import re
+import hashlib
 from datetime import datetime
 from pathlib import Path
 
@@ -120,9 +121,11 @@ try:
             
             return result
         
-        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System"):
-            """Enhanced campaign sending with template variable substitution"""
+        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", tracking_id=None):
+            """Enhanced campaign sending with template variable substitution and tracking ID"""
             print(f"\n=== CAMPAIGN: {campaign_name} ===")
+            if tracking_id:
+                print(f"Tracking ID: {tracking_id}")
             print(f"Subject Template: {subject}")
             print(f"From: {from_name}")
             print(f"Recipients: {len(recipients)}")
@@ -153,7 +156,8 @@ try:
                         'personalized_subject': personalized_subject,
                         'personalized_content': personalized_content,
                         'original_subject': subject,
-                        'original_content': content[:100] + "..." if len(content) > 100 else content
+                        'original_content': content[:100] + "..." if len(content) > 100 else content,
+                        'tracking_id': tracking_id
                     }
                     
                     processed_recipients.append(processed_recipient)
@@ -179,6 +183,7 @@ try:
             
             return {
                 'campaign_name': campaign_name,
+                'tracking_id': tracking_id,
                 'total_recipients': len(recipients),
                 'sent': sent_count if not self.dry_run else 0,
                 'failed': failed_count,
@@ -228,9 +233,11 @@ except ImportError:
             
             return result
         
-        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System"):
+        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", tracking_id=None):
             """Fallback campaign sending with basic template substitution"""
             print(f"\n=== CAMPAIGN: {campaign_name} ===")
+            if tracking_id:
+                print(f"Tracking ID: {tracking_id}")
             print(f"Subject Template: {subject}")
             print(f"From: {from_name}")
             print(f"Recipients: {len(recipients)}")
@@ -262,6 +269,7 @@ except ImportError:
             
             return {
                 'campaign_name': campaign_name,
+                'tracking_id': tracking_id,
                 'total_recipients': len(recipients),
                 'sent': sent_count if not self.dry_run else 0,
                 'failed': failed_count,
@@ -316,6 +324,21 @@ def fallback_load_contacts_from_directory(contacts_dir):
             print(f"Error loading {csv_file}: {e}")
     
     return all_contacts
+
+
+def generate_tracking_id(domain, campaign_name, template_name):
+    """Generate unique tracking ID matching campaign_validator.py format"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Create a unique seed from domain, campaign, template, and timestamp
+    seed_string = f"{domain}_{campaign_name}_{template_name}_{timestamp}"
+    hash_object = hashlib.md5(seed_string.encode())
+    short_hash = hash_object.hexdigest()[:8]
+    
+    # Format: DOMAIN_HASH_TIMESTAMP
+    tracking_id = f"{domain.upper()}_{short_hash}_{timestamp}"
+    
+    return tracking_id
 
 
 def load_campaign_content(campaign_path):
@@ -429,6 +452,47 @@ def extract_subject_from_content(content):
         return None
 
 
+def scan_domain_campaigns(templates_dir):
+    """Scan for domain-based campaign structure"""
+    templates_path = Path(templates_dir)
+    domain_campaigns = {}
+    
+    if not templates_path.exists():
+        print(f"Templates directory not found: {templates_dir}")
+        return domain_campaigns
+    
+    # Scan each domain subdirectory
+    for domain_dir in templates_path.iterdir():
+        if domain_dir.is_dir() and not domain_dir.name.startswith('.'):
+            domain_name = domain_dir.name
+            campaigns = []
+            
+            # Find all campaign files in this domain
+            for ext in ['.docx', '.txt', '.html', '.md', '.json']:
+                campaigns.extend(list(domain_dir.glob(f"*{ext}")))
+            
+            if campaigns:
+                domain_campaigns[domain_name] = campaigns
+                print(f"Found {len(campaigns)} campaign(s) in {domain_name}/")
+    
+    return domain_campaigns
+
+
+def save_tracking_data(tracking_dir, domain, tracking_id, campaign_data):
+    """Save campaign tracking data to domain-specific directory"""
+    domain_tracking = Path(tracking_dir) / domain / "campaigns"
+    domain_tracking.mkdir(parents=True, exist_ok=True)
+    
+    tracking_file = domain_tracking / f"{tracking_id}.json"
+    
+    try:
+        with open(tracking_file, 'w') as f:
+            json.dump(campaign_data, f, indent=2)
+        print(f"Tracking data saved: {tracking_file}")
+    except Exception as e:
+        print(f"Warning: Could not save tracking data: {e}")
+
+
 def send_summary_alert(emailer, campaigns_count, sent_count, failed_count, campaign_results):
     """Send summary alert after all campaigns complete"""
     try:
@@ -452,7 +516,9 @@ Campaign Details:
 """
         
         for result in campaign_results:
-            body += f"\n• {result['campaign_name']}: {result['sent']}/{result['total_recipients']} sent"
+            body += f"\n- {result['campaign_name']}: {result['sent']}/{result['total_recipients']} sent"
+            if result.get('tracking_id'):
+                body += f" [ID: {result['tracking_id']}]"
             if result['failed'] > 0:
                 body += f" ({result['failed']} failed)"
             if result.get('template_substitution'):
@@ -468,12 +534,12 @@ Campaign Details:
 
 
 def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dry_run=False, **kwargs):
-    """Main campaign execution function - integrated with GitHub Actions SMTP bypass"""
+    """Main campaign execution function - domain-aware with tracking integration"""
     try:
-        print(f"Starting campaign with GitHub Actions SMTP bypass support")
+        print(f"Starting domain-aware campaign system")
         print(f"GitHub Actions detected: {os.getenv('GITHUB_ACTIONS') is not None}")
         print(f"Contacts: {contacts_root}")
-        print(f"Scheduled: {scheduled_root}")
+        print(f"Templates (domain-based): {scheduled_root}")
         print(f"Tracking: {tracking_root}")
         print(f"Alerts: {alerts_email}")
         
@@ -488,13 +554,13 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                 print(f"Contact validation stats:")
                 print(f"  Total: {stats['total']}")
                 print(f"  Valid emails: {stats['valid_emails']}")
-                all_contacts = valid_contacts  # Use the cleaned/validated contacts
+                all_contacts = valid_contacts
         else:
             print("Using fallback contact loading")
             all_contacts = fallback_load_contacts_from_directory(contacts_root)
         
         # Initialize EmailSender with GitHub Actions support
-        if False:  # Temporarily disable GitHub Actions email sender
+        if GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS'):
             print("Using GitHubActionsEmailSender - SMTP timeouts bypassed")
             emailer = GitHubActionsEmailSender(
                 smtp_host=os.getenv('SMTP_HOST'),
@@ -508,7 +574,14 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             print("Using standard EmailSender")
             emailer = EmailSender(alerts_email=alerts_email, dry_run=dry_run)
         
-        # Your existing campaign processing logic continues here...
+        # Scan for domain-based campaigns
+        domain_campaigns = scan_domain_campaigns(scheduled_root)
+        
+        if not domain_campaigns:
+            print(f"ERROR: No domain-based campaigns found in {scheduled_root}")
+            print("Expected structure: {scheduled_root}/{domain}/*.docx")
+            return
+        
         campaigns_processed = 0
         total_emails_sent = 0
         total_failures = 0
@@ -516,85 +589,105 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         
         log_file = "dryrun.log" if dry_run else "campaign_execution.log"
         with open(log_file, 'w') as f:
-            f.write(f"Campaign log started - GitHub Actions mode: {os.getenv('GITHUB_ACTIONS') is not None}\n")
-            f.write(f"SMTP bypass: {GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS') is not None}\n")
+            f.write(f"Domain-Aware Campaign Log\n")
+            f.write(f"GitHub Actions mode: {os.getenv('GITHUB_ACTIONS') is not None}\n")
             f.write(f"Total contacts loaded: {len(all_contacts)}\n")
+            f.write(f"Domains found: {len(domain_campaigns)}\n")
             f.write(f"Timestamp: {datetime.now().isoformat()}\n\n")
         
-        # Process campaigns (your existing logic)
-        if not os.path.exists(scheduled_root):
-            print(f"ERROR: Scheduled campaigns directory does not exist: {scheduled_root}")
-            return
-        
-        campaign_files = [f for f in os.listdir(scheduled_root) 
-                         if f.endswith(('.docx', '.txt', '.html', '.md', '.json'))]
-        
-        if not campaign_files:
-            print("ERROR: No campaign files found")
-            return
-        
-        print(f"Found {len(campaign_files)} campaign files to process")
-        
-        # Process each campaign
-        for campaign_file in campaign_files:
-            campaign_name = os.path.splitext(campaign_file)[0]
-            campaign_path = os.path.join(scheduled_root, campaign_file)
+        # Process campaigns by domain
+        for domain, campaign_files in domain_campaigns.items():
+            print(f"\n{'='*70}")
+            print(f"PROCESSING DOMAIN: {domain.upper()}")
+            print(f"{'='*70}")
             
-            print(f"\n--- Processing Campaign: {campaign_name} ---")
+            # Create domain tracking directories
+            domain_tracking = Path(tracking_root) / domain
+            (domain_tracking / "campaigns").mkdir(parents=True, exist_ok=True)
+            (domain_tracking / "responses").mkdir(parents=True, exist_ok=True)
+            (domain_tracking / "analytics").mkdir(parents=True, exist_ok=True)
             
-            campaign_content = load_campaign_content(campaign_path)
-            if not campaign_content:
-                print(f"Warning: Could not load content for {campaign_file}")
-                continue
-            
-            # Handle content types
-            if isinstance(campaign_content, dict):
-                subject = campaign_content.get('subject', f"Campaign: {campaign_name}")
-                content = campaign_content.get('content', '')
-                from_name = campaign_content.get('from_name', 'Campaign System')
-            else:
-                subject = extract_subject_from_content(campaign_content) or f"Campaign: {campaign_name}"
-                content = str(campaign_content)
-                from_name = "Campaign System"
-            
-            # Add recipient tracking
-            contacts_with_ids = []
-            for i, contact in enumerate(all_contacts):
-                contact_copy = contact.copy()
-                contact_copy['recipient_id'] = f"{campaign_name}_{i+1}"
-                contact_copy['campaign_id'] = campaign_name
-                contacts_with_ids.append(contact_copy)
-            
-            # Send campaign (will use GitHub Actions emailer if available)
-            try:
-                campaign_result = emailer.send_campaign(
-                    campaign_name=campaign_name,
-                    subject=subject,
-                    content=content,
-                    recipients=contacts_with_ids,
-                    from_name=from_name
-                )
+            for campaign_file in campaign_files:
+                campaign_name = campaign_file.stem
+                campaign_path = str(campaign_file)
                 
-                campaigns_processed += 1
-                total_emails_sent += campaign_result['sent']
-                total_failures += campaign_result['failed']
-                campaign_results.append(campaign_result)
+                print(f"\n--- Processing Campaign: {domain}/{campaign_name} ---")
                 
-                # Enhanced logging
-                with open(log_file, 'a') as f:
-                    f.write(f"Campaign: {campaign_name}\n")
-                    f.write(f"Recipients: {campaign_result['total_recipients']}\n")
-                    f.write(f"Sent: {campaign_result['sent']}\n")
-                    f.write(f"Failed: {campaign_result['failed']}\n")
-                    f.write(f"GitHub Actions mode: {os.getenv('GITHUB_ACTIONS') is not None}\n")
-                    f.write(f"SMTP bypass: {GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS') is not None}\n")
-                    f.write(f"Template processing: ENABLED\n\n")
+                campaign_content = load_campaign_content(campaign_path)
+                if not campaign_content:
+                    print(f"Warning: Could not load content for {campaign_file.name}")
+                    continue
                 
-            except Exception as e:
-                print(f"Error processing campaign '{campaign_name}': {str(e)}")
-                continue
+                # Handle content types
+                if isinstance(campaign_content, dict):
+                    subject = campaign_content.get('subject', f"Campaign: {campaign_name}")
+                    content = campaign_content.get('content', '')
+                    from_name = campaign_content.get('from_name', 'Campaign System')
+                else:
+                    subject = extract_subject_from_content(campaign_content) or f"Campaign: {campaign_name}"
+                    content = str(campaign_content)
+                    from_name = "Campaign System"
+                
+                # Generate unique tracking ID
+                tracking_id = generate_tracking_id(domain, campaign_name, campaign_file.name)
+                
+                # Add recipient tracking with domain info
+                contacts_with_ids = []
+                for i, contact in enumerate(all_contacts):
+                    contact_copy = contact.copy()
+                    contact_copy['recipient_id'] = f"{domain}_{campaign_name}_{i+1}"
+                    contact_copy['campaign_id'] = campaign_name
+                    contact_copy['domain'] = domain
+                    contact_copy['tracking_id'] = tracking_id
+                    contacts_with_ids.append(contact_copy)
+                
+                # Send campaign
+                try:
+                    campaign_result = emailer.send_campaign(
+                        campaign_name=f"{domain}/{campaign_name}",
+                        subject=subject,
+                        content=content,
+                        recipients=contacts_with_ids,
+                        from_name=from_name,
+                        tracking_id=tracking_id
+                    )
+                    
+                    campaigns_processed += 1
+                    total_emails_sent += campaign_result['sent']
+                    total_failures += campaign_result['failed']
+                    campaign_results.append(campaign_result)
+                    
+                    # Save tracking data to domain-specific directory
+                    tracking_data = {
+                        'tracking_id': tracking_id,
+                        'domain': domain,
+                        'campaign_name': campaign_name,
+                        'template_file': campaign_file.name,
+                        'subject': subject,
+                        'from_name': from_name,
+                        'timestamp': datetime.now().isoformat(),
+                        'total_recipients': campaign_result['total_recipients'],
+                        'sent': campaign_result['sent'],
+                        'failed': campaign_result['failed'],
+                        'dry_run': dry_run
+                    }
+                    
+                    save_tracking_data(tracking_root, domain, tracking_id, tracking_data)
+                    
+                    # Enhanced logging
+                    with open(log_file, 'a') as f:
+                        f.write(f"Domain: {domain}\n")
+                        f.write(f"Campaign: {campaign_name}\n")
+                        f.write(f"Tracking ID: {tracking_id}\n")
+                        f.write(f"Recipients: {campaign_result['total_recipients']}\n")
+                        f.write(f"Sent: {campaign_result['sent']}\n")
+                        f.write(f"Failed: {campaign_result['failed']}\n\n")
+                    
+                except Exception as e:
+                    print(f"Error processing campaign '{domain}/{campaign_name}': {str(e)}")
+                    continue
         
-        # Send summary using GitHub Actions emailer if available
+        # Send summary
         if GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS'):
             emailer.send_batch_summary(campaigns_processed, total_emails_sent, total_failures, campaign_results)
             print("Campaign summary saved for GitHub Actions email delivery")
@@ -604,23 +697,22 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         # Final logging
         with open(log_file, 'a') as f:
             f.write("=== CAMPAIGN SUMMARY ===\n")
+            f.write(f"Domains processed: {len(domain_campaigns)}\n")
             f.write(f"Campaigns processed: {campaigns_processed}\n")
             f.write(f"Total emails: {total_emails_sent + total_failures}\n")
             f.write(f"Successful: {total_emails_sent}\n")
             f.write(f"Failed: {total_failures}\n")
-            f.write(f"GitHub Actions SMTP bypass: {GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS') is not None}\n")
+            f.write(f"Tracking system: DOMAIN-BASED\n")
             f.write(f"Completed: {datetime.now().isoformat()}\n")
         
-        print(f"\n=== FINAL SUMMARY ===")
+        print(f"\n{'='*70}")
+        print(f"FINAL SUMMARY")
+        print(f"{'='*70}")
+        print(f"Domains processed: {len(domain_campaigns)}")
         print(f"Campaigns processed: {campaigns_processed}")
-        print(f"Mode: {'GitHub Actions SMTP Bypass' if os.getenv('GITHUB_ACTIONS') else 'Direct SMTP'}")
+        print(f"Tracking system: DOMAIN-BASED")
         print(f"Template processing: ENABLED")
         print("Campaign completed successfully")
-        print("✓ EXECUTION_SUCCESS_MARKER")
-        print(f"✓ CAMPAIGNS_PROCESSED: {campaigns_processed}")
-        print(f"✓ CONTACTS_LOADED: {len(all_contacts)}")
-        print(f"✓ TEMPLATE_PROCESSING: ENABLED")
-        print("Enhanced script completed successfully with template processing")
         
     except Exception as e:
         print(f"ERROR: {str(e)}")
@@ -630,18 +722,18 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
 
 
 if __name__ == "__main__":
-    print("Enhanced Campaign System Script started successfully")
+    print("Domain-Aware Campaign System Script started")
     print(f"Remote environment: {IS_REMOTE}")
     print(f"Available modules: docx={DOCX_AVAILABLE}, email_sender={EMAIL_SENDER_AVAILABLE}, data_loader={DATA_LOADER_AVAILABLE}")
     
-    parser = argparse.ArgumentParser(description='Enhanced Email Campaign System with Template Processing')
+    parser = argparse.ArgumentParser(description='Domain-Aware Email Campaign System')
     parser.add_argument("--contacts", required=True, help="Contacts directory path")
-    parser.add_argument("--scheduled", required=True, help="Scheduled campaigns directory path")
+    parser.add_argument("--scheduled", required=True, help="Domain-based templates directory (campaign-templates/)")
     parser.add_argument("--tracking", required=True, help="Tracking directory path")
     parser.add_argument("--alerts", required=True, help="Alerts email address")
     parser.add_argument("--feedback", help="Feedback email address")
-    parser.add_argument("--templates", help="Templates directory path")
-    parser.add_argument("--domain", help="Target specific domain")
+    parser.add_argument("--templates", help="Templates directory path (alias for --scheduled)")
+    parser.add_argument("--domain", help="Process only specific domain")
     parser.add_argument("--filter-domain", help="Filter campaigns by domain pattern")
     parser.add_argument("--dry-run", action="store_true", help="Print personalized emails instead of sending")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
@@ -660,20 +752,23 @@ if __name__ == "__main__":
         globals()['IS_REMOTE'] = True
         print("Forced remote-only mode enabled")
     
+    # Use --templates as alias for --scheduled if provided
+    scheduled_path = args.templates if args.templates else args.scheduled
+    
     print(f"Arguments parsed successfully:")
     print(f"  --contacts: {args.contacts}")
-    print(f"  --scheduled: {args.scheduled}")
+    print(f"  --scheduled: {scheduled_path}")
     print(f"  --tracking: {args.tracking}")
     print(f"  --alerts: {args.alerts}")
     print(f"  --feedback: {args.feedback}")
+    print(f"  --domain: {args.domain}")
     print(f"  --dry-run: {args.dry_run}")
-    print(f"  --remote-only: {args.remote_only}")
     print(f"  --debug: {args.debug}")
     
-    print("Calling enhanced campaign_main with template processing...")
+    print("Calling domain-aware campaign_main...")
     campaign_main(
         contacts_root=args.contacts,
-        scheduled_root=args.scheduled, 
+        scheduled_root=scheduled_path, 
         tracking_root=args.tracking, 
         alerts_email=args.alerts,
         dry_run=args.dry_run,
@@ -682,4 +777,4 @@ if __name__ == "__main__":
         campaign_filter=args.filter_domain,
         debug=args.debug
     )
-    print("Enhanced script completed successfully with template processing")
+    print("Domain-aware campaign system completed successfully")

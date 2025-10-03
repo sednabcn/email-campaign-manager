@@ -453,7 +453,7 @@ def extract_subject_from_content(content):
 
 
 def scan_domain_campaigns(templates_dir):
-    """Scan for domain-based campaign structure"""
+    """Scan for domain-based campaign structure with flat directory fallback and recursive scanning"""
     templates_path = Path(templates_dir)
     domain_campaigns = {}
     
@@ -461,19 +461,44 @@ def scan_domain_campaigns(templates_dir):
         print(f"Templates directory not found: {templates_dir}")
         return domain_campaigns
     
-    # Scan each domain subdirectory
+    # First, try domain-based structure
+    has_subdomains = False
     for domain_dir in templates_path.iterdir():
         if domain_dir.is_dir() and not domain_dir.name.startswith('.'):
             domain_name = domain_dir.name
             campaigns = []
             
-            # Find all campaign files in this domain
+            # Find all campaign files in this domain (recursive)
             for ext in ['.docx', '.txt', '.html', '.md', '.json']:
-                campaigns.extend(list(domain_dir.glob(f"*{ext}")))
+                # Use rglob for recursive search
+                campaigns.extend(list(domain_dir.rglob(f"*{ext}")))
             
             if campaigns:
+                has_subdomains = True
                 domain_campaigns[domain_name] = campaigns
-                print(f"Found {len(campaigns)} campaign(s) in {domain_name}/")
+                print(f"Found {len(campaigns)} campaign(s) in {domain_name}/ (including subdirectories)")
+                
+                # Show nested structure
+                subdirs = set()
+                for campaign in campaigns:
+                    relative_path = campaign.relative_to(domain_dir)
+                    if len(relative_path.parts) > 1:
+                        subdirs.add(relative_path.parts[0])
+                
+                if subdirs:
+                    print(f"  Subdirectories in {domain_name}/: {', '.join(sorted(subdirs))}")
+    
+    # Fallback: If no domain subdirectories found, treat as flat structure
+    if not has_subdomains:
+        print("No domain subdirectories found, using flat directory structure")
+        campaigns = []
+        for ext in ['.docx', '.txt', '.html', '.md', '.json']:
+            campaigns.extend(list(templates_path.glob(f"*{ext}")))
+        
+        if campaigns:
+            # Use 'default' as the domain name for flat structure
+            domain_campaigns['default'] = campaigns
+            print(f"Found {len(campaigns)} campaign(s) in flat structure (using 'default' domain)")
     
     return domain_campaigns
 
@@ -578,8 +603,11 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         domain_campaigns = scan_domain_campaigns(scheduled_root)
         
         if not domain_campaigns:
-            print(f"ERROR: No domain-based campaigns found in {scheduled_root}")
-            print("Expected structure: {scheduled_root}/{domain}/*.docx")
+            print(f"ERROR: No campaigns found in {scheduled_root}")
+            print("Supported formats: .docx, .txt, .html, .md, .json")
+            print("Structures supported:")
+            print("  1. Domain-based: {scheduled_root}/{domain}/*.docx")
+            print("  2. Flat: {scheduled_root}/*.docx")
             return
         
         campaigns_processed = 0
@@ -611,7 +639,12 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                 campaign_name = campaign_file.stem
                 campaign_path = str(campaign_file)
                 
-                print(f"\n--- Processing Campaign: {domain}/{campaign_name} ---")
+                # Get relative path within domain for better tracking
+                relative_path = campaign_file.relative_to(Path(scheduled_root) / domain)
+                subdirectory = relative_path.parent.name if len(relative_path.parts) > 1 else None
+                full_campaign_name = f"{subdirectory}/{campaign_name}" if subdirectory else campaign_name
+                
+                print(f"\n--- Processing Campaign: {domain}/{full_campaign_name} ---")
                 
                 campaign_content = load_campaign_content(campaign_path)
                 if not campaign_content:
@@ -628,15 +661,15 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     content = str(campaign_content)
                     from_name = "Campaign System"
                 
-                # Generate unique tracking ID
-                tracking_id = generate_tracking_id(domain, campaign_name, campaign_file.name)
+                # Generate unique tracking ID (use full path for uniqueness)
+                tracking_id = generate_tracking_id(domain, full_campaign_name, campaign_file.name)
                 
                 # Add recipient tracking with domain info
                 contacts_with_ids = []
                 for i, contact in enumerate(all_contacts):
                     contact_copy = contact.copy()
-                    contact_copy['recipient_id'] = f"{domain}_{campaign_name}_{i+1}"
-                    contact_copy['campaign_id'] = campaign_name
+                    contact_copy['recipient_id'] = f"{domain}_{full_campaign_name.replace('/', '_')}_{i+1}"
+                    contact_copy['campaign_id'] = full_campaign_name
                     contact_copy['domain'] = domain
                     contact_copy['tracking_id'] = tracking_id
                     contacts_with_ids.append(contact_copy)
@@ -644,7 +677,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                 # Send campaign
                 try:
                     campaign_result = emailer.send_campaign(
-                        campaign_name=f"{domain}/{campaign_name}",
+                        campaign_name=f"{domain}/{full_campaign_name}",
                         subject=subject,
                         content=content,
                         recipients=contacts_with_ids,
@@ -662,6 +695,8 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                         'tracking_id': tracking_id,
                         'domain': domain,
                         'campaign_name': campaign_name,
+                        'full_path': full_campaign_name,
+                        'subdirectory': subdirectory,
                         'template_file': campaign_file.name,
                         'subject': subject,
                         'from_name': from_name,
@@ -677,14 +712,14 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     # Enhanced logging
                     with open(log_file, 'a') as f:
                         f.write(f"Domain: {domain}\n")
-                        f.write(f"Campaign: {campaign_name}\n")
+                        f.write(f"Campaign: {full_campaign_name}\n")
                         f.write(f"Tracking ID: {tracking_id}\n")
                         f.write(f"Recipients: {campaign_result['total_recipients']}\n")
                         f.write(f"Sent: {campaign_result['sent']}\n")
                         f.write(f"Failed: {campaign_result['failed']}\n\n")
                     
                 except Exception as e:
-                    print(f"Error processing campaign '{domain}/{campaign_name}': {str(e)}")
+                    print(f"Error processing campaign '{domain}/{full_campaign_name}': {str(e)}")
                     continue
         
         # Send summary
@@ -739,7 +774,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--no-feedback", action="store_true", help="Skip feedback injection")
     parser.add_argument("--remote-only", action="store_true", help="Force remote-only mode")
-    parser.add_argument("--enhanced-mode", action="store_true", help="Enable enhanced processing mode")
+     parser.add_argument("--enhanced-mode", action="store_true", help="Enable enhanced processing mode")
     parser.add_argument("--template-variables", action="store_true", help="Enable template variable processing")
     parser.add_argument("--comprehensive-tracking", action="store_true", help="Enable comprehensive tracking")
     parser.add_argument("--batch-size", type=int, default=50, help="Batch size for processing")
