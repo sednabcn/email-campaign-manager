@@ -494,7 +494,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             all_contacts = fallback_load_contacts_from_directory(contacts_root)
         
         # Initialize EmailSender with GitHub Actions support
-        if GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS'):
+        if False:  # Temporarily disable GitHub Actions email sender
             print("Using GitHubActionsEmailSender - SMTP timeouts bypassed")
             emailer = GitHubActionsEmailSender(
                 smtp_host=os.getenv('SMTP_HOST'),
