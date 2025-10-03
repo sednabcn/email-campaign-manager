@@ -168,6 +168,48 @@ jobs:
             fi
           done
 
+      - name: Ensure test data exists for validation
+        run: |
+          echo "Ensuring test data exists before validation..."
+          CONTACTS_PATH="$PWD/$CONTACTS_DIR"
+          SCHEDULED_PATH="$PWD/$SCHEDULED_DIR"
+    
+          # Always create test data if it doesn't exist
+          if [ ! -f "$CONTACTS_PATH/enhanced_test_contacts.csv" ]; then
+             cat > "$CONTACTS_PATH/enhanced_test_contacts.csv" << 'EOF'
+             name,email,organization,role,domain,country
+             John Doe,john.doe@example.com,Example Corp,Manager,education,US
+             Jane Smith,jane.smith@test.org,Test Organization,Director,healthcare,UK
+             Bob Johnson,bob.johnson@sample.net,Sample Company,Analyst,finance,CA
+             Alice Brown,alice.brown@demo.edu,Demo University,Professor,education,US
+             Charlie Wilson,charlie.wilson@tech.co,Tech Solutions,CTO,technology,DE
+          EOF
+            echo "✅ Test contact data created"
+          fi
+    
+          # Create test campaign
+          if [ ! -f "$SCHEDULED_PATH/enhanced_welcome_campaign.txt" ]; then
+             cat > "$SCHEDULED_PATH/enhanced_welcome_campaign.txt" << 'EOF'
+            Subject: Welcome {{name}} from {{organization}} to Our Platform!
+
+            Dear {{name}},
+
+            We're excited to welcome you! This message is being sent to {{email}}.
+            
+            Your organization, {{organization}}, in the {{domain}} sector.
+            
+            Best regards,
+            The Platform Team
+          EOF
+            echo "✅ Test campaign template created"
+          fi
+    
+          # Verify creation
+          echo "Verification:"
+          ls -lh "$CONTACTS_PATH/"
+          echo "Test file lines: $(wc -l < "$CONTACTS_PATH/enhanced_test_contacts.csv" 2>/dev/null || echo 0)"
+
+
       - name: Setup Google credentials
         env:
           GOOGLE_SVC_JSON: ${{ secrets.GOOGLE_SVC_JSON }}
