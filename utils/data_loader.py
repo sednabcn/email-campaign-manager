@@ -1,3 +1,72 @@
+# utils/data_loader.py
+def load_contacts_directory(directory):
+    """Load contacts from all files in a directory"""
+    import os
+    import pandas as pd
+    from pathlib import Path
+    
+    contacts = []
+    directory = Path(directory)
+    
+    if not directory.exists():
+        print(f"Directory not found: {directory}")
+        return []
+    
+    # Load CSV files
+    for csv_file in directory.glob('*.csv'):
+        try:
+            df = pd.read_csv(csv_file)
+            for _, row in df.iterrows():
+                contact = row.to_dict()
+                contact['source'] = csv_file.name
+                contacts.append(contact)
+        except Exception as e:
+            print(f"Error loading {csv_file}: {e}")
+    
+    # Load Excel files
+    for excel_file in list(directory.glob('*.xlsx')) + list(directory.glob('*.xls')):
+        try:
+            df = pd.read_excel(excel_file)
+            for _, row in df.iterrows():
+                contact = row.to_dict()
+                contact['source'] = excel_file.name
+                contacts.append(contact)
+        except Exception as e:
+            print(f"Error loading {excel_file}: {e}")
+    
+    return contacts
+
+def validate_contact_data(contacts):
+    """Validate contact data and return stats"""
+    stats = {
+        'total': len(contacts),
+        'valid_emails': 0,
+        'missing_email': 0,
+        'missing_name': 0,
+        'valid': 0
+    }
+    
+    valid_contacts = []
+    
+    for contact in contacts:
+        email = str(contact.get('email', '')).strip()
+        name = str(contact.get('name', '')).strip()
+        
+        if not email or '@' not in email:
+            stats['missing_email'] += 1
+            continue
+            
+        if not name:
+            stats['missing_name'] += 1
+            # Use email prefix as fallback name
+            contact['name'] = email.split('@')[0]
+        
+        stats['valid_emails'] += 1
+        stats['valid'] += 1
+        valid_contacts.append(contact)
+    
+    return stats, valid_contacts
+   
 def validate_contact_data(contacts):
     """Validate and clean contact data with improved error handling"""
     import pandas as pd
@@ -12,7 +81,7 @@ def validate_contact_data(contacts):
         'invalid_emails': [],
         'unique_domains': 0
     }
-    
+   
     if not contacts:
         print("⚠️  WARNING: No contacts provided to validate_contact_data()")
         return stats, []

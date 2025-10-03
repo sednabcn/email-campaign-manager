@@ -616,6 +616,11 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         print(f"Mode: {'GitHub Actions SMTP Bypass' if os.getenv('GITHUB_ACTIONS') else 'Direct SMTP'}")
         print(f"Template processing: ENABLED")
         print("Campaign completed successfully")
+        print("✓ EXECUTION_SUCCESS_MARKER")
+        print(f"✓ CAMPAIGNS_PROCESSED: {campaigns_processed}")
+        print(f"✓ CONTACTS_LOADED: {len(all_contacts)}")
+        print(f"✓ TEMPLATE_PROCESSING: ENABLED")
+        print("Enhanced script completed successfully with template processing")
         
     except Exception as e:
         print(f"ERROR: {str(e)}")
@@ -642,6 +647,11 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--no-feedback", action="store_true", help="Skip feedback injection")
     parser.add_argument("--remote-only", action="store_true", help="Force remote-only mode")
+    parser.add_argument("--enhanced-mode", action="store_true", help="Enable enhanced processing mode")
+parser.add_argument("--template-variables", action="store_true", help="Enable template variable processing")
+parser.add_argument("--comprehensive-tracking", action="store_true", help="Enable comprehensive tracking")
+parser.add_argument("--batch-size", type=int, default=50, help="Batch size for processing")
+parser.add_argument("--delay", type=int, default=5, help="Delay between batches")
     
     print("Parsing arguments...")
     args = parser.parse_args()

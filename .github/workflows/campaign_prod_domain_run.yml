@@ -186,6 +186,12 @@ jobs:
           EOF
             echo "✅ Test contact data created"
           fi
+
+          # Verify file exists and has content
+          if [ -f "$CONTACTS_PATH/enhanced_test_contacts.csv" ]; then
+             echo "Contact file exists with $(wc -l < "$CONTACTS_PATH/enhanced_test_contacts.csv") lines"
+             head -5 "$CONTACTS_PATH/enhanced_test_contacts.csv"
+          fi
     
           # Create test campaign
           if [ ! -f "$SCHEDULED_PATH/enhanced_welcome_campaign.txt" ]; then
@@ -905,6 +911,18 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
+          # Ensure directories exist with absolute paths
+          export CONTACTS_PATH="$PWD/$CONTACTS_DIR"
+          export SCHEDULED_PATH="$PWD/$SCHEDULED_DIR"
+          export TRACKING_PATH="$PWD/$TRACKING_DIR"
+    
+          # Create directories if they don't exist
+          mkdir -p "$CONTACTS_PATH" "$SCHEDULED_PATH" "$TRACKING_PATH"
+    
+          # Verify directories
+          echo "Verifying directories:"
+          ls -ld "$CONTACTS_PATH" "$SCHEDULED_PATH" "$TRACKING_PATH"
+          
           echo "Starting ENHANCED campaign execution with comprehensive features..."
           echo "=============================================================="
           echo "Environment: Production with Enhanced Validation"
@@ -1515,295 +1533,7 @@ jobs:
           echo "- **Summary Generation:** ${SUMMARY_METHOD:-integrated} method used" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Add these steps BEFORE your "Enhanced final execution validation" step
-    
-      - name: Debug - Check Contact Files Existence
-        run: |
-          echo "=== CONTACT FILES DEBUG ==="
-          CONTACTS_DIR="${CONTACTS_DIR:-contacts}"
-        
-          if [ ! -d "$CONTACTS_DIR" ]; then
-            echo "❌ Directory does not exist: $CONTACTS_DIR"
-            exit 1
-          fi
-        
-          echo "✓ Directory exists: $CONTACTS_DIR"
-          echo ""
-          echo "All files in directory:"
-          ls -lah "$CONTACTS_DIR/" || echo "Cannot list directory"
-        
-          echo ""
-          echo "Contact files by type:"
-          echo "CSV files:"
-          find "$CONTACTS_DIR" -name "*.csv" -type f 2>/dev/null || echo "  None found"
-          echo "Excel files:"
-          find "$CONTACTS_DIR" -name "*.xlsx" -o -name "*.xls" -type f 2>/dev/null || echo "  None found"
-          echo "JSON files:"
-          find "$CONTACTS_DIR" -name "*.json" -type f 2>/dev/null || echo "  None found"
-          echo "URL files:"
-          find "$CONTACTS_DIR" -name "*.url" -type f 2>/dev/null || echo "  None found"
-        continue-on-error: true
-
-      - name: Debug - Preview Contact Files Content
-        run: |
-          echo "=== CONTACT FILE CONTENTS ==="
-          CONTACTS_DIR="${CONTACTS_DIR:-contacts}"
-        
-          # CSV files
-          if ls "$CONTACTS_DIR"/*.csv 1> /dev/null 2>&1; then
-            for file in "$CONTACTS_DIR"/*.csv; do
-              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-              echo "📄 File: $(basename "$file")"
-              echo "Size: $(wc -c < "$file") bytes"
-              echo "Lines: $(wc -l < "$file")"
-              echo ""
-              echo "First 5 lines:"
-              head -n 5 "$file" || echo "Cannot read file"
-              echo ""
-            done
-          else
-            echo "No CSV files found"
-          fi  
-        
-          # Excel files
-          if ls "$CONTACTS_DIR"/*.xlsx 1> /dev/null 2>&1; then
-            for file in "$CONTACTS_DIR"/*.xlsx; do
-              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-              echo "📊 Excel File: $(basename "$file")"
-              echo "Size: $(wc -c < "$file") bytes"
-              echo "(Excel files cannot be previewed in text)"
-              echo ""
-            done
-          fi
-        
-          # JSON files
-          if ls "$CONTACTS_DIR"/*.json 1> /dev/null 2>&1; then
-            for file in "$CONTACTS_DIR"/*.json; do
-              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-              echo "📋 JSON File: $(basename "$file")"
-              echo "Size: $(wc -c < "$file") bytes"
-              echo ""
-              echo "Content:"
-              cat "$file" || echo "Cannot read file"
-              echo ""
-            done
-          fi
-        continue-on-error: true
-      
-      - name: Debug - Test Data Loader Module
-        run: |
-          echo "=== TESTING DATA LOADER DIRECTLY ==="
-          python3 << 'EOF'
-          import sys
-          import os
-        
-          # Add utils to path
-          sys.path.insert(0, 'utils')
-        
-          try:
-              from data_loader import load_contacts_directory, validate_contact_data
-              print("✓ Successfully imported data_loader functions")
-          except ImportError as e:
-              print(f"❌ Failed to import data_loader: {e}")
-              import traceback
-              traceback.print_exc()
-              sys.exit(1)
-        
-          # Test loading contacts
-          contacts_dir = os.environ.get('CONTACTS_DIR', 'contacts')
-          print(f"\n{'='*50}")
-          print(f"Testing load_contacts_directory('{contacts_dir}')")
-          print('='*50)
-        
-          try:
-            contacts = load_contacts_directory(contacts_dir)
-            print(f"\n✓ Function returned {len(contacts)} contacts")
-            
-            if contacts:
-                print("\n=== SAMPLE CONTACT DATA ===")
-                sample = contacts[0]
-                print(f"Contact keys: {list(sample.keys())}")
-                print(f"Sample contact:")
-                for key, value in list(sample.items())[:10]:
-                    print(f"  {key}: {repr(value)}")
-                
-                # Test validation
-                print("\n=== VALIDATION TEST ===")
-                stats, valid = validate_contact_data(contacts)
-                print(f"\nValidation Statistics:")
-                print(f"  Total contacts: {stats['total']}")
-                print(f"  Valid contacts: {stats['valid']}")
-                print(f"  Valid emails: {stats['valid_emails']}")
-                print(f"  Missing emails: {stats['missing_emails']}")
-                print(f"  Missing names: {stats['missing_names']}")
-                print(f"  Unique domains: {stats['unique_domains']}")
-                
-                if stats['invalid_emails']:
-                    print(f"  Invalid emails (first 5): {stats['invalid_emails'][:5]}")
-                
-                if stats['valid'] == 0:
-                    print("\n⚠️  NO VALID CONTACTS - This is why the workflow fails!")
-                    print("\nThis means contacts were loaded but validation failed.")
-                    print("Check the data format and required fields.")
-            else:
-                print("\n❌ NO CONTACTS LOADED - This is the root cause!")
-                print("\nDebugging why no contacts were loaded...")
-                
-                import glob
-                files = glob.glob(f"{contacts_dir}/*")
-                print(f"\nFiles found in {contacts_dir}: {len(files)}")
-                for f in files:
-                    print(f"  - {f}")
-                
-                # Try loading each file individually
-                print("\n=== TESTING INDIVIDUAL FILES ===")
-                from data_loader import load_contacts
-                
-                for file in files:
-                    if file.endswith(('.csv', '.xlsx', '.xls', '.json', '.url')):
-                        print(f"\nTrying: {file}")
-                        try:
-                            file_contacts = load_contacts(file)
-                            print(f"  ✓ Successfully loaded {len(file_contacts)} contacts")
-                            if file_contacts:
-                                print(f"  Sample keys: {list(file_contacts[0].keys())}")
-                        except Exception as e:
-                            print(f"  ❌ Error: {e}")
-                            import traceback
-                            traceback.print_exc()
-                
-          except Exception as e:
-              print(f"\n❌ CRITICAL ERROR loading contacts: {e}")
-              import traceback
-              traceback.print_exc()
-              sys.exit(1)
-          EOF
-        continue-on-error: true
-      
-      - name: Debug - Validate CSV Format
-        run: |
-          echo "=== CSV FORMAT VALIDATION ==="
-          python3 << 'EOF'
-          import csv
-          import os
-          import glob
-        
-          contacts_dir = os.environ.get('CONTACTS_DIR', 'contacts')
-          csv_files = glob.glob(f"{contacts_dir}/*.csv")
-        
-          if not csv_files:
-            print("⚠️  No CSV files found")
-            exit(0)
-        
-          required_fields = ['email', 'name']
-        
-          for csv_file in csv_files:
-            print(f"\n{'='*60}")
-            print(f"📄 Analyzing: {os.path.basename(csv_file)}")
-            print('='*60)
-            
-            try:
-                # Check encoding
-                with open(csv_file, 'rb') as f:
-                    raw_bytes = f.read(100)
-                    print(f"First bytes: {raw_bytes[:50]}")
-                
-                # Try reading with CSV
-                with open(csv_file, 'r', encoding='utf-8', errors='replace') as f:
-                    reader = csv.DictReader(f)
-                    headers = reader.fieldnames
-                    
-                    if headers:
-                        print(f"\n✓ Headers found: {headers}")
-                        
-                        # Check required fields
-                        missing = [f for f in required_fields if f not in headers]
-                        if missing:
-                            print(f"⚠️  Missing required fields: {missing}")
-                        else:
-                            print(f"✓ Has all required fields")
-                        
-                        # Count and sample rows
-                        rows = list(reader)
-                        print(f"✓ Total rows: {len(rows)}")
-                        
-                        if rows:
-                            print(f"\nFirst 3 contacts:")
-                            for i, row in enumerate(rows[:3], 1):
-                                email = row.get('email', 'N/A')
-                                name = row.get('name', 'N/A')
-                                print(f"  {i}. {name} <{email}>")
-                        else:
-                            print("⚠️  File has headers but no data rows!")
-                    else:
-                        print("❌ No headers found in CSV!")
-                        
-                    except Exception as e:
-                       print(f"❌ Error reading file: {e}")
-                       import traceback
-                       traceback.print_exc()
-                    EOF
-        continue-on-error: true
-      
-      - name: Debug - Check Execution Log
-        if: always()
-        run: |  
-          echo "=== EXECUTION LOG ANALYSIS ==="
-        
-          if [ -f "campaign_execution.log" ]; then
-            echo "✓ Log file found"
-            echo "Size: $(wc -c < campaign_execution.log) bytes"
-            echo "Lines: $(wc -l < campaign_execution.log)"
-            echo ""
-            echo "=== FULL LOG CONTENT ==="
-            cat campaign_execution.log
-            echo ""
-            echo "=== ERROR PATTERNS ==="
-            if grep -qi "error\|exception\|fail\|traceback" campaign_execution.log; then
-              echo "Errors found:"
-              grep -i "error\|exception\|fail\|traceback" campaign_execution.log
-            else
-              echo "✓ No explicit errors in log"
-            fi
-          else
-            echo "❌ No campaign_execution.log found"
-            echo ""
-            echo "Looking for any log files:"
-            find . -name "*.log" -type f 2>/dev/null || echo "No log files found"
-          fi
-        continue-on-error: true
-
-      - name: Debug - Python Environment
-        run: |
-          echo "=== PYTHON ENVIRONMENT CHECK ==="
-          python3 --version
-          echo ""
-          echo "Python executable: $(which python3)"
-          echo ""
-          echo "=== REQUIRED PACKAGES ==="
-          pip list | grep -E "(pandas|requests|gspread|oauth2|openpyxl)" || echo "⚠️  Some packages may be missing"
-          echo ""
-          echo "=== IMPORT TEST ==="
-          python3 << 'EOF'
-          import sys
-        
-          packages = [
-            ('pandas', True),
-            ('requests', True),
-            ('gspread', False),
-            ('oauth2client', False),
-            ('openpyxl', True),
-          ]
-        
-          for package, required in packages:
-            try:
-                __import__(package)
-                print(f"✓ {package}")
-            except ImportError:
-                status = "❌ REQUIRED" if required else "⚠️  Optional"
-                print(f"{status} {package} - not available")
-          EOF
-        continue-on-error: true
+          
       - name: Enhanced final execution validation and report
         if: always()
         run: |
