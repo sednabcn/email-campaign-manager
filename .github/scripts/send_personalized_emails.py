@@ -111,19 +111,26 @@ def main():
         failed = 0
         
         for i, row in enumerate(reader, 1):
-            # Normalize keys: ensure CSV header names match placeholders
+            # Make case-insensitive by converting all keys to lowercase
+            row_lower = {k.lower().strip(): v for k, v in row.items()}
+            
+            # Build mapping with flexible key matching
             mapping = {
-                "Name": row.get("Name", ""),
-                "Responsibility": row.get("Responsibility", ""),
-                "Email": row.get("Email", ""),
-                "Phone": row.get("Phone", ""),
-                "InstitutionAddress": row.get("InstitutionAddress", ""),
-                "BodyText": row.get("BodyText", "")
+                "Name": row_lower.get("name", ""),
+                "Responsibility": row_lower.get("responsibility", 
+                                               row_lower.get("rank/title", 
+                                               row_lower.get("position", ""))),
+                "Email": row_lower.get("email", ""),
+                "Phone": row_lower.get("phone", ""),
+                "InstitutionAddress": row_lower.get("institutionaddress", 
+                                                   row_lower.get("address", 
+                                                   row_lower.get("organization", ""))),
+                "BodyText": row_lower.get("bodytext", "")
             }
             
             to_addr = mapping["Email"].strip()
-            if not to_addr:
-                print(f"[{i}] Skipping row with no Email: {row}")
+            if not to_addr or '@' not in to_addr:
+                print(f"[{i}] Skipping row with no valid Email: {mapping.get('Name', 'Unknown')}")
                 failed += 1
                 continue
             
@@ -142,7 +149,7 @@ def main():
                 failed += 1
             
             # Rate limiting
-            if not args.dry_run and i < reader.line_num - 1:
+            if i < len(list(reader)) and (sent + failed) < len(list(reader)):
                 time.sleep(args.delay)
         
         print()
