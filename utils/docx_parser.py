@@ -601,10 +601,11 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             all_contacts = fallback_load_contacts_from_directory(contacts_root)
 
         # Get SMTP config from environment variables
-        smtp_host = os.getenv('SMTP_HOST')
+        smtp_host = os.getenv('SMTP_HOST') or os.getenv('SMTP_SERVER')
         smtp_port = os.getenv('SMTP_PORT')
-        smtp_user = os.getenv('SMTP_USER')
-        smtp_pass = os.getenv('SMTP_PASS')
+        smtp_user = os.getenv('SMTP_USER') or os.getenv('SMTP_USERNAME')
+        smtp_pass = os.getenv('SMTP_PASS') or os.getenv('SMTP_PASSWORD')
+
         # Initialize emailer
         if GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS'):
             print("Using GitHubActionsEmailSender - SMTP timeouts bypassed")
