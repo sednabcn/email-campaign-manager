@@ -198,9 +198,12 @@ try:
 except ImportError:
     print("Warning: email_sender module not found, using fallback")
     EMAIL_SENDER_AVAILABLE = False
-    
     class EmailSender:
-        def __init__(self, alerts_email=None, dry_run=False):
+        def __init__(self, smtp_host=None, smtp_port=None, smtp_user=None, smtp_password=None, alerts_email=None, dry_run=False):
+            self.smtp_host = smtp_host
+            self.smtp_port = smtp_port
+            self.smtp_user = smtp_user
+            self.smtp_password = smtp_password
             self.alerts_email = alerts_email
             self.dry_run = dry_run
             print(f"Fallback EmailSender initialized - dry_run: {dry_run}, alerts: {alerts_email}")
