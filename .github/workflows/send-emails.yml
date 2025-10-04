@@ -9,7 +9,7 @@ on:
       template:
         description: 'Template DOCX path (relative)'
         required: true
-        default: 'campaign-templates/adults/adult_education_letter.docx'
+        default: 'campaign-templates/education/adult_education/adult_education_letter.docx'
       subject:
         description: 'Email subject'
         required: true
