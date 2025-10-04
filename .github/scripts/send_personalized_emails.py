@@ -104,12 +104,12 @@ def main():
     print()
     
     # Process contacts
+    total_contacts = 0
     print(f"Loading contacts: {args.contacts}")
     with open(args.contacts, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         sent = 0
         failed = 0
-        total_contacts = 0
         
         contacts = list(reader)  # Read all contacts first
         total_contacts = len(contacts)
