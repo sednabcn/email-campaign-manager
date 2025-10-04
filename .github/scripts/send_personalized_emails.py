@@ -110,6 +110,8 @@ def main():
         sent = 0
         failed = 0
         
+        contacts = list(reader)  # Read all contacts first
+        total = len(contacts)
         for i, row in enumerate(reader, 1):
             # Make case-insensitive by converting all keys to lowercase
             row_lower = {k.lower().strip(): v for k, v in row.items()}
@@ -149,7 +151,7 @@ def main():
                 failed += 1
             
             # Rate limiting
-            if i < len(list(reader)) and (sent + failed) < len(list(reader)):
+            if i < total:
                 time.sleep(args.delay)
         
         print()
