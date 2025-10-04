@@ -109,8 +109,8 @@ def main():
         reader = csv.DictReader(f)
         sent = 0
         failed = 0
-        total_contacts = 0
-        
+        total_contacts=
+        0
         contacts = list(reader)  # Read all contacts first
         total_contacts = len(contacts)
 
