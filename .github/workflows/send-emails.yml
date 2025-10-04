@@ -45,7 +45,7 @@ jobs:
 
       - name: Send personalized emails
         run: |
-          python scripts/send_personalized_emails.py \
+          python .github/scripts/send_personalized_emails.py \
             --contacts "${{ github.event.inputs.contacts }}" \
             --template "${{ github.event.inputs.template }}" \
             --subject "${{ github.event.inputs.subject }}" \
