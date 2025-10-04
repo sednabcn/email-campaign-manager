@@ -49,5 +49,4 @@ jobs:
             --template "${{ github.event.inputs.template }}" \
             --subject "${{ github.event.inputs.subject }}" \
             --delay ${{ github.event.inputs.delay || '1.5' }} \
-            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
-
+            ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
