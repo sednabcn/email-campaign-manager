@@ -49,5 +49,5 @@ jobs:
             --contacts "${{ github.event.inputs.contacts }}" \
             --template "${{ github.event.inputs.template }}" \
             --subject "${{ github.event.inputs.subject }}" \
-            --dry-run ${{ github.event.inputs.dry_run }} \
+            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }} \
             --delay 1.5
