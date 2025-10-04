@@ -5,7 +5,7 @@ on:
       contacts:
         description: 'Contacts CSV path (relative)'
         required: true
-        default: 'contacts/edu_adults_contacts_20251004_105943.csv'
+        default: 'contacts/edu_adults_contacts_20250925_184246.csv'
       template:
         description: 'Template DOCX path (relative)'
         required: true
