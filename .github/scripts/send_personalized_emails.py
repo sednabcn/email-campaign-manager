@@ -112,6 +112,14 @@ def main():
         
         contacts = list(reader)  # Read all contacts first
         total = len(contacts)
+
+        print(f"Found {total_contacts} contacts to process")
+        print()
+        
+        if total_contacts == 0:
+            print("WARNING: No contacts found in CSV file!")
+            print("Make sure the CSV has data rows beyond the header")
+        
         for i, row in enumerate(reader, 1):
             # Make case-insensitive by converting all keys to lowercase
             row_lower = {k.lower().strip(): v for k, v in row.items()}
