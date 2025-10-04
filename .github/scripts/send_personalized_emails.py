@@ -111,7 +111,7 @@ def main():
         failed = 0
         
         contacts = list(reader)  # Read all contacts first
-        total = len(contacts)
+        total_contacts = len(contacts)
 
         print(f"Found {total_contacts} contacts to process")
         print()
@@ -159,7 +159,7 @@ def main():
                 failed += 1
             
             # Rate limiting
-            if i < total:
+            if i < total_contacts:
                 time.sleep(args.delay)
         
         print()
