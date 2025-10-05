@@ -24,3 +24,4 @@ pytest-cov>=2.10.0
 black>=21.0.0
 flake8>=3.8.0
 python-docx>=0.8.11
+pyyaml
