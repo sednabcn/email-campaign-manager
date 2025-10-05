@@ -17,7 +17,7 @@ on:
       dry_run:
         description: 'Dry run (true/false)'
         required: true
-        default: 'true'
+        default: 'false'
       delay:
         description: 'Delay between emails (seconds)'
         required: false
