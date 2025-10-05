@@ -622,11 +622,11 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             )
         else:
             print("Using standard EmailSender")
-            emailer = EmailSenderemailer = EmailSender(
+            emailer = EmailSender(
                 smtp_host=smtp_host,
                 smtp_port=smtp_port,
                 smtp_user=smtp_user,
-                smtp_pass=smtp_pass,
+                smtp_password=smtp_pass,
                 alerts_email=alerts_email,
                 dry_run=dry_run
             )
