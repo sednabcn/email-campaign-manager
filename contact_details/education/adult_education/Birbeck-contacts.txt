@@ -1,7 +1,6 @@
-﻿Name:
+﻿
 Professor Daniel Reidenbach
-Position:
-Head of School
+Position: Head of School
 School of Computing and Mathematical Sciences
 Birkbeck, University of London
 Email:
