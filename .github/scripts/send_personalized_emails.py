@@ -21,7 +21,7 @@ def docx_to_text(path):
             if row_text:
                 parts.append(row_text)
                 
-    return "\n".join(parts)
+    return "\n\n".join(parts)
     
 def replace_placeholders(template_text, mapping):
     out = template_text
