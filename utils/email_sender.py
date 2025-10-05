@@ -143,9 +143,10 @@ class EmailSender:
             except Exception as e:
                 print(f"SMTP Error: {e}")
                 return False
-    
+
     def send_campaign(self, campaign_name: str, subject: str, content: str, 
-                     recipients: List[Dict], from_name: str = "Campaign System") -> Dict:
+                 recipients: List[Dict], from_name: str = "Campaign System", 
+                 tracking_id: str = None, contact_mapping: Dict = None) -> Dict:        
         """Send campaign to multiple recipients with tracking"""
         start_time = datetime.now()
         results = {
