@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 class EmailSender:
-    def __init__(self, smtp_user, smtp_host, smtp_port, smtp_pass,alerts_email=None, dry_run=False): 
+    def __init__(self, smtp_user, smtp_host, smtp_port, smtp_password,alerts_email=None, dry_run=False): 
         self.smtp_user = smtp_user
         self.smtp_host = smtp_host
         self.smtp_port = smtp_port
-        self.smtp_pass = smtp_pass  # Store/use as appropriate
+        self.smtp_pass = smtp_password  # Store/use as appropriate
         self.alerts_email = alerts_email or os.environ.get('ALERT_EMAIL')
         self.dry_run = dry_run
         

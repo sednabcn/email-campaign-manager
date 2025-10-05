@@ -24,7 +24,7 @@
     "University / Institution": "organization",
     "Address or Campus, if needed": "address",
     "Department Name": "position"
-}
+  },
    "feedback": {
     "email": "feedback@modelphysmat.com",
     "injection_type": "footer_signature",
