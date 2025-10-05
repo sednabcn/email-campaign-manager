@@ -11,17 +11,27 @@ from pathlib import Path
 def docx_to_text(path):
     doc = Document(path)
     parts = []
+    
+    # Process all paragraphs, including empty ones for spacing
     for p in doc.paragraphs:
-        if p.text.strip():
-            parts.append(p.text)
-    # also include tables content (concatenate rows)
+        text = p.text.strip()
+        if text:
+            parts.append(text)
+        else:
+            # Empty paragraph = intentional blank line
+            # Add empty string to preserve spacing
+            if parts:  # Only if we already have content
+                parts.append("")
+    
+    # Include tables content (concatenate rows)
     for t in doc.tables:
         for row in t.rows:
             row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
             if row_text:
                 parts.append(row_text)
-                
-    return "\n\n".join(parts)
+    
+    # Join with single newlines (empty strings will create blank lines)
+    return "\n".join(parts)
     
 def replace_placeholders(template_text, mapping):
     out = template_text
