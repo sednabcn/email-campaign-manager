@@ -20,7 +20,7 @@ def docx_to_text(path):
             row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
             if row_text:
                 parts.append(row_text)
-    return "\n\n".join(parts)
+    return "\n".join(parts)
 
 def replace_placeholders(template_text, mapping):
     out = template_text
