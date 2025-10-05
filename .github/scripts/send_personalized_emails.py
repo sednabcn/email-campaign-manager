@@ -129,10 +129,11 @@ def main():
             
             # Build mapping with flexible key matching
             mapping = {
-                "Recipient Name": row_lower.get("name", ""),
-                "Name": row_lower.get("name", ""),
                 "Title / Position": row_lower.get("rank/title", 
                                                   row_lower.get("position", "")),
+                "Recipient Name": row_lower.get("name", ""),
+                "Name": row_lower.get("name", ""),
+                
                 "Responsibility": row_lower.get("responsibility", 
                                                row_lower.get("rank/title", 
                                                row_lower.get("position", ""))),
