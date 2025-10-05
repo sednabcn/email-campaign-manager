@@ -92,6 +92,8 @@ def main():
     
     print(f"SMTP Configuration:")
     print(f"  Server: {smtp_server}:{smtp_port}")
+    print(f"  Server length: {len(smtp_server)} chars")
+    print(f"  Server has spaces: {' ' in smtp_server}")
     print(f"  User: {smtp_user}")
     print(f"  From: {mail_from}")
     print(f"  Mode: {'DRY RUN' if args.dry_run else 'LIVE'}")
@@ -124,15 +126,19 @@ def main():
             # Make case-insensitive by converting all keys to lowercase
             row_lower = {k.lower().strip(): v for k, v in row.items()}
             
-            # Debug: print what we found
-            print(f"[{i}] Processing row with keys: {list(row_lower.keys())}")
-            
             # Build mapping with flexible key matching
             mapping = {
+                "Recipient Name": row_lower.get("name", ""),
                 "Name": row_lower.get("name", ""),
+                "Title / Position": row_lower.get("rank/title", 
+                                                  row_lower.get("position", "")),
                 "Responsibility": row_lower.get("responsibility", 
                                                row_lower.get("rank/title", 
                                                row_lower.get("position", ""))),
+                "Department / School": row_lower.get("position", 
+                                                    row_lower.get("department", "")),
+                "University / Institution": row_lower.get("organization", ""),
+                "Address or Campus, if needed": row_lower.get("address", ""),
                 "Email": row_lower.get("email", ""),
                 "Phone": row_lower.get("phone", ""),
                 "InstitutionAddress": row_lower.get("institutionaddress", 
@@ -141,13 +147,13 @@ def main():
                 "BodyText": row_lower.get("bodytext", "")
             }
             
-            print(f"[{i}] Extracted email: '{mapping['Email']}'")
-            
             to_addr = mapping["Email"].strip()
             if not to_addr or '@' not in to_addr:
                 print(f"[{i}] ⚠️  SKIPPING - No valid email for: {mapping.get('Name', 'Unknown')}")
                 failed += 1
                 continue
+            
+            print(f"[{i}] Preparing email to {to_addr} ({mapping.get('Recipient Name', 'Unknown')})")
             
             # Replace placeholders
             body = replace_placeholders(template_text, mapping)
@@ -155,10 +161,13 @@ def main():
             print(f"[{i}] Preparing email to {to_addr} ({mapping['Name']})")
             
             try:
-                send_email(smtp_server, smtp_port, smtp_user, smtp_pass, 
-                          mail_from, to_addr, args.subject, body, 
-                          dry_run=args.dry_run)
-                sent += 1
+                success = send_email(smtp_server, smtp_port, smtp_user, smtp_pass, 
+                                    mail_from, to_addr, args.subject, body, 
+                                    dry_run=args.dry_run)
+                if success:
+                    sent += 1
+                else:
+                    failed += 1
             except Exception as e:
                 print(f"ERROR sending to {to_addr}: {e}")
                 failed += 1

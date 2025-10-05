@@ -104,16 +104,15 @@ def main():
     print()
     
     # Process contacts
-    total_contacts = 0
     print(f"Loading contacts: {args.contacts}")
     with open(args.contacts, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         sent = 0
         failed = 0
         
-        contacts = list(reader)  # Read all contacts first
+        # Convert to list to count total and iterate
+        contacts = list(reader)
         total_contacts = len(contacts)
-
         print(f"Found {total_contacts} contacts to process")
         print()
         
@@ -121,9 +120,12 @@ def main():
             print("WARNING: No contacts found in CSV file!")
             print("Make sure the CSV has data rows beyond the header")
         
-        for i, row in enumerate(reader, 1):
+        for i, row in enumerate(contacts, 1):
             # Make case-insensitive by converting all keys to lowercase
             row_lower = {k.lower().strip(): v for k, v in row.items()}
+            
+            # Debug: print what we found
+            print(f"[{i}] Processing row with keys: {list(row_lower.keys())}")
             
             # Build mapping with flexible key matching
             mapping = {
@@ -139,9 +141,11 @@ def main():
                 "BodyText": row_lower.get("bodytext", "")
             }
             
+            print(f"[{i}] Extracted email: '{mapping['Email']}'")
+            
             to_addr = mapping["Email"].strip()
             if not to_addr or '@' not in to_addr:
-                print(f"[{i}] Skipping row with no valid Email: {mapping.get('Name', 'Unknown')}")
+                print(f"[{i}] ⚠️  SKIPPING - No valid email for: {mapping.get('Name', 'Unknown')}")
                 failed += 1
                 continue
             
@@ -159,7 +163,7 @@ def main():
                 print(f"ERROR sending to {to_addr}: {e}")
                 failed += 1
             
-            # Rate limiting
+            # Rate limiting between sends (not after last one)
             if i < total_contacts:
                 time.sleep(args.delay)
         
