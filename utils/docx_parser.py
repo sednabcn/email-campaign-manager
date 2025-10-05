@@ -183,17 +183,15 @@ try:
                 print("DRY-RUN MODE: No emails sent")
                 if len(processed_recipients) > 3:
                     print(f"  ... and {len(processed_recipients) - 3} more recipients with personalized content")
-            
             return {
                 'campaign_name': campaign_name,
                 'tracking_id': tracking_id,
                 'total_recipients': len(recipients),
-                'sent': sent_count if not self.dry_run else 0,
+                'sent': sent_count if not self.dry_run else 0,  # <-- RETURNS 0 if dry_run
                 'failed': failed_count,
-                'processed_recipients': processed_recipients,
                 'duration_seconds': 1.5,
                 'template_substitution': True
-            }
+            }        
 
 except ImportError:
     print("Warning: email_sender module not found, using fallback")
