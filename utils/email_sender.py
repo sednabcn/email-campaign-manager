@@ -324,7 +324,7 @@ class GitHubActionsEmailSender(EmailSender):
     """Enhanced EmailSender that works with GitHub Actions email extension"""
     
     def __init__(self, smtp_host=None, smtp_port=None, smtp_user=None, smtp_pass=None, alerts_email=None, dry_run=False):
-        super().__init__(smtp_host, smtp_port, smtp_user, smtp_pass, alerts_email, dry_run)
+        super().__init__(smtp_user, smtp_host, smtp_port, smtp_pass, alerts_email, dry_run)
         self.github_actions_mode = os.getenv('GITHUB_ACTIONS') is not None
         self.emails_to_send = []
         
@@ -365,11 +365,27 @@ class GitHubActionsEmailSender(EmailSender):
         return super().send_email(to_email, subject, body_text, from_name, from_email, contact_data)
     
     def send_campaign(self, campaign_name: str, subject: str, content: str, 
-                     recipients: List[Dict], from_name: str = "Campaign System") -> Dict:
-        """Enhanced campaign sending with GitHub Actions support"""
+                     recipients: List[Dict], from_name: str = "Campaign System",
+                     tracking_id: str = None, contact_mapping: Dict = None) -> Dict:
+        """
+        Enhanced campaign sending with GitHub Actions support
+        
+        Args:
+            campaign_name: Name of the campaign
+            subject: Email subject template
+            content: Email body template
+            recipients: List of recipient dictionaries
+            from_name: Sender display name
+            tracking_id: Unique tracking identifier for this campaign
+            contact_mapping: Dictionary mapping template placeholders to CSV fields
+        """
         
         # Run the campaign (this will queue emails in GitHub Actions mode)
-        results = super().send_campaign(campaign_name, subject, content, recipients, from_name)
+        results = super().send_campaign(campaign_name, subject, content, recipients, from_name, tracking_id, contact_mapping)
+        
+        # Store tracking_id in results
+        if tracking_id:
+            results['tracking_id'] = tracking_id
         
         # In GitHub Actions mode, save emails for the workflow to process
         if self.github_actions_mode and self.emails_to_send:
