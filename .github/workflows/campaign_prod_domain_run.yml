@@ -397,8 +397,18 @@ jobs:
           fi
           
           echo "real_data_found=$REAL_DATA_FOUND" >> $GITHUB_OUTPUT
+
           echo "contact_files_count=$CONTACT_FILES_COUNT" >> $GITHUB_OUTPUT
 
+      - name: Diagnostic - Check data pipeline
+        env:
+          CONTACTS_DIR: ${{ env.CONTACTS_DIR }}
+          TEMPLATES_DIR: ${{ env.TEMPLATES_DIR }}
+          SCHEDULED_DIR: ${{ env.SCHEDULED_DIR }}
+        run: |
+          echo "Running data pipeline diagnostics..."
+          python .github/scripts/diagnose_data.py    
+          
       - name: Analyze contact sources using enhanced integration
         id: contact_analysis
         env:
