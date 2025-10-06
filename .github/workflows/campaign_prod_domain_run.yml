@@ -406,7 +406,7 @@ jobs:
           CONTACT_SOURCE_FILTER: ${{ github.event.inputs.contact_source }}
         run: |
           echo "Enhanced contact source analysis..."
-          python scripts/analyze_contacts.py
+          python .github/scripts/analyze_contacts.py
 
           
       - name: Enhanced campaign template analysis
@@ -417,7 +417,7 @@ jobs:
           TARGET_DOMAIN_FILTER: ${{ github.event.inputs.target_domain }}
         run: |
           echo "Enhanced campaign template and domain analysis..."
-          python scripts/analyze_domains.py
+          python .github/scripts/analyze_domains.py
           
           # Verify the output was set
           echo "Domain analysis completed"
