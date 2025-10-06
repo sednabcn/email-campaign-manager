@@ -164,7 +164,7 @@ jobs:
         
         echo "Checking for duplicate CSVs..."
         
-        python3 << EOF
+        python3 << 'PYTHON_SCRIPT'
         import os
         import csv
         import hashlib
@@ -177,7 +177,7 @@ jobs:
             content = '\n'.join('|'.join(f"{k}:{v.strip()}" for k, v in sorted(row.items()) if v) for row in rows)
             return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
-        output_dir = "${{ inputs.output_directory || 'contacts' }}"
+        output_dir = os.environ.get('OUTPUT_DIR', 'contacts')
         csv_files = list(Path(output_dir).glob('*.csv'))
 
         if len(csv_files) <= 1:
@@ -204,7 +204,7 @@ jobs:
                 removed += 1
     
           print(f"Removed {removed} duplicate CSV(s)")
-          EOF
+        PYTHON_SCRIPT
 
     - name: Update source hash tracking
       run: |
