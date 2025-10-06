@@ -1,0 +1,279 @@
+# .github/workflows/contact-extractor.yml
+name: Smart Contact Extractor (Skip Duplicates)
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_directory:
+        description: 'Directory containing .txt files'
+        required: false
+        default: 'contact_details'
+        type: string
+      output_directory:
+        description: 'Output directory for CSV files'
+        required: false
+        default: 'contacts'
+        type: string
+      force_extract:
+        description: 'Force extraction even if content unchanged'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+    group: sub-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_extract: ${{ steps.check.outputs.should_extract }}
+      source_hash: ${{ steps.check.outputs.source_hash }}
+      changed_files: ${{ steps.check.outputs.changed_files }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Check if source files changed
+      id: check
+      run: |
+        SOURCE_DIR="${{ inputs.source_directory || 'contact_details' }}"
+        HASH_FILE=".github/source_content_hash.txt"
+        FORCE_EXTRACT="${{ inputs.force_extract }}"
+        
+        echo "Checking if extraction is needed..."
+        
+        # Calculate hash of all source .txt files
+        if [ -d "$SOURCE_DIR" ]; then
+          # Find all .txt files and calculate combined hash
+          CURRENT_HASH=$(find "$SOURCE_DIR" -type f -name "*.txt" -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
+          echo "Current source hash: $CURRENT_HASH"
+          echo "source_hash=$CURRENT_HASH" >> $GITHUB_OUTPUT
+          
+          # Check if hash file exists
+          if [ -f "$HASH_FILE" ] && [ "$FORCE_EXTRACT" != "true" ]; then
+            PREVIOUS_HASH=$(cat "$HASH_FILE")
+            echo "Previous source hash: $PREVIOUS_HASH"
+            
+            if [ "$CURRENT_HASH" = "$PREVIOUS_HASH" ]; then
+              echo "✅ Source files unchanged - SKIPPING extraction"
+              echo "should_extract=false" >> $GITHUB_OUTPUT
+              echo "changed_files=0" >> $GITHUB_OUTPUT
+            else
+              echo "📝 Source files changed - extraction needed"
+              echo "should_extract=true" >> $GITHUB_OUTPUT
+              
+              # Count changed files
+              CHANGED_COUNT=$(find "$SOURCE_DIR" -type f -name "*.txt" | wc -l)
+              echo "changed_files=$CHANGED_COUNT" >> $GITHUB_OUTPUT
+            fi
+          else
+            if [ "$FORCE_EXTRACT" = "true" ]; then
+              echo "🔄 Force extraction requested"
+            else
+              echo "📝 First run - extraction needed"
+            fi
+            echo "should_extract=true" >> $GITHUB_OUTPUT
+            
+            CHANGED_COUNT=$(find "$SOURCE_DIR" -type f -name "*.txt" | wc -l)
+            echo "changed_files=$CHANGED_COUNT" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "❌ Source directory not found: $SOURCE_DIR"
+          echo "should_extract=false" >> $GITHUB_OUTPUT
+          echo "changed_files=0" >> $GITHUB_OUTPUT
+        fi
+
+  extract-contacts:
+    needs: check-changes
+    runs-on: ubuntu-latest
+    if: needs.check-changes.outputs.should_extract == 'true'
+    outputs:
+      csv_file: ${{ steps.extraction.outputs.csv_file }}
+      csv_filename: ${{ steps.extraction.outputs.csv_filename }}
+      record_count: ${{ steps.extraction.outputs.record_count }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Verify extraction script
+      run: |
+        if [ ! -f ".github/scripts/extract_contacts.py" ]; then
+          echo "❌ Extraction script not found"
+          exit 1
+        fi
+        chmod +x .github/scripts/extract_contacts.py
+
+    - name: Run contact extraction
+      id: extraction
+      run: |
+        SOURCE_DIR="${{ inputs.source_directory || 'contact_details' }}"
+        OUTPUT_DIR="${{ inputs.output_directory || 'contacts' }}"
+
+        echo "Running extraction..."
+        python .github/scripts/extract_contacts.py "$SOURCE_DIR" "$OUTPUT_DIR"
+
+        # Get output file info
+        CSV_FILE=$(find "$OUTPUT_DIR" -type f -name "*.csv" -newer .github/scripts/extract_contacts.py 2>/dev/null | head -1)
+        
+        if [ -z "$CSV_FILE" ]; then
+          # Fallback: get most recent CSV
+          CSV_FILE=$(find "$OUTPUT_DIR" -type f -name "*.csv" | sort -r | head -1)
+        fi
+        
+        if [ -n "$CSV_FILE" ] && [ -f "$CSV_FILE" ]; then
+          CSV_FILENAME=$(basename "$CSV_FILE")
+          RECORD_COUNT=$(tail -n +2 "$CSV_FILE" | wc -l)
+          
+          echo "csv_file=$CSV_FILE" >> $GITHUB_OUTPUT
+          echo "csv_filename=$CSV_FILENAME" >> $GITHUB_OUTPUT
+          echo "record_count=$RECORD_COUNT" >> $GITHUB_OUTPUT
+          
+          echo "✅ Extracted $RECORD_COUNT contacts to $CSV_FILENAME"
+        else
+          echo "❌ No CSV file generated"
+          exit 1
+        fi
+
+    - name: Remove duplicate CSVs
+      run: |
+        OUTPUT_DIR="${{ inputs.output_directory || 'contacts' }}"
+        
+        echo "Checking for duplicate CSVs..."
+        
+        python3 << 'EOF'
+import os
+import csv
+import hashlib
+from pathlib import Path
+
+def calculate_csv_hash(csv_path):
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        rows = sorted([dict(row) for row in reader], key=lambda x: x.get('email', ''))
+        content = '\n'.join('|'.join(f"{k}:{v.strip()}" for k, v in sorted(row.items()) if v) for row in rows)
+        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+
+output_dir = "${{ inputs.output_directory || 'contacts' }}"
+csv_files = list(Path(output_dir).glob('*.csv'))
+
+if len(csv_files) <= 1:
+    print(f"Only {len(csv_files)} CSV file(s) found - no duplicates possible")
+else:
+    hash_map = {}
+    for csv_file in csv_files:
+        file_hash = calculate_csv_hash(csv_file)
+        if file_hash not in hash_map:
+            hash_map[file_hash] = []
+        hash_map[file_hash].append(csv_file)
+    
+    removed = 0
+    for file_hash, files in hash_map.items():
+        if len(files) > 1:
+            files.sort(key=lambda x: os.path.getctime(x))
+            keep = files[0]
+            duplicates = files[1:]
+            
+            print(f"Keeping: {keep.name}")
+            for dup in duplicates:
+                print(f"Removing duplicate: {dup.name}")
+                os.remove(dup)
+                removed += 1
+    
+    print(f"Removed {removed} duplicate CSV(s)")
+EOF
+
+    - name: Update source hash tracking
+      run: |
+        SOURCE_HASH="${{ needs.check-changes.outputs.source_hash }}"
+        HASH_FILE=".github/source_content_hash.txt"
+        
+        mkdir -p .github
+        echo "$SOURCE_HASH" > "$HASH_FILE"
+        echo "Updated source hash: $SOURCE_HASH"
+
+    - name: Commit results
+      run: |
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
+
+        git fetch origin
+        BRANCH="${GITHUB_REF#refs/heads/}"
+        git checkout "$BRANCH"
+        git pull --rebase --autostash || true
+
+        # Add both CSV and hash file
+        git add ${{ inputs.output_directory || 'contacts' }}/*.csv
+        git add .github/source_content_hash.txt
+        
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Extract contacts: ${{ steps.extraction.outputs.csv_filename }}"
+          git push origin HEAD:$BRANCH
+        fi
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: contact-extraction-${{ github.run_number }}
+        path: ${{ inputs.output_directory || 'contacts' }}/
+        retention-days: 30
+
+  skip-summary:
+    needs: check-changes
+    runs-on: ubuntu-latest
+    if: needs.check-changes.outputs.should_extract == 'false'
+    
+    steps:
+    - name: Skipped summary
+      run: |
+        echo "## Contact Extraction Skipped ⏭️" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Source files unchanged - no extraction needed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Use \`force_extract: true\` to override this check" >> $GITHUB_STEP_SUMMARY
+
+  summary:
+    needs: [check-changes, extract-contacts]
+    runs-on: ubuntu-latest
+    if: always() && needs.check-changes.outputs.should_extract == 'true'
+    
+    steps:
+    - name: Job summary
+      run: |
+        echo "## Contact Extraction Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.extract-contacts.result }}" = "success" ]; then
+          echo "✅ **Extraction completed successfully**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **File**: \`${{ needs.extract-contacts.outputs.csv_filename }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Records**: ${{ needs.extract-contacts.outputs.record_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source files**: ${{ needs.check-changes.outputs.changed_files }}" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Extraction failed**" >> $GITHUB_STEP_SUMMARY
+        fi
