@@ -497,26 +497,6 @@ jobs:
           echo "Extracted campaigns: $CAMPAIGNS"
           echo "campaigns=$CAMPAIGNS" >> $GITHUB_OUTPUT
           echo "Template count set to: $CAMPAIGNS"
-  
-      - name: Enhanced campaign template analysis
-        id: domain_analysis
-        env:
-          TEMPLATES_DIR: ${{ env.TEMPLATES_DIR }}
-          SCHEDULED_DIR: ${{ env.SCHEDULED_DIR }}
-          TARGET_DOMAIN_FILTER: ${{ github.event.inputs.target_domain }}
-        run: |
-          echo "Enhanced campaign template and domain analysis..."
-          python .github/scripts/analyze_domains.py
-    
-          # Read the count from JSON and set output explicitly
-          if [ -f domain_analysis.json ]; then
-             CAMPAIGNS=$(python3 -c "import json; print(json.load(open('domain_analysis.json')).get('template_count', 0))")
-             echo "campaigns=$CAMPAIGNS" >> $GITHUB_OUTPUT
-             echo "Template count set to: $CAMPAIGNS"
-          else
-             echo "campaigns=0" >> $GITHUB_OUTPUT
-             echo "WARNING: domain_analysis.json not created"
-          fi
 
       - name: Debug - Verify outputs were set
         run: |
