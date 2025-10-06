@@ -1,0 +1,22 @@
+{
+  "total_contacts": 12,
+  "sources_breakdown": {
+    "contacts/education_adult_education_finance_banks_contacts_20250925_084823.csv": 5,
+    "contacts/edu_adults_contacts_20251004_121252.csv": 3,
+    "contacts/edu_adults_contacts_20251005_130917.csv": 3,
+    "contacts/banks_contacts_20250925_184246.csv": 1
+  },
+  "domain_breakdown": {
+    "modelphysmat.com": 11
+  },
+  "file_types": {
+    "csv": 4,
+    "excel": 0,
+    "google_sheets": 0,
+    "json": 0
+  },
+  "loaded_with": "enhanced_fallback_loader",
+  "contact_source_filter": "",
+  "analysis_timestamp": "2025-10-06T19:44:30.229923",
+  "contacts_dir": "contacts"
+}

@@ -409,7 +409,6 @@ jobs:
           echo "Running data pipeline diagnostics..."
           python .github/scripts/diagnose_data.py
 
-          
       - name: Analyze contact sources using enhanced integration
         id: contact_analysis
         env:
@@ -417,18 +416,88 @@ jobs:
           CONTACT_SOURCE_FILTER: ${{ github.event.inputs.contact_source }}
         run: |
           echo "Enhanced contact source analysis..."
+          
+          # Ensure we're in the right directory
+          cd $GITHUB_WORKSPACE
+          pwd
+          
+          # Run analysis
           python .github/scripts/analyze_contacts.py
-    
-          # Read the count from JSON and set output explicitly
-          if [ -f contact_analysis.json ]; then
-             COUNT=$(python3 -c "import json; print(json.load(open('contact_analysis.json')).get('total_contacts', 0))")
-             echo "count=$COUNT" >> $GITHUB_OUTPUT
-             echo "Contact count set to: $COUNT"
-          else
-             echo "count=0" >> $GITHUB_OUTPUT
-             echo "WARNING: contact_analysis.json not created"
+          
+          # Verify JSON was created
+          if [ ! -f contact_analysis.json ]; then
+            echo "ERROR: contact_analysis.json not created"
+            echo "count=0" >> $GITHUB_OUTPUT
+            exit 0
           fi
+          
+          # Show the JSON content
+          echo "Contact analysis result:"
+          cat contact_analysis.json | python3 -m json.tool
+          
+          # Extract count with error handling
+          COUNT=$(python3 -c "
+          import json
+          import sys
+          try:
+              with open('contact_analysis.json') as f:
+                  data = json.load(f)
+              count = data.get('total_contacts', 0)
+              print(count)
+          except Exception as e:
+              print(f'Error reading JSON: {e}', file=sys.stderr)
+              print(0)
+          ")
+          
+          echo "Extracted count: $COUNT"
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          echo "Contact count set to: $COUNT"
 
+      - name: Enhanced campaign template analysis
+        id: domain_analysis
+        env:
+          TEMPLATES_DIR: ${{ env.TEMPLATES_DIR }}
+          SCHEDULED_DIR: ${{ env.SCHEDULED_DIR }}
+          TARGET_DOMAIN_FILTER: ${{ github.event.inputs.target_domain }}
+        run: |
+          echo "Enhanced campaign template and domain analysis..."
+          
+          # Ensure we're in the right directory
+          cd $GITHUB_WORKSPACE
+          pwd
+          
+          # Run analysis
+          python .github/scripts/analyze_domains.py
+          
+          # Verify JSON was created
+          if [ ! -f domain_analysis.json ]; then
+            echo "ERROR: domain_analysis.json not created"
+            echo "campaigns=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Show the JSON content
+          echo "Domain analysis result:"
+          cat domain_analysis.json | python3 -m json.tool
+          
+          # Extract count with error handling
+          CAMPAIGNS=$(python3 -c "
+          import json
+          import sys
+          try:
+              with open('domain_analysis.json') as f:
+                  data = json.load(f)
+              count = data.get('template_count', 0)
+              print(count)
+          except Exception as e:
+              print(f'Error reading JSON: {e}', file=sys.stderr)
+              print(0)
+          ")
+          
+          echo "Extracted campaigns: $CAMPAIGNS"
+          echo "campaigns=$CAMPAIGNS" >> $GITHUB_OUTPUT
+          echo "Template count set to: $CAMPAIGNS"
+  
       - name: Enhanced campaign template analysis
         id: domain_analysis
         env:

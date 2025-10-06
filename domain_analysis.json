@@ -1,0 +1,91 @@
+{
+  "template_count": 3,
+  "domain_count": 3,
+  "scheduled_campaigns": 1,
+  "domain_templates": {
+    "education": {
+      "total": 1,
+      "docx": 0,
+      "json": 0,
+      "txt": 1,
+      "html": 0,
+      "templates": [
+        {
+          "file": "campaign-templates/education/welcome_campaign.txt",
+          "type": ".txt",
+          "variables": [
+            "name",
+            "domain",
+            "name",
+            "domain",
+            "role",
+            "organization",
+            "domain",
+            "email",
+            "role",
+            "domain",
+            "organization",
+            "unsubscribe_url"
+          ],
+          "variable_count": 12,
+          "size": 870
+        }
+      ]
+    },
+    "finance": {
+      "total": 1,
+      "docx": 1,
+      "json": 0,
+      "txt": 0,
+      "html": 0,
+      "templates": []
+    },
+    "healthcare": {
+      "total": 1,
+      "docx": 1,
+      "json": 0,
+      "txt": 0,
+      "html": 0,
+      "templates": []
+    }
+  },
+  "scheduled_campaign_list": [
+    {
+      "file": "scheduled-campaigns/test_campaign.json",
+      "type": ".json",
+      "variables": [],
+      "variable_count": 0,
+      "size": 2737
+    }
+  ],
+  "template_variables_found": {
+    "name": [
+      "campaign-templates/education/welcome_campaign.txt",
+      "campaign-templates/education/welcome_campaign.txt"
+    ],
+    "domain": [
+      "campaign-templates/education/welcome_campaign.txt",
+      "campaign-templates/education/welcome_campaign.txt",
+      "campaign-templates/education/welcome_campaign.txt",
+      "campaign-templates/education/welcome_campaign.txt"
+    ],
+    "role": [
+      "campaign-templates/education/welcome_campaign.txt",
+      "campaign-templates/education/welcome_campaign.txt"
+    ],
+    "organization": [
+      "campaign-templates/education/welcome_campaign.txt",
+      "campaign-templates/education/welcome_campaign.txt"
+    ],
+    "email": [
+      "campaign-templates/education/welcome_campaign.txt"
+    ],
+    "unsubscribe_url": [
+      "campaign-templates/education/welcome_campaign.txt"
+    ]
+  },
+  "target_domain_filter": "",
+  "analysis_timestamp": "2025-10-06T19:44:31.662469",
+  "templates_dir": "campaign-templates",
+  "scheduled_dir": "scheduled-campaigns"
+}
