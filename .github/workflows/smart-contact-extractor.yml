@@ -165,46 +165,46 @@ jobs:
         echo "Checking for duplicate CSVs..."
         
         python3 << 'EOF'
-import os
-import csv
-import hashlib
-from pathlib import Path
+        import os
+        import csv
+        import hashlib
+        from pathlib import Path
 
-def calculate_csv_hash(csv_path):
-    with open(csv_path, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        rows = sorted([dict(row) for row in reader], key=lambda x: x.get('email', ''))
-        content = '\n'.join('|'.join(f"{k}:{v.strip()}" for k, v in sorted(row.items()) if v) for row in rows)
-        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+        def calculate_csv_hash(csv_path):
+          with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            rows = sorted([dict(row) for row in reader], key=lambda x: x.get('email', ''))
+            content = '\n'.join('|'.join(f"{k}:{v.strip()}" for k, v in sorted(row.items()) if v) for row in rows)
+            return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
-output_dir = "${{ inputs.output_directory || 'contacts' }}"
-csv_files = list(Path(output_dir).glob('*.csv'))
+        output_dir = "${{ inputs.output_directory || 'contacts' }}"
+        csv_files = list(Path(output_dir).glob('*.csv'))
 
-if len(csv_files) <= 1:
-    print(f"Only {len(csv_files)} CSV file(s) found - no duplicates possible")
-else:
-    hash_map = {}
-    for csv_file in csv_files:
-        file_hash = calculate_csv_hash(csv_file)
-        if file_hash not in hash_map:
-            hash_map[file_hash] = []
-        hash_map[file_hash].append(csv_file)
+        if len(csv_files) <= 1:
+          print(f"Only {len(csv_files)} CSV file(s) found - no duplicates possible")
+        else:
+          hash_map = {}
+          for csv_file in csv_files:
+            file_hash = calculate_csv_hash(csv_file)
+            if file_hash not in hash_map:
+              hash_map[file_hash] = []
+            hash_map[file_hash].append(csv_file)
     
-    removed = 0
-    for file_hash, files in hash_map.items():
-        if len(files) > 1:
-            files.sort(key=lambda x: os.path.getctime(x))
-            keep = files[0]
-            duplicates = files[1:]
+          removed = 0
+          for file_hash, files in hash_map.items():
+            if len(files) > 1:
+              files.sort(key=lambda x: os.path.getctime(x))
+              keep = files[0]
+              duplicates = files[1:]
             
-            print(f"Keeping: {keep.name}")
-            for dup in duplicates:
+              print(f"Keeping: {keep.name}")
+              for dup in duplicates:
                 print(f"Removing duplicate: {dup.name}")
                 os.remove(dup)
                 removed += 1
     
-    print(f"Removed {removed} duplicate CSV(s)")
-EOF
+          print(f"Removed {removed} duplicate CSV(s)")
+          EOF
 
     - name: Update source hash tracking
       run: |
