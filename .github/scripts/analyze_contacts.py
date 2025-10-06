@@ -15,7 +15,9 @@ def load_contacts_from_csv(file_path):
     try:
         import pandas as pd
         df = pd.read_csv(file_path)
-        return df.to_dict('records')
+        # Convert to dict and handle NaN values
+        contacts = df.fillna('').to_dict('records')
+        return contacts
     except Exception as e:
         print(f"Error loading CSV {file_path}: {e}")
         return []
@@ -25,7 +27,9 @@ def load_contacts_from_excel(file_path):
     try:
         import pandas as pd
         df = pd.read_excel(file_path)
-        return df.to_dict('records')
+        # Convert to dict and handle NaN values
+        contacts = df.fillna('').to_dict('records')
+        return contacts
     except Exception as e:
         print(f"Error loading Excel {file_path}: {e}")
         return []
@@ -46,10 +50,21 @@ def load_contacts_from_google_sheets(url_file):
                 
                 import pandas as pd
                 df = pd.read_csv(csv_url)
-                return df.to_dict('records')
+                contacts = df.fillna('').to_dict('records')
+                return contacts
     except Exception as e:
         print(f"Error loading Google Sheets from {url_file}: {e}")
     return []
+
+def safe_string(value):
+    """Safely convert any value to string, handling NaN and None"""
+    if value is None:
+        return ''
+    if isinstance(value, float):
+        import math
+        if math.isnan(value):
+            return ''
+    return str(value)
 
 def analyze_contacts():
     """Main contact analysis function"""
@@ -80,46 +95,50 @@ def analyze_contacts():
         if contacts_path.exists():
             # Process CSV files
             for csv_file in contacts_path.glob('**/*.csv'):
-                if contact_source_filter and contact_source_filter not in str(csv_file):
+                file_str = str(csv_file)
+                if contact_source_filter and contact_source_filter not in file_str:
                     continue
                 print(f"Loading CSV: {csv_file}")
                 contacts = load_contacts_from_csv(csv_file)
                 all_contacts.extend(contacts)
-                sources_breakdown[str(csv_file)] = len(contacts)
+                sources_breakdown[file_str] = len(contacts)
                 file_types['csv'] += 1
             
             # Process Excel files
             for excel_file in contacts_path.glob('**/*.xlsx'):
-                if contact_source_filter and contact_source_filter not in str(excel_file):
+                file_str = str(excel_file)
+                if contact_source_filter and contact_source_filter not in file_str:
                     continue
                 print(f"Loading Excel: {excel_file}")
                 contacts = load_contacts_from_excel(excel_file)
                 all_contacts.extend(contacts)
-                sources_breakdown[str(excel_file)] = len(contacts)
+                sources_breakdown[file_str] = len(contacts)
                 file_types['excel'] += 1
             
             for excel_file in contacts_path.glob('**/*.xls'):
-                if contact_source_filter and contact_source_filter not in str(excel_file):
+                file_str = str(excel_file)
+                if contact_source_filter and contact_source_filter not in file_str:
                     continue
                 print(f"Loading Excel: {excel_file}")
                 contacts = load_contacts_from_excel(excel_file)
                 all_contacts.extend(contacts)
-                sources_breakdown[str(excel_file)] = len(contacts)
+                sources_breakdown[file_str] = len(contacts)
                 file_types['excel'] += 1
             
             # Process Google Sheets URL files
             for url_file in contacts_path.glob('**/*.url'):
-                if contact_source_filter and contact_source_filter not in str(url_file):
+                file_str = str(url_file)
+                if contact_source_filter and contact_source_filter not in file_str:
                     continue
                 print(f"Loading Google Sheets: {url_file}")
                 contacts = load_contacts_from_google_sheets(url_file)
                 all_contacts.extend(contacts)
-                sources_breakdown[str(url_file)] = len(contacts)
+                sources_breakdown[file_str] = len(contacts)
                 file_types['google_sheets'] += 1
     
-    # Analyze domains from email addresses
+    # Analyze domains from email addresses - with safe string handling
     for contact in all_contacts:
-        email = contact.get('email', '')
+        email = safe_string(contact.get('email', ''))
         if email and '@' in email:
             domain = email.split('@')[1]
             domain_breakdown[domain] = domain_breakdown.get(domain, 0) + 1
@@ -161,7 +180,8 @@ def analyze_contacts():
     print(f"  - Total contacts: {contact_count}")
     print(f"  - Sources: {len(sources_breakdown)}")
     print(f"  - Domains: {len(domain_breakdown)}")
-    print(f"  - Top domain: {max(domain_breakdown.items(), key=lambda x: x[1])[0] if domain_breakdown else 'N/A'}")
+    if domain_breakdown:
+        print(f"  - Top domain: {max(domain_breakdown.items(), key=lambda x: x[1])[0]}")
     
     return contact_count
 
