@@ -1,202 +1,151 @@
 #!/usr/bin/env python3
 """
-Enhanced Domain and Template Analysis Script for GitHub Actions
-Analyzes campaign templates and sets GitHub Actions outputs
+Enhanced campaign template and domain analysis script for GitHub Actions workflow.
 """
 
-import os
 import sys
 import json
+import os
 import re
 from pathlib import Path
 from datetime import datetime
 
-def extract_template_variables(content):
-    """Extract template variables like {{name}}, {{email}} from content"""
-    pattern = r'\{\{([^}]+)\}\}'
-    matches = re.findall(pattern, content)
-    return [match.strip() for match in matches]
 
-def analyze_text_template(file_path):
-    """Analyze a text-based template file"""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        variables = extract_template_variables(content)
-        return {
-            'file': str(file_path),
-            'type': file_path.suffix,
-            'variables': variables,
-            'variable_count': len(variables),
-            'size': file_path.stat().st_size
-        }
-    except Exception as e:
-        print(f"Error analyzing template {file_path}: {e}")
-        return None
+def analyze_templates(templates_dir, scheduled_dir, target_domain_filter='all_domains'):
+    """Analyze campaign templates across domains."""
+    
+    # Enhanced template analysis
+    domains = ['education', 'finance', 'healthcare', 'industry', 'technology', 'government']
+    domain_stats = {}
+    total_templates = 0
 
-def analyze_docx_template(file_path):
-    """Analyze a DOCX template file"""
-    try:
-        from docx import Document
-        doc = Document(file_path)
-        
-        content = '\n'.join([para.text for para in doc.paragraphs])
-        variables = extract_template_variables(content)
-        
-        return {
-            'file': str(file_path),
-            'type': '.docx',
-            'variables': variables,
-            'variable_count': len(variables),
-            'size': file_path.stat().st_size,
-            'paragraphs': len(doc.paragraphs)
-        }
-    except Exception as e:
-        print(f"Error analyzing DOCX template {file_path}: {e}")
-        return None
+    templates_path = Path(templates_dir)
+    scheduled_path = Path(scheduled_dir)
 
-def analyze_domains():
-    """Main domain and template analysis function"""
+    print('Analyzing enhanced template structure...')
+
+    # Check domain-based structure
+    for domain in domains:
+        domain_path = templates_path / domain
+        if domain_path.exists():
+            # Enhanced file type detection
+            docx_files = list(domain_path.glob('*.docx'))
+            doc_files = list(domain_path.glob('*.doc'))
+            json_files = list(domain_path.glob('*.json'))
+            txt_files = list(domain_path.glob('*.txt'))
+            html_files = list(domain_path.glob('*.html'))
+            md_files = list(domain_path.glob('*.md'))
+            
+            all_templates = docx_files + doc_files + json_files + txt_files + html_files + md_files
+
+            domain_stats[domain] = {
+                'template_count': len(all_templates),
+                'docx_count': len(docx_files),
+                'json_count': len(json_files),
+                'txt_count': len(txt_files),
+                'html_count': len(html_files),
+                'md_count': len(md_files),
+                'other_count': len(doc_files),
+                'templates': [t.name for t in all_templates]
+            }
+            total_templates += len(all_templates)
+            print(f'  - {domain}: {len(all_templates)} templates '
+                  f'({len(docx_files)} DOCX, {len(json_files)} JSON, '
+                  f'{len(txt_files)} TXT, {len(html_files)} HTML)')
+        else:
+            domain_stats[domain] = {
+                'template_count': 0,
+                'docx_count': 0,
+                'json_count': 0,
+                'txt_count': 0,
+                'html_count': 0,
+                'md_count': 0,
+                'other_count': 0,
+                'templates': []
+            }
+
+    # Enhanced scheduled campaign analysis
+    scheduled_campaigns = 0
+    scheduled_by_type = {}
+    if scheduled_path.exists():
+        for ext in ['*.json', '*.docx', '*.txt', '*.html', '*.md']:
+            files = list(scheduled_path.glob(ext))
+            scheduled_by_type[ext[2:]] = len(files)  # Remove *.
+            scheduled_campaigns += len(files)
+
+    # Enhanced template content analysis
+    template_variables_found = {}
+    if scheduled_path.exists():
+        for template_file in scheduled_path.iterdir():
+            if template_file.suffix in ['.txt', '.json', '.html', '.md']:
+                try:
+                    content = template_file.read_text()
+                    # Look for template variables like {{Contact Name}}
+                    variables = re.findall(r'{{([^}]+)}}', content)
+                    if variables:
+                        template_variables_found[template_file.name] = variables
+                except Exception as e:
+                    print(f'Could not analyze template {template_file.name}: {e}')
+
+    # Create enhanced analysis
+    domain_analysis = {
+        'domain_count': len([d for d in domain_stats.values() if d['template_count'] > 0]),
+        'template_count': total_templates,
+        'scheduled_campaigns': scheduled_campaigns,
+        'scheduled_by_type': scheduled_by_type,
+        'template_variables_found': template_variables_found,
+        'domains': domain_stats,
+        'analysis_method': 'enhanced_filesystem_scan',
+        'analysis_timestamp': datetime.now().isoformat(),
+        'target_domain_filter': target_domain_filter
+    }
+
+    return domain_analysis, total_templates, scheduled_campaigns, template_variables_found
+
+
+def main():
+    """Main execution function."""
     templates_dir = os.environ.get('TEMPLATES_DIR', 'campaign-templates')
     scheduled_dir = os.environ.get('SCHEDULED_DIR', 'scheduled-campaigns')
-    target_domain_filter = os.environ.get('TARGET_DOMAIN_FILTER', '')
-    
-    print(f"Analyzing templates from: {templates_dir}")
-    print(f"Analyzing scheduled campaigns from: {scheduled_dir}")
-    print(f"Target domain filter: {target_domain_filter or 'None'}")
-    
-    domain_templates = {}
-    scheduled_campaigns = []
-    all_template_variables = {}
-    template_count = 0
-    
-    # Analyze campaign-templates directory structure
-    templates_path = Path(templates_dir)
-    if templates_path.exists():
-        print(f"\nAnalyzing enhanced template structure...")
-        
-        # Expected domain directories
-        domains = ['education', 'finance', 'healthcare', 'industry', 'technology', 'government']
-        
-        for domain in domains:
-            domain_path = templates_path / domain
-            if domain_path.exists():
-                # Count templates by type
-                docx_count = len(list(domain_path.glob('*.docx')))
-                json_count = len(list(domain_path.glob('*.json')))
-                txt_count = len(list(domain_path.glob('*.txt')))
-                html_count = len(list(domain_path.glob('*.html')))
-                
-                total = docx_count + json_count + txt_count + html_count
-                
-                if target_domain_filter and domain != target_domain_filter:
-                    print(f"  - {domain}: {total} templates (FILTERED OUT)")
-                    continue
-                
-                print(f"  - {domain}: {total} templates ({docx_count} DOCX, {json_count} JSON, {txt_count} TXT, {html_count} HTML)")
-                
-                if total > 0:
-                    domain_templates[domain] = {
-                        'total': total,
-                        'docx': docx_count,
-                        'json': json_count,
-                        'txt': txt_count,
-                        'html': html_count,
-                        'templates': []
-                    }
-                    template_count += total
-                    
-                    # Analyze individual templates
-                    for template_file in domain_path.glob('*'):
-                        if template_file.is_file():
-                            if template_file.suffix == '.docx':
-                                template_info = analyze_docx_template(template_file)
-                            elif template_file.suffix in ['.txt', '.html', '.json']:
-                                template_info = analyze_text_template(template_file)
-                            else:
-                                continue
-                            
-                            if template_info:
-                                domain_templates[domain]['templates'].append(template_info)
-                                for var in template_info['variables']:
-                                    if var not in all_template_variables:
-                                        all_template_variables[var] = []
-                                    all_template_variables[var].append(str(template_file))
-    
-    # Analyze scheduled-campaigns directory
-    scheduled_path = Path(scheduled_dir)
-    if scheduled_path.exists():
-        for campaign_file in scheduled_path.glob('*'):
-            if campaign_file.is_file():
-                if campaign_file.suffix == '.docx':
-                    campaign_info = analyze_docx_template(campaign_file)
-                elif campaign_file.suffix in ['.txt', '.html', '.json', '.md']:
-                    campaign_info = analyze_text_template(campaign_file)
-                else:
-                    continue
-                
-                if campaign_info:
-                    scheduled_campaigns.append(campaign_info)
-                    for var in campaign_info['variables']:
-                        if var not in all_template_variables:
-                            all_template_variables[var] = []
-                        all_template_variables[var].append(str(campaign_file))
-    
-    scheduled_count = len(scheduled_campaigns)
-    
-    print(f"Set GITHUB_OUTPUT campaigns={template_count}")
-    print(f"Enhanced template analysis completed: {template_count} templates, {scheduled_count} scheduled campaigns")
-    
-    # Show template variables found
-    if all_template_variables:
-        print("\nTemplate variables detected in:")
-        for var, files in list(all_template_variables.items())[:5]:
-            print(f"  - {files[0]}: {[var] + list(all_template_variables.keys())[1:4]}...")
-            break
-    
-    # CRITICAL: Set GitHub Actions output
-    github_output = os.environ.get('GITHUB_OUTPUT')
-    if github_output:
-        with open(github_output, 'a') as f:
-            f.write(f'campaigns={template_count}\n')
-        print(f"Set GITHUB_OUTPUT campaigns={template_count}")
-    else:
-        print("WARNING: GITHUB_OUTPUT not set, cannot set output variable")
-    
-    # Save detailed analysis to JSON
-    analysis_data = {
-        'template_count': template_count,
-        'domain_count': len(domain_templates),
-        'scheduled_campaigns': scheduled_count,
-        'domain_templates': domain_templates,
-        'scheduled_campaign_list': scheduled_campaigns,
-        'template_variables_found': all_template_variables,
-        'target_domain_filter': target_domain_filter,
-        'analysis_timestamp': datetime.now().isoformat(),
-        'templates_dir': templates_dir,
-        'scheduled_dir': scheduled_dir
-    }
-    
-    with open('domain_analysis.json', 'w') as f:
-        json.dump(analysis_data, f, indent=2)
-    
-    print("Domain analysis completed")
-    
-    return template_count
+    target_domain_filter = os.environ.get('TARGET_DOMAIN_FILTER', 'all_domains')
 
-if __name__ == '__main__':
     try:
-        template_count = analyze_domains()
-        sys.exit(0)
-    except Exception as e:
-        print(f"ERROR in domain analysis: {e}")
-        import traceback
-        traceback.print_exc()
-        
-        # Set campaigns to 0 on error
-        github_output = os.environ.get('GITHUB_OUTPUT')
+        domain_analysis, total_templates, scheduled_campaigns, template_variables_found = \
+            analyze_templates(templates_dir, scheduled_dir, target_domain_filter)
+
+        # Save analysis to file
+        with open('domain_analysis.json', 'w') as f:
+            json.dump(domain_analysis, f, indent=2)
+
+        # CRITICAL: Write output to GITHUB_OUTPUT
+        github_output = os.environ.get('GITHUB_OUTPUT', '')
         if github_output:
             with open(github_output, 'a') as f:
-                f.write('campaigns=0\n')
+                f.write(f'campaigns={total_templates}\n')
+            print(f'Set GITHUB_OUTPUT campaigns={total_templates}')
+        else:
+            print('WARNING: GITHUB_OUTPUT environment variable not set!')
+            print(f'Template count: {total_templates}')
         
-        sys.exit(1)
+        print(f'Enhanced template analysis completed: {total_templates} templates, '
+              f'{scheduled_campaigns} scheduled campaigns')
+        
+        if template_variables_found:
+            print('Template variables detected in:')
+            for template, vars in template_variables_found.items():
+                if len(vars) > 3:
+                    print(f'  - {template}: {vars[:3]}...')
+                else:
+                    print(f'  - {template}: {vars}')
+        
+        return 0
+
+    except Exception as e:
+        print(f'Error in domain analysis: {e}')
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

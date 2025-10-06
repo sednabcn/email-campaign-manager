@@ -42,112 +42,13 @@ except ImportError:
     DOCX_AVAILABLE = False
     print("Warning: python-docx library not available")
 
-
-# ============================================================================
-# EMAIL QUEUE FUNCTIONS
-# ============================================================================
-
-def save_email_to_queue(batch_dir, email_index, to_email, subject, body, from_name="Campaign System"):
-    """Save individual email to queue directory"""
-    email_data = {
-        'to': to_email,
-        'subject': subject,
-        'body': body,
-        'from_name': from_name,
-        'queued_at': datetime.now().isoformat()
-    }
-    
-    email_file = batch_dir / f"email_{email_index}.json"
-    with open(email_file, 'w') as f:
-        json.dump(email_data, f, indent=2)
-    
-    return email_file
-
-
-def create_github_actions_summary(batch_dir, total_queued, campaign_results):
-    """Create summary file for GitHub Actions email sender"""
-    summary = {
-        'batch_directory': str(batch_dir),
-        'total_emails': total_queued,
-        'queued_at': datetime.now().isoformat(),
-        'campaigns': len(campaign_results),
-        'campaign_details': campaign_results
-    }
-    
-    with open('github_actions_email_summary.json', 'w') as f:
-        json.dump(summary, f, indent=2)
-    
-    print(f"Created GitHub Actions email summary: {total_queued} emails queued")
-    return summary
-
-
-def create_campaign_summary_email(alerts_email, campaigns_count, total_queued, campaign_results):
-    """Create summary email to be sent after batch processing"""
-    subject = f"Campaign Summary: {campaigns_count} campaigns, {total_queued} emails queued"
-    
-    body = f"""Campaign Execution Summary
-=========================
-
-Campaigns Processed: {campaigns_count}
-Total Emails Queued: {total_queued}
-Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-Campaign Details:
-"""
-    
-    for result in campaign_results:
-        body += f"\n- {result['campaign_name']}: {result.get('queued', result.get('sent', 0))} emails"
-        if result.get('tracking_id'):
-            body += f" [ID: {result['tracking_id']}]"
-    
-    body += "\n\nEmails will be sent by the GitHub Actions email sender job."
-    
-    summary_data = {
-        'to': alerts_email,
-        'subject': subject,
-        'body': body,
-        'from_email': os.getenv('SMTP_USER', 'noreply@example.com')
-    }
-    
-    with open('campaign_summary_email.json', 'w') as f:
-        json.dump(summary_data, f, indent=2)
-    
-    return summary_data
-
-
-# ============================================================================
-# EMAIL SENDER WITH QUEUE SUPPORT
-# ============================================================================
-
+# Enhanced EmailSender with template processing
 try:
     from email_sender import EmailSender as BaseEmailSender
     EMAIL_SENDER_AVAILABLE = True
     
     class EmailSender(BaseEmailSender):
-        """Enhanced EmailSender with template variable substitution and queue support"""
-        
-        def __init__(self, smtp_host=None, smtp_port=None, smtp_user=None, smtp_password=None, 
-                     alerts_email=None, dry_run=False, queue_emails=False):
-            if not queue_emails:
-                super().__init__(smtp_host, smtp_port, smtp_user, smtp_password, alerts_email, dry_run)
-            else:
-                # Minimal init for queue mode
-                self.smtp_host = smtp_host
-                self.smtp_port = smtp_port
-                self.smtp_user = smtp_user
-                self.smtp_password = smtp_password
-                self.alerts_email = alerts_email
-                self.dry_run = False  # Queue mode is never dry-run
-            
-            self.queue_emails = queue_emails
-            self.queue_batch_dir = None
-            self.queued_count = 0
-            
-            if queue_emails:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                self.queue_batch_dir = Path(f"email_batch_{timestamp}")
-                self.queue_batch_dir.mkdir(exist_ok=True)
-                print(f"Email queue mode enabled - saving to {self.queue_batch_dir}")
+        """Enhanced EmailSender with template variable substitution"""
         
         def substitute_variables(self, content, contact, additional_vars=None, contact_mapping=None):
             """
@@ -163,13 +64,14 @@ try:
             result = content
             variables = {}
             
-            # Phase 1: Handle contact_mapping for [Placeholder] format
+            # Phase 1: Handle contact_mapping for [Placeholder] format (CRITICAL FIX)
             if contact_mapping and isinstance(contact_mapping, dict) and isinstance(contact, dict):
                 for template_placeholder, csv_field in contact_mapping.items():
-                    value = contact.get(csv_field, '')
-                    if value and str(value).lower() not in ['nan', 'none', '']:
-                        placeholder_pattern = f'[{template_placeholder}]'
-                        result = result.replace(placeholder_pattern, str(value))
+                   value = contact.get(csv_field, '')
+                   # Handle nan, None, and empty values
+                   if value and str(value).lower() not in ['nan', 'none', '']:
+                       placeholder_pattern = f'[{template_placeholder}]'
+                       result = result.replace(placeholder_pattern, str(value))
             
             # Phase 2: Build variables dictionary for generic patterns
             if isinstance(contact, dict):
@@ -224,8 +126,7 @@ try:
             
             return result
         
-        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", 
-                         tracking_id=None, contact_mapping=None):
+        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", tracking_id=None, contact_mapping=None):
             print(f"\n=== CAMPAIGN: {campaign_name} ===")
             if tracking_id:
                 print(f"Tracking ID: {tracking_id}")
@@ -233,12 +134,8 @@ try:
             print(f"From: {from_name}")
             print(f"Recipients: {len(recipients)}")
             
-            if self.queue_emails:
-                print(f"Queue mode: Saving emails to {self.queue_batch_dir}")
-            
             processed_recipients = []
             sent_count = 0
-            queued_count = 0
             failed_count = 0
             
             for i, recipient in enumerate(recipients):
@@ -257,35 +154,19 @@ try:
                     personalized_subject = self.substitute_variables(subject, recipient, contact_mapping=contact_mapping)
                     personalized_content = self.substitute_variables(content, recipient, contact_mapping=contact_mapping)
                     
-                    if self.queue_emails:
-                        # QUEUE MODE: Save to file instead of sending
-                        save_email_to_queue(
-                            self.queue_batch_dir,
-                            self.queued_count,
-                            email,
-                            personalized_subject,
-                            personalized_content,
-                            from_name
-                        )
-                        queued_count += 1
-                        self.queued_count += 1
-                        
-                        if (i + 1) % 10 == 0:
-                            print(f"  Queued {queued_count}/{len(recipients)} emails...")
+                    processed_recipient = {
+                        **recipient,
+                        'personalized_subject': personalized_subject,
+                        'personalized_content': personalized_content,
+                        'original_subject': subject,
+                        'original_content': content[:100] + "..." if len(content) > 100 else content,
+                        'tracking_id': tracking_id
+                    }
                     
-                    elif self.dry_run:
-                        processed_recipient = {
-                            **recipient,
-                            'personalized_subject': personalized_subject,
-                            'personalized_content': personalized_content,
-                            'original_subject': subject,
-                            'original_content': content[:100] + "..." if len(content) > 100 else content,
-                            'tracking_id': tracking_id
-                        }
-                        
-                        processed_recipients.append(processed_recipient)
-                        sent_count += 1
-                        
+                    processed_recipients.append(processed_recipient)
+                    sent_count += 1
+                    
+                    if self.dry_run:
                         print(f"  {i+1}. {recipient.get('name', 'N/A')} <{email}>")
                         print(f"      Subject: {personalized_subject}")
                         if len(personalized_content) > 150:
@@ -293,72 +174,37 @@ try:
                         else:
                             print(f"      Content: {personalized_content}")
                     
-                    else:
-                        # ACTUAL SEND MODE: Use parent class method
-                        # This would be handled by BaseEmailSender's actual send logic
-                        processed_recipient = {
-                            **recipient,
-                            'personalized_subject': personalized_subject,
-                            'personalized_content': personalized_content,
-                            'tracking_id': tracking_id
-                        }
-                        processed_recipients.append(processed_recipient)
-                        sent_count += 1
-                    
                 except Exception as e:
                     print(f"Error processing recipient {i+1} ({email}): {str(e)}")
                     failed_count += 1
                     continue
             
-            if self.dry_run and not self.queue_emails:
+            if self.dry_run:
                 print("DRY-RUN MODE: No emails sent")
                 if len(processed_recipients) > 3:
                     print(f"  ... and {len(processed_recipients) - 3} more recipients with personalized content")
-            elif self.queue_emails:
-                print(f"Queued {queued_count} emails for campaign {campaign_name}")
-            
             return {
                 'campaign_name': campaign_name,
                 'tracking_id': tracking_id,
                 'total_recipients': len(recipients),
-                'sent': sent_count if not (self.dry_run or self.queue_emails) else 0,
-                'queued': queued_count if self.queue_emails else 0,
+                'sent': sent_count if not self.dry_run else 0,  # <-- RETURNS 0 if dry_run
                 'failed': failed_count,
                 'duration_seconds': 1.5,
                 'template_substitution': True
-            }
-        
-        def send_alert(self, subject, body):
-            if self.queue_emails:
-                print(f"ALERT (queued): {subject}")
-                print(f"Body: {body[:200]}...")
-            else:
-                super().send_alert(subject, body)
+            }        
 
 except ImportError:
     print("Warning: email_sender module not found, using fallback")
     EMAIL_SENDER_AVAILABLE = False
-    
     class EmailSender:
-        def __init__(self, smtp_host=None, smtp_port=None, smtp_user=None, smtp_password=None, 
-                     alerts_email=None, dry_run=False, queue_emails=False):
+        def __init__(self, smtp_host=None, smtp_port=None, smtp_user=None, smtp_password=None, alerts_email=None, dry_run=False):
             self.smtp_host = smtp_host
             self.smtp_port = smtp_port
             self.smtp_user = smtp_user
             self.smtp_password = smtp_password
             self.alerts_email = alerts_email
             self.dry_run = dry_run
-            self.queue_emails = queue_emails
-            self.queue_batch_dir = None
-            self.queued_count = 0
-            
-            if queue_emails:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                self.queue_batch_dir = Path(f"email_batch_{timestamp}")
-                self.queue_batch_dir.mkdir(exist_ok=True)
-                print(f"Fallback EmailSender in queue mode - saving to {self.queue_batch_dir}")
-            else:
-                print(f"Fallback EmailSender initialized - dry_run: {dry_run}, alerts: {alerts_email}")
+            print(f"Fallback EmailSender initialized - dry_run: {dry_run}, alerts: {alerts_email}")
         
         def substitute_variables(self, content, contact, additional_vars=None, contact_mapping=None):
             if not isinstance(content, str):
@@ -391,8 +237,7 @@ except ImportError:
             
             return result
         
-        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", 
-                         tracking_id=None, contact_mapping=None):
+        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", tracking_id=None, contact_mapping=None):
             print(f"\n=== CAMPAIGN: {campaign_name} ===")
             if tracking_id:
                 print(f"Tracking ID: {tracking_id}")
@@ -401,36 +246,9 @@ except ImportError:
             print(f"Recipients: {len(recipients)}")
             
             sent_count = 0
-            queued_count = 0
             failed_count = 0
             
-            if self.queue_emails:
-                print(f"Queue mode: Saving to {self.queue_batch_dir}")
-                for i, recipient in enumerate(recipients):
-                    if isinstance(recipient, dict):
-                        email = recipient.get('email', '').strip()
-                        if email and '@' in email:
-                            personalized_subject = self.substitute_variables(subject, recipient, contact_mapping=contact_mapping)
-                            personalized_content = self.substitute_variables(content, recipient, contact_mapping=contact_mapping)
-                            
-                            save_email_to_queue(
-                                self.queue_batch_dir,
-                                self.queued_count,
-                                email,
-                                personalized_subject,
-                                personalized_content,
-                                from_name
-                            )
-                            queued_count += 1
-                            self.queued_count += 1
-                        else:
-                            failed_count += 1
-                    else:
-                        failed_count += 1
-                
-                print(f"Queued {queued_count} emails")
-            
-            elif self.dry_run:
+            if self.dry_run:
                 print("DRY-RUN MODE: No emails sent")
                 for i, recipient in enumerate(recipients[:3]):
                     if isinstance(recipient, dict):
@@ -456,8 +274,7 @@ except ImportError:
                 'campaign_name': campaign_name,
                 'tracking_id': tracking_id,
                 'total_recipients': len(recipients),
-                'sent': sent_count if not (self.dry_run or self.queue_emails) else 0,
-                'queued': queued_count if self.queue_emails else 0,
+                'sent': sent_count if not self.dry_run else 0,
                 'failed': failed_count,
                 'duration_seconds': 1.5,
                 'template_substitution': True
@@ -467,10 +284,6 @@ except ImportError:
             print(f"ALERT: {subject}")
             print(f"Body: {body[:200]}...")
 
-
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
 
 def fallback_load_contacts_from_directory(contacts_dir):
     """Fallback contact loader when data_loader module is not available"""
@@ -590,7 +403,7 @@ def load_json_campaign(campaign_path):
                 'metadata': campaign_data.get('metadata', {})
             }
         
-        # Format 2: Config format with templates array
+        # Format 2: Config format with templates array (like test_campaign.json)
         elif 'templates' in campaign_data and isinstance(campaign_data['templates'], list):
             if not campaign_data['templates']:
                 print(f"Warning: No templates specified in config {campaign_path}")
@@ -745,7 +558,7 @@ Campaign Details:
 """
         
         for result in campaign_results:
-            body += f"\n- {result['campaign_name']}: {result.get('sent', 0)}/{result['total_recipients']} sent"
+            body += f"\n- {result['campaign_name']}: {result['sent']}/{result['total_recipients']} sent"
             if result.get('tracking_id'):
                 body += f" [ID: {result['tracking_id']}]"
             if result['failed'] > 0:
@@ -762,18 +575,11 @@ Campaign Details:
         print(f"Warning: Could not send summary alert: {e}")
 
 
-# ============================================================================
-# MAIN CAMPAIGN FUNCTION
-# ============================================================================
-
-def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dry_run=False, 
-                  queue_emails=False, **kwargs):
-    """Main campaign execution function with queue support"""
+def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dry_run=False, **kwargs):
+    """Main campaign execution function with config JSON support"""
     try:
         print(f"Starting domain-aware campaign system")
         print(f"GitHub Actions detected: {os.getenv('GITHUB_ACTIONS') is not None}")
-        print(f"Queue mode: {queue_emails}")
-        print(f"Dry run mode: {dry_run}")
         print(f"Contacts: {contacts_root}")
         print(f"Templates (domain-based): {scheduled_root}")
         print(f"Tracking: {tracking_root}")
@@ -801,19 +607,8 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         smtp_user = os.getenv('SMTP_USER') or os.getenv('SMTP_USERNAME')
         smtp_pass = os.getenv('SMTP_PASS') or os.getenv('SMTP_PASSWORD')
 
-        # Initialize emailer with queue support
-        if queue_emails:
-            print("Initializing email queue mode")
-            emailer = EmailSender(
-                smtp_host=None,  # Not needed in queue mode
-                smtp_port=None,
-                smtp_user=None,
-                smtp_password=None,
-                alerts_email=alerts_email,
-                dry_run=False,
-                queue_emails=True
-            )
-        elif GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS'):
+        # Initialize emailer
+        if GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS'):
             print("Using GitHubActionsEmailSender - SMTP timeouts bypassed")
             emailer = GitHubActionsEmailSender(
                 smtp_host=os.getenv('SMTP_HOST'),
@@ -848,7 +643,6 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         # Initialize tracking
         campaigns_processed = 0
         total_emails_sent = 0
-        total_emails_queued = 0
         total_failures = 0
         campaign_results = []
         
@@ -857,7 +651,6 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         with open(log_file, 'w') as f:
             f.write("Domain-Aware Campaign Log\n")
             f.write(f"GitHub Actions mode: {os.getenv('GITHUB_ACTIONS') is not None}\n")
-            f.write(f"Queue mode: {queue_emails}\n")
             f.write(f"Total contacts loaded: {len(all_contacts)}\n")
             f.write(f"Domains found: {len(domain_campaigns)}\n")
             f.write(f"Timestamp: {datetime.now().isoformat()}\n\n")
@@ -898,7 +691,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     content = campaign_content.get('content', '')
                     from_name = campaign_content.get('from_name', 'Campaign System')
                     
-                    # Extract config if present
+                    # Extract config if present (CRITICAL FEATURE)
                     config = campaign_content.get('config', {})
                     
                     if config:
@@ -936,7 +729,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     contact_copy['tracking_id'] = tracking_id
                     contacts_with_ids.append(contact_copy)
                 
-                # Send campaign
+                # Send campaign (FIXED: now passes contact_mapping)
                 try:
                     campaign_result = emailer.send_campaign(
                         campaign_name=f"{domain}/{full_campaign_name}",
@@ -949,8 +742,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     )
                     
                     campaigns_processed += 1
-                    total_emails_sent += campaign_result.get('sent', 0)
-                    total_emails_queued += campaign_result.get('queued', 0)
+                    total_emails_sent += campaign_result['sent']
                     total_failures += campaign_result['failed']
                     campaign_results.append(campaign_result)
                     
@@ -966,11 +758,9 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                         'from_name': from_name,
                         'timestamp': datetime.now().isoformat(),
                         'total_recipients': campaign_result['total_recipients'],
-                        'sent': campaign_result.get('sent', 0),
-                        'queued': campaign_result.get('queued', 0),
+                        'sent': campaign_result['sent'],
                         'failed': campaign_result['failed'],
-                        'dry_run': dry_run,
-                        'queue_mode': queue_emails
+                        'dry_run': dry_run
                     }
                     
                     # Add config metadata if available
@@ -992,8 +782,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                         f.write(f"Campaign: {full_campaign_name}\n")
                         f.write(f"Tracking ID: {tracking_id}\n")
                         f.write(f"Recipients: {campaign_result['total_recipients']}\n")
-                        f.write(f"Sent: {campaign_result.get('sent', 0)}\n")
-                        f.write(f"Queued: {campaign_result.get('queued', 0)}\n")
+                        f.write(f"Sent: {campaign_result['sent']}\n")
                         f.write(f"Failed: {campaign_result['failed']}\n\n")
                     
                 except Exception as e:
@@ -1001,40 +790,11 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     traceback.print_exc()
                     continue
         
-        # Send summary or create queue summary
-        if queue_emails and emailer.queued_count > 0:
-            # Create GitHub Actions summary files
-            create_github_actions_summary(
-                emailer.queue_batch_dir,
-                emailer.queued_count,
-                campaign_results
-            )
-            
-            # Create summary email to be sent later
-            create_campaign_summary_email(
-                alerts_email,
-                campaigns_processed,
-                emailer.queued_count,
-                campaign_results
-            )
-            
-            print(f"\n{'='*70}")
-            print(f"EMAIL QUEUE SUMMARY")
-            print(f"{'='*70}")
-            print(f"Total emails queued: {emailer.queued_count}")
-            print(f"Queue directory: {emailer.queue_batch_dir}")
-            print(f"Campaigns: {campaigns_processed}")
-            print(f"Domains: {len(domain_campaigns)}")
-            print("Emails will be sent by GitHub Actions email sender job")
-            print(f"Summary files created:")
-            print("  - github_actions_email_summary.json")
-            print("  - campaign_summary_email.json")
-            
-        elif GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS') and not dry_run:
+        # Send summary
+        if GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS'):
             emailer.send_batch_summary(campaigns_processed, total_emails_sent, total_failures, campaign_results)
             print("Campaign summary saved for GitHub Actions email delivery")
-            
-        elif not dry_run and not queue_emails and campaigns_processed > 0:
+        elif not dry_run and campaigns_processed > 0:
             send_summary_alert(emailer, campaigns_processed, total_emails_sent, total_failures, campaign_results)
         
         # Final log entry
@@ -1042,12 +802,10 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             f.write("=== CAMPAIGN SUMMARY ===\n")
             f.write(f"Domains processed: {len(domain_campaigns)}\n")
             f.write(f"Campaigns processed: {campaigns_processed}\n")
-            f.write(f"Total emails: {total_emails_sent + total_emails_queued + total_failures}\n")
+            f.write(f"Total emails: {total_emails_sent + total_failures}\n")
             f.write(f"Successful: {total_emails_sent}\n")
-            f.write(f"Queued: {total_emails_queued}\n")
             f.write(f"Failed: {total_failures}\n")
             f.write(f"Tracking system: DOMAIN-BASED\n")
-            f.write(f"Queue mode: {queue_emails}\n")
             f.write(f"Completed: {datetime.now().isoformat()}\n")
         
         print(f"\n{'='*70}")
@@ -1055,9 +813,6 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         print(f"{'='*70}")
         print(f"Domains processed: {len(domain_campaigns)}")
         print(f"Campaigns processed: {campaigns_processed}")
-        print(f"Emails sent: {total_emails_sent}")
-        print(f"Emails queued: {total_emails_queued}")
-        print(f"Failures: {total_failures}")
         print(f"Tracking system: DOMAIN-BASED")
         print(f"Template processing: ENABLED")
         print("Campaign completed successfully")
@@ -1067,10 +822,6 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         traceback.print_exc()
         sys.exit(1)
 
-
-# ============================================================================
-# MAIN ENTRY POINT
-# ============================================================================
 
 if __name__ == "__main__":
     print("Domain-Aware Campaign System Script started")
@@ -1087,7 +838,6 @@ if __name__ == "__main__":
     parser.add_argument("--domain", help="Process only specific domain")
     parser.add_argument("--filter-domain", help="Filter campaigns by domain pattern")
     parser.add_argument("--dry-run", action="store_true", help="Print personalized emails instead of sending")
-    parser.add_argument("--queue-emails", action="store_true", help="Queue emails for later sending (GitHub Actions mode)")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--no-feedback", action="store_true", help="Skip feedback injection")
     parser.add_argument("--remote-only", action="store_true", help="Force remote-only mode")
@@ -1114,7 +864,6 @@ if __name__ == "__main__":
     print(f"  --feedback: {args.feedback}")
     print(f"  --domain: {args.domain}")
     print(f"  --dry-run: {args.dry_run}")
-    print(f"  --queue-emails: {args.queue_emails}")
     print(f"  --debug: {args.debug}")
     
     print("Calling domain-aware campaign_main...")
@@ -1124,10 +873,10 @@ if __name__ == "__main__":
         tracking_root=args.tracking,
         alerts_email=args.alerts,
         dry_run=args.dry_run,
-        queue_emails=args.queue_emails,
         feedback_email=args.feedback,
         target_domain=args.domain,
         campaign_filter=args.filter_domain,
         debug=args.debug
     )
     print("Domain-aware campaign system completed successfully")
+                        
