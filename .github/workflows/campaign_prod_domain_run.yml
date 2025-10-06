@@ -465,19 +465,6 @@ jobs:
              echo "Domain analysis JSON exists:"
              cat domain_analysis.json | python3 -c "import sys, json; data=json.load(sys.stdin); print(f\"Total templates: {data.get('template_count', 0)}\")"
           fi     
-          
-      - name: Enhanced campaign template analysis
-        id: domain_analysis
-        run: |
-          echo "Enhanced campaign template and domain analysis..."
-          python .github/scripts/analyze_domains.py
-    
-          # Fallback: read from JSON if script didn't set output
-          if [ -f domain_analysis.json ]; then
-             CAMPAIGNS=$(python3 -c "import json; print(json.load(open('domain_analysis.json')).get('template_count', 0))")
-             echo "campaigns=$CAMPAIGNS" >> $GITHUB_OUTPUT
-             echo "Set template count to $CAMPAIGNS"
-          fi    
   
       - name: Create enhanced test data if no real data exists
         if: steps.contact_validation.outputs.contact_files_count == '0'
