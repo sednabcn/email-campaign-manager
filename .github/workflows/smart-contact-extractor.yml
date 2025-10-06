@@ -164,7 +164,7 @@ jobs:
         
         echo "Checking for duplicate CSVs..."
         
-        python3 << 'EOF'
+        python3 << EOF
         import os
         import csv
         import hashlib
