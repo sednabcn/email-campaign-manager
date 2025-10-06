@@ -407,21 +407,65 @@ jobs:
           SCHEDULED_DIR: ${{ env.SCHEDULED_DIR }}
         run: |
           echo "Running data pipeline diagnostics..."
-          python .github/scripts/diagnose_data.py    
+          python .github/scripts/diagnose_data.py
 
+          
       - name: Analyze contact sources using enhanced integration
         id: contact_analysis
+        env:
+          CONTACTS_DIR: ${{ env.CONTACTS_DIR }}
+          CONTACT_SOURCE_FILTER: ${{ github.event.inputs.contact_source }}
         run: |
           echo "Enhanced contact source analysis..."
           python .github/scripts/analyze_contacts.py
     
-          # Fallback: read from JSON if script didn't set output
+          # Read the count from JSON and set output explicitly
           if [ -f contact_analysis.json ]; then
-            COUNT=$(python3 -c "import json; print(json.load(open('contact_analysis.json')).get('total_contacts', 0))")
-            echo "count=$COUNT" >> $GITHUB_OUTPUT
-            echo "Set contact count to $COUNT"
+             COUNT=$(python3 -c "import json; print(json.load(open('contact_analysis.json')).get('total_contacts', 0))")
+             echo "count=$COUNT" >> $GITHUB_OUTPUT
+             echo "Contact count set to: $COUNT"
+          else
+             echo "count=0" >> $GITHUB_OUTPUT
+             echo "WARNING: contact_analysis.json not created"
           fi
 
+      - name: Enhanced campaign template analysis
+        id: domain_analysis
+        env:
+          TEMPLATES_DIR: ${{ env.TEMPLATES_DIR }}
+          SCHEDULED_DIR: ${{ env.SCHEDULED_DIR }}
+          TARGET_DOMAIN_FILTER: ${{ github.event.inputs.target_domain }}
+        run: |
+          echo "Enhanced campaign template and domain analysis..."
+          python .github/scripts/analyze_domains.py
+    
+          # Read the count from JSON and set output explicitly
+          if [ -f domain_analysis.json ]; then
+             CAMPAIGNS=$(python3 -c "import json; print(json.load(open('domain_analysis.json')).get('template_count', 0))")
+             echo "campaigns=$CAMPAIGNS" >> $GITHUB_OUTPUT
+             echo "Template count set to: $CAMPAIGNS"
+          else
+             echo "campaigns=0" >> $GITHUB_OUTPUT
+             echo "WARNING: domain_analysis.json not created"
+          fi
+
+      - name: Debug - Verify outputs were set
+        run: |
+          echo "Checking if outputs were properly set..."
+          echo "Contact analysis output: ${{ steps.contact_analysis.outputs.count }}"
+          echo "Domain analysis output: ${{ steps.domain_analysis.outputs.campaigns }}"
+    
+          # Also check the JSON files
+          if [ -f contact_analysis.json ]; then
+                 echo "Contact analysis JSON exists:"
+                 cat contact_analysis.json | python3 -c "import sys, json; data=json.load(sys.stdin); print(f\"Total contacts: {data.get('total_contacts', 0)}\")"
+          fi
+    
+          if [ -f domain_analysis.json ]; then
+             echo "Domain analysis JSON exists:"
+             cat domain_analysis.json | python3 -c "import sys, json; data=json.load(sys.stdin); print(f\"Total templates: {data.get('template_count', 0)}\")"
+          fi     
+          
       - name: Enhanced campaign template analysis
         id: domain_analysis
         run: |
