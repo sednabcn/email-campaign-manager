@@ -1,164 +1,183 @@
 #!/usr/bin/env python3
 """
-Enhanced contact source analysis script for GitHub Actions workflow.
+Enhanced Contact Analysis Script for GitHub Actions
+Analyzes contact sources and sets GitHub Actions outputs
 """
 
-import sys
 import os
+import sys
 import json
+from pathlib import Path
 from datetime import datetime
 
-# Add paths for imports
-sys.path.append('.')
-sys.path.append('utils')
-
-
-def main():
-    contacts_dir = os.environ.get('CONTACTS_DIR', 'contacts')
-    contact_source_filter = os.environ.get('CONTACT_SOURCE_FILTER', 'all_sources')
-    
-    contact_count = 0
-    analysis = {
-        'total_contacts': 0,
-        'sources_breakdown': {},
-        'domain_breakdown': {},
-        'contact_types': {},
-        'top_domains': [],
-        'sample_contacts': [],
-        'loaded_with': 'enhanced_system',
-        'analysis_timestamp': datetime.now().isoformat(),
-        'contact_source_filter': contact_source_filter
-    }
-
+def load_contacts_from_csv(file_path):
+    """Load contacts from CSV file"""
     try:
-        # Try using professional data_loader if available
-        try:
-            from data_loader import load_contacts
-            print('Using professional data_loader.py')
-            contacts = load_contacts(contacts_dir)
-            analysis['loaded_with'] = 'professional_data_loader.py'
-        except ImportError:
-            print('Professional data_loader not available, using enhanced fallback')
-            # Enhanced fallback contact loading
-            import pandas as pd
-            import glob
-            
-            contacts = []
-            
-            # Load CSV files
-            csv_files = glob.glob(os.path.join(contacts_dir, '*.csv'))
-            for csv_file in csv_files:
-                try:
-                    df = pd.read_csv(csv_file)
-                    for _, row in df.iterrows():
-                        contact = row.to_dict()
-                        contact['source'] = os.path.basename(csv_file)
-                        contact['source_type'] = 'csv'
-                        contacts.append(contact)
-                except Exception as e:
-                    print(f'Error loading CSV {csv_file}: {e}')
-            
-            # Load Excel files
-            excel_files = glob.glob(os.path.join(contacts_dir, '*.xlsx')) + \
-                         glob.glob(os.path.join(contacts_dir, '*.xls'))
-            for excel_file in excel_files:
-                try:
-                    df = pd.read_excel(excel_file)
-                    for _, row in df.iterrows():
-                        contact = row.to_dict()
-                        contact['source'] = os.path.basename(excel_file)
-                        contact['source_type'] = 'excel'
-                        contacts.append(contact)
-                except Exception as e:
-                    print(f'Error loading Excel {excel_file}: {e}')
-            
-            # Load Google Sheets URLs
-            url_files = glob.glob(os.path.join(contacts_dir, '*.url'))
-            for url_file in url_files:
-                try:
-                    with open(url_file, 'r') as f:
-                        sheets_url = f.read().strip()
-                    
-                    if 'docs.google.com/spreadsheets' in sheets_url:
-                        # Extract sheet ID and create CSV export URL
-                        sheet_id = sheets_url.split('/d/')[-1].split('/')[0]
-                        csv_url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0'
-                        
-                        df = pd.read_csv(csv_url)
-                        for _, row in df.iterrows():
-                            contact = row.to_dict()
-                            contact['source'] = os.path.basename(url_file)
-                            contact['source_type'] = 'google_sheets'
-                            contacts.append(contact)
-                except Exception as e:
-                    print(f'Error loading Google Sheet {url_file}: {e}')
-            
-            analysis['loaded_with'] = 'enhanced_fallback_loader'
-
-        contact_count = len(contacts)
-        print(f'Successfully loaded {contact_count} contacts using {analysis["loaded_with"]}')
-        
-        if contacts:
-            # Analyze sources
-            sources = {}
-            domains = {}
-            contact_types = {}
-            
-            for contact in contacts:
-                # Source analysis
-                source = contact.get('source', 'unknown')
-                sources[source] = sources.get(source, 0) + 1
-        
-                # Domain analysis
-                email = str(contact.get('email', '')).lower()
-                if '@' in email:
-                    domain = email.split('@')[-1]
-                    domains[domain] = domains.get(domain, 0) + 1
-                    
-                # Contact type analysis
-                if 'source_type' in contact:
-                    contact_types[contact['source_type']] = contact_types.get(contact['source_type'], 0) + 1
-    
-            analysis.update({
-                'total_contacts': contact_count,
-                'sources_breakdown': sources,
-                'domain_breakdown': domains,
-                'contact_types': contact_types,
-                'top_domains': sorted(domains.items(), key=lambda x: x[1], reverse=True)[:10],
-                'sample_contacts': contacts[:3] if contacts else []
-            })
-    
-            print(f'Contact analysis complete:')
-            print(f'  - Total contacts: {contact_count}')
-            print(f'  - Sources: {len(sources)}')
-            print(f'  - Domains: {len(domains)}')
-            print(f'  - Top domain: {max(domains.items(), key=lambda x: x[1])[0] if domains else "none"}')
-
+        import pandas as pd
+        df = pd.read_csv(file_path)
+        return df.to_dict('records')
     except Exception as e:
-        print(f'Error in contact analysis: {e}')
-        import traceback
-        traceback.print_exc()
-        analysis['error'] = str(e)
+        print(f"Error loading CSV {file_path}: {e}")
+        return []
 
-    # Save analysis file
-    with open('contact_analysis.json', 'w') as f:
-        json.dump(analysis, f, indent=2, default=str)
+def load_contacts_from_excel(file_path):
+    """Load contacts from Excel file"""
+    try:
+        import pandas as pd
+        df = pd.read_excel(file_path)
+        return df.to_dict('records')
+    except Exception as e:
+        print(f"Error loading Excel {file_path}: {e}")
+        return []
+
+def load_contacts_from_google_sheets(url_file):
+    """Load contacts from Google Sheets URL"""
+    try:
+        with open(url_file, 'r') as f:
+            url = f.read().strip()
+        
+        if 'docs.google.com/spreadsheets' in url:
+            # Extract sheet ID and convert to CSV export URL
+            import re
+            match = re.search(r'/d/([a-zA-Z0-9-_]+)', url)
+            if match:
+                sheet_id = match.group(1)
+                csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
+                
+                import pandas as pd
+                df = pd.read_csv(csv_url)
+                return df.to_dict('records')
+    except Exception as e:
+        print(f"Error loading Google Sheets from {url_file}: {e}")
+    return []
+
+def analyze_contacts():
+    """Main contact analysis function"""
+    contacts_dir = os.environ.get('CONTACTS_DIR', 'contacts')
+    contact_source_filter = os.environ.get('CONTACT_SOURCE_FILTER', '')
     
-    # CRITICAL: Write output to GITHUB_OUTPUT
-    github_output = os.environ.get('GITHUB_OUTPUT', '')
+    print(f"Analyzing contacts from: {contacts_dir}")
+    print(f"Contact source filter: {contact_source_filter or 'None'}")
+    
+    all_contacts = []
+    sources_breakdown = {}
+    domain_breakdown = {}
+    file_types = {'csv': 0, 'excel': 0, 'google_sheets': 0, 'json': 0}
+    loader_used = 'enhanced_fallback_loader'
+    
+    # Try to use professional data_loader if available
+    try:
+        sys.path.insert(0, 'utils')
+        from data_loader import load_contacts
+        print("Using professional data_loader.py")
+        all_contacts = load_contacts(contacts_dir)
+        loader_used = 'professional_data_loader'
+    except ImportError:
+        print("Professional data_loader not available, using enhanced fallback")
+        
+        # Enhanced fallback: scan directory for contact files
+        contacts_path = Path(contacts_dir)
+        if contacts_path.exists():
+            # Process CSV files
+            for csv_file in contacts_path.glob('**/*.csv'):
+                if contact_source_filter and contact_source_filter not in str(csv_file):
+                    continue
+                print(f"Loading CSV: {csv_file}")
+                contacts = load_contacts_from_csv(csv_file)
+                all_contacts.extend(contacts)
+                sources_breakdown[str(csv_file)] = len(contacts)
+                file_types['csv'] += 1
+            
+            # Process Excel files
+            for excel_file in contacts_path.glob('**/*.xlsx'):
+                if contact_source_filter and contact_source_filter not in str(excel_file):
+                    continue
+                print(f"Loading Excel: {excel_file}")
+                contacts = load_contacts_from_excel(excel_file)
+                all_contacts.extend(contacts)
+                sources_breakdown[str(excel_file)] = len(contacts)
+                file_types['excel'] += 1
+            
+            for excel_file in contacts_path.glob('**/*.xls'):
+                if contact_source_filter and contact_source_filter not in str(excel_file):
+                    continue
+                print(f"Loading Excel: {excel_file}")
+                contacts = load_contacts_from_excel(excel_file)
+                all_contacts.extend(contacts)
+                sources_breakdown[str(excel_file)] = len(contacts)
+                file_types['excel'] += 1
+            
+            # Process Google Sheets URL files
+            for url_file in contacts_path.glob('**/*.url'):
+                if contact_source_filter and contact_source_filter not in str(url_file):
+                    continue
+                print(f"Loading Google Sheets: {url_file}")
+                contacts = load_contacts_from_google_sheets(url_file)
+                all_contacts.extend(contacts)
+                sources_breakdown[str(url_file)] = len(contacts)
+                file_types['google_sheets'] += 1
+    
+    # Analyze domains from email addresses
+    for contact in all_contacts:
+        email = contact.get('email', '')
+        if email and '@' in email:
+            domain = email.split('@')[1]
+            domain_breakdown[domain] = domain_breakdown.get(domain, 0) + 1
+    
+    contact_count = len(all_contacts)
+    
+    print(f"\nSuccessfully loaded {contact_count} contacts using {loader_used}")
+    print(f"Sources: {len(sources_breakdown)}")
+    print(f"Domains: {len(domain_breakdown)}")
+    if domain_breakdown:
+        top_domain = max(domain_breakdown.items(), key=lambda x: x[1])
+        print(f"Top domain: {top_domain[0]}")
+    
+    # CRITICAL: Set GitHub Actions output
+    github_output = os.environ.get('GITHUB_OUTPUT')
     if github_output:
         with open(github_output, 'a') as f:
             f.write(f'count={contact_count}\n')
-        print(f'Set GITHUB_OUTPUT count={contact_count}')
+        print(f"Set GITHUB_OUTPUT count={contact_count}")
     else:
-        print('WARNING: GITHUB_OUTPUT environment variable not set!')
-        print(f'Contact count: {contact_count}')
+        print("WARNING: GITHUB_OUTPUT not set, cannot set output variable")
     
-    if contact_count == 0:
-        print('::warning::No contacts loaded - check contact directory and files')
+    # Save detailed analysis to JSON
+    analysis_data = {
+        'total_contacts': contact_count,
+        'sources_breakdown': sources_breakdown,
+        'domain_breakdown': domain_breakdown,
+        'file_types': file_types,
+        'loaded_with': loader_used,
+        'contact_source_filter': contact_source_filter,
+        'analysis_timestamp': datetime.now().isoformat(),
+        'contacts_dir': contacts_dir
+    }
     
-    return 0 if contact_count >= 0 else 1
-
+    with open('contact_analysis.json', 'w') as f:
+        json.dump(analysis_data, f, indent=2)
+    
+    print("Contact analysis complete:")
+    print(f"  - Total contacts: {contact_count}")
+    print(f"  - Sources: {len(sources_breakdown)}")
+    print(f"  - Domains: {len(domain_breakdown)}")
+    print(f"  - Top domain: {max(domain_breakdown.items(), key=lambda x: x[1])[0] if domain_breakdown else 'N/A'}")
+    
+    return contact_count
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        contact_count = analyze_contacts()
+        sys.exit(0)
+    except Exception as e:
+        print(f"ERROR in contact analysis: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Set count to 0 on error
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a') as f:
+                f.write('count=0\n')
+        
+        sys.exit(1)

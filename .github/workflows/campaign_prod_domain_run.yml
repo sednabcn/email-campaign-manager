@@ -408,36 +408,33 @@ jobs:
         run: |
           echo "Running data pipeline diagnostics..."
           python .github/scripts/diagnose_data.py    
-          
+
       - name: Analyze contact sources using enhanced integration
         id: contact_analysis
-        env:
-          CONTACTS_DIR: ${{ env.CONTACTS_DIR }}
-          CONTACT_SOURCE_FILTER: ${{ github.event.inputs.contact_source }}
         run: |
           echo "Enhanced contact source analysis..."
           python .github/scripts/analyze_contacts.py
+    
+          # Fallback: read from JSON if script didn't set output
+          if [ -f contact_analysis.json ]; then
+            COUNT=$(python3 -c "import json; print(json.load(open('contact_analysis.json')).get('total_contacts', 0))")
+            echo "count=$COUNT" >> $GITHUB_OUTPUT
+            echo "Set contact count to $COUNT"
+          fi
 
-          
       - name: Enhanced campaign template analysis
         id: domain_analysis
-        env:
-          TEMPLATES_DIR: ${{ env.TEMPLATES_DIR }}
-          SCHEDULED_DIR: ${{ env.SCHEDULED_DIR }}
-          TARGET_DOMAIN_FILTER: ${{ github.event.inputs.target_domain }}
         run: |
           echo "Enhanced campaign template and domain analysis..."
           python .github/scripts/analyze_domains.py
-          
-          # Verify the output was set
-          echo "Domain analysis completed"
+    
+          # Fallback: read from JSON if script didn't set output
           if [ -f domain_analysis.json ]; then
-            TEMPLATE_COUNT=$(python -c "import json; data=json.load(open('domain_analysis.json')); print(data.get('template_count', 0))")
-            echo "✅ Template count from analysis file: $TEMPLATE_COUNT"
-          else
-            echo "❌ domain_analysis.json not created"
-          fi
-
+             CAMPAIGNS=$(python3 -c "import json; print(json.load(open('domain_analysis.json')).get('template_count', 0))")
+             echo "campaigns=$CAMPAIGNS" >> $GITHUB_OUTPUT
+             echo "Set template count to $CAMPAIGNS"
+          fi    
+  
       - name: Create enhanced test data if no real data exists
         if: steps.contact_validation.outputs.contact_files_count == '0'
         run: |
