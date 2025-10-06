@@ -404,7 +404,7 @@ jobs:
         run: |
           echo "Enhanced contact source analysis..."
           
-          python -c """
+          python << 'PYTHON_EOF'
           import sys
           import os
           import json
@@ -430,7 +430,7 @@ jobs:
             try:
               from data_loader import load_contacts
               print('Using professional data_loader.py')
-              contacts = load_contacts('$CONTACTS_DIR')
+              contacts = load_contacts('${{ env.CONTACTS_DIR }}')
               analysis['loaded_with'] = 'professional_data_loader.py'
             except ImportError:
               print('Professional data_loader not available, using enhanced fallback')
@@ -441,7 +441,7 @@ jobs:
               contacts = []
               
               # Load CSV files
-              csv_files = glob.glob(os.path.join('$CONTACTS_DIR', '*.csv'))
+              csv_files = glob.glob(os.path.join('${{ env.CONTACTS_DIR }}', '*.csv'))
               for csv_file in csv_files:
                 try:
                   df = pd.read_csv(csv_file)
@@ -454,7 +454,7 @@ jobs:
                   print(f'Error loading CSV {csv_file}: {e}')
               
               # Load Excel files
-              excel_files = glob.glob(os.path.join('$CONTACTS_DIR', '*.xlsx')) + glob.glob(os.path.join('$CONTACTS_DIR', '*.xls'))
+              excel_files = glob.glob(os.path.join('${{ env.CONTACTS_DIR }}', '*.xlsx')) + glob.glob(os.path.join('${{ env.CONTACTS_DIR }}', '*.xls'))
               for excel_file in excel_files:
                 try:
                   df = pd.read_excel(excel_file)
@@ -467,7 +467,7 @@ jobs:
                   print(f'Error loading Excel {excel_file}: {e}')
               
               # Load Google Sheets URLs
-              url_files = glob.glob(os.path.join('$CONTACTS_DIR', '*.url'))
+              url_files = glob.glob(os.path.join('${{ env.CONTACTS_DIR }}', '*.url'))
               for url_file in url_files:
                 try:
                   with open(url_file, 'r') as f:
@@ -490,7 +490,7 @@ jobs:
               analysis['loaded_with'] = 'enhanced_fallback_loader'
     
             contact_count = len(contacts)
-            print(f'Successfully loaded {contact_count} contacts using {analysis[\"loaded_with\"]}')
+            print(f'Successfully loaded {contact_count} contacts using {analysis["loaded_with"]}')
             
             if contacts:
               # Analyze sources
@@ -526,27 +526,39 @@ jobs:
               print(f'  - Total contacts: {contact_count}')
               print(f'  - Sources: {len(sources)}')
               print(f'  - Domains: {len(domains)}')
-              print(f'  - Top domain: {max(domains.items(), key=lambda x: x[1])[0] if domains else \"none\"}')
+              print(f'  - Top domain: {max(domains.items(), key=lambda x: x[1])[0] if domains else "none"}')
 
           except Exception as e:
             print(f'Error in contact analysis: {e}')
+            import traceback
+            traceback.print_exc()
             analysis['error'] = str(e)
     
+          # Save analysis file
           with open('contact_analysis.json', 'w') as f:
             json.dump(analysis, f, indent=2, default=str)
-    
-          print(f'count={contact_count}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+          
+          # CRITICAL: Write output OUTSIDE try-except to ensure it always happens
+          github_output = os.environ.get('GITHUB_OUTPUT', '')
+          if github_output:
+            with open(github_output, 'a') as f:
+              f.write(f'count={contact_count}\n')
+            print(f'✅ Set GITHUB_OUTPUT count={contact_count}')
+          else:
+            print('❌ WARNING: GITHUB_OUTPUT environment variable not set!')
+            print(f'Contact count: {contact_count}')
           
           if contact_count == 0:
             print('::warning::No contacts loaded - check contact directory and files')
-          """
-
+          
+          PYTHON_EOF 
+    
       - name: Enhanced campaign template analysis
         id: domain_analysis
         run: |
           echo "Enhanced campaign template and domain analysis..."
     
-          python -c """
+          python << 'PYTHON_EOF'
           import sys
           import json
           import os
@@ -558,8 +570,8 @@ jobs:
           domain_stats = {}
           total_templates = 0
 
-          templates_dir = Path('$TEMPLATES_DIR')
-          scheduled_dir = Path('$SCHEDULED_DIR')
+          templates_dir = Path('${{ env.TEMPLATES_DIR }}')
+          scheduled_dir = Path('${{ env.SCHEDULED_DIR }}')
 
           print('Analyzing enhanced template structure...')
 
@@ -641,15 +653,33 @@ jobs:
           with open('domain_analysis.json', 'w') as f:
             json.dump(domain_analysis, f, indent=2)
 
-          print(f'campaigns={total_templates}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
+          # CRITICAL: Write output to ensure it's captured
+          github_output = os.environ.get('GITHUB_OUTPUT', '')
+          if github_output:
+            with open(github_output, 'a') as f:
+              f.write(f'campaigns={total_templates}\n')
+            print(f'✅ Set GITHUB_OUTPUT campaigns={total_templates}')
+          else:
+            print('❌ WARNING: GITHUB_OUTPUT environment variable not set!')
+            print(f'Template count: {total_templates}')
+          
           print(f'Enhanced template analysis completed: {total_templates} templates, {scheduled_campaigns} scheduled campaigns')
           
           if template_variables_found:
             print('Template variables detected in:')
             for template, vars in template_variables_found.items():
               print(f'  - {template}: {vars[:3]}...' if len(vars) > 3 else f'  - {template}: {vars}')
-          """
-
+          
+          PYTHON_EOF
+          
+          # Verify the output was set
+          echo "Domain analysis completed"
+          if [ -f domain_analysis.json ]; then
+            TEMPLATE_COUNT=$(python -c "import json; data=json.load(open('domain_analysis.json')); print(data.get('template_count', 0))")
+            echo "✅ Template count from analysis file: $TEMPLATE_COUNT"
+          else
+            echo "❌ domain_analysis.json not created"
+          fi 
       - name: Create enhanced test data if no real data exists
         if: steps.contact_validation.outputs.contact_files_count == '0'
         run: |
