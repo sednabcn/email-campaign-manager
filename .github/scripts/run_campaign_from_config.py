@@ -172,34 +172,65 @@ def find_email_script():
     return None
 
 def build_command(config, template_file, script_path, dry_run=False, debug=False):
-    """Build command to run the email script"""
+    """Build the command to execute the email script"""
     
-    print(f"\n🚀 Using script: {script_path}")
+    # Extract required configuration
+    contacts_file = config.get('contacts')
+    subject = config.get('subject')
     
-    # Build command arguments
-    cmd = ['python3', script_path]
-    
-    # Add required arguments
-    cmd.extend(['--contacts', config.get('contacts', '')])
-    cmd.extend(['--templates', template_file])
-    cmd.extend(['--subject', config.get('subject', 'Email Campaign')])
-    
-    # Add delay from rate_limiting config
+    # Extract rate limiting settings
     rate_limiting = config.get('rate_limiting', {})
     delay = rate_limiting.get('delay_between_emails', 1.0)
-    cmd.extend(['--delay', str(delay)])
-
-    # Add optional arguments
+    batch_size = rate_limiting.get('batch_size', 50)
+    delay_between_batches = rate_limiting.get('delay_between_batches', 5)
+    
+    # Extract tracking settings
+    tracking_config = config.get('tracking', {})
+    tracking_dir = tracking_config.get('directory', 'tracking')
+    
+    # Extract feedback settings
+    feedback_config = config.get('feedback', {})
+    feedback_email = feedback_config.get('email')
+    auto_inject = feedback_config.get('auto_inject', True)
+    
+    # Extract other settings
+    alerts_email = config.get('alerts_email', 'alerts@modelphysmat.com')
+    domain = config.get('domain')
+    sector = config.get('sector')
+    
+    # Build base command
+    cmd = [
+        'python3', script_path,
+        '--contacts', contacts_file,
+        '--templates', template_file,
+        '--subject', subject,
+        '--delay', str(delay)
+    ]
+    
+    # Add optional tracking
     if tracking_dir:
         cmd.extend(['--tracking', tracking_dir])
-
+    
+    # Add alerts email
     if alerts_email:
-            cmd.extend(['--alerts', alerts_email])
-
-    if feedback_email and feedback_config.get('auto_inject', True):
+        cmd.extend(['--alerts', alerts_email])
+    
+    # Add feedback email if enabled
+    if feedback_email and auto_inject:
         cmd.extend(['--feedback', feedback_email])
-
-    # Add flags
+    
+    # Add batch settings
+    if batch_size:
+        cmd.extend(['--batch-size', str(batch_size)])
+    
+    # Add domain/sector filtering
+    if domain:
+        cmd.extend(['--domain', domain])
+    
+    if sector:
+        cmd.extend(['--filter-domain', sector])
+    
+    # Add mode flags
     if dry_run:
         cmd.append('--dry-run')
     
