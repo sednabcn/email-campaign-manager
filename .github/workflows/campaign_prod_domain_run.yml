@@ -1001,7 +1001,7 @@ jobs:
 
       - name: Run campaign processing
         run: |
-          python3 docx_parser.py \
+          python3 utils/docx_parser.py \
             --contacts contacts/ \
             --scheduled campaign-templates/ \
             --tracking tracking/ \
