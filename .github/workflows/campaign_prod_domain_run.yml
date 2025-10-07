@@ -1106,58 +1106,15 @@ jobs:
               exit 1
             fi
           fi
-
+ 
       - name: Display configuration summary
         env:
           CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
         run: |
           echo "Configuration File: $CONFIG_FILE"
           echo ""
-          echo "Configuration Summary:"
-          python3 << 'PYTHON_SCRIPT'
-          import json
-          import sys
-          import os
+          python3 .github/scripts/display_config_summary.py "$CONFIG_FILE"
           
-          config_file = os.environ.get('CONFIG_FILE', '')
-          if not config_file or not os.path.exists(config_file):
-              print("❌ Configuration file not accessible")
-              sys.exit(1)
-          
-          try:
-              with open(config_file, 'r') as f:
-                  config = json.load(f)
-              
-              print(f"  Campaign Name: {config.get('name', 'N/A')}")
-              print(f"  Sector: {config.get('sector', 'N/A')}")
-              print(f"  Mode: {config.get('mode', 'N/A')}")
-              print(f"  Subject: {config.get('subject', 'N/A')}")
-              print(f"  From Email: {config.get('from_email', 'N/A')}")
-              print(f"  Reply-To: {config.get('reply_to', 'N/A')}")
-              print(f"  Contacts File: {config.get('contacts', 'N/A')}")
-              
-              templates = config.get('templates', [])
-              if isinstance(templates, str):
-                  templates = [templates]
-              print(f"  Templates: {len(templates)} file(s)")
-              for i, t in enumerate(templates, 1):
-                  print(f"    {i}. {t}")
-              
-              rate_limiting = config.get('rate_limiting', {})
-              if rate_limiting:
-                  print(f"  Delay between emails: {rate_limiting.get('delay_between_emails', 1.0)}s")
-                  print(f"  Batch size: {rate_limiting.get('batch_size', 50)}")
-              
-              feedback = config.get('feedback', {})
-              if feedback:
-                  print(f"  Feedback System: {'Enabled' if feedback.get('auto_inject') else 'Disabled'}")
-                  print(f"  Feedback Email: {feedback.get('email', 'N/A')}")
-              
-          except Exception as e:
-              print(f"❌ Error reading configuration: {e}")
-              sys.exit(1)
-          PYTHON_SCRIPT
-
       - name: Setup SMTP credentials
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -1210,39 +1167,8 @@ jobs:
           CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
         run: |
           echo "Checking for latest contact file..."
-    
-          python3 << 'PYTHON_SCRIPT'
-          import json
-          import os
-          from pathlib import Path
-    
-          config_file = os.environ['CONFIG_FILE']
-    
-          with open(config_file, 'r') as f:
-            config = json.load(f)
-    
-          contacts_path = config.get('contacts', '')
-          if contacts_path:
-            contact_dir = Path(contacts_path).parent
-            contact_pattern = Path(contacts_path).stem.rsplit('_', 2)[0] if '_2025' in contacts_path else Path(contacts_path).stem
-        
-          # Find latest matching file
-          if contact_dir.exists():
-            similar_files = list(contact_dir.glob(f"{contact_pattern}*.csv"))
-            if similar_files:
-                latest_file = max(similar_files, key=lambda p: p.stat().st_mtime)
-                print(f"📝 Updating config to use latest file: {latest_file}")
-                config['contacts'] = str(latest_file)
-                
-                # Save updated config
-                with open(config_file, 'w') as f:
-                    json.dump(config, f, indent=2)
-                
-                print(f"✅ Config updated: {contacts_path} → {latest_file}")
-            else:
-                print(f"⚠️ No matching contact files found for pattern: {contact_pattern}")
-          PYTHON_SCRIPT    
-
+          python3 .github/scripts/update_config_contacts.py "$CONFIG_FILE" || echo "⚠️ Could not auto-update contacts"    
+      
       - name: Validate campaign configuration
         env:
           CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
