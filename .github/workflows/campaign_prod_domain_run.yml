@@ -1067,11 +1067,7 @@ jobs:
       dry_run: false
       delay: "1.5"
     secrets: inherit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for 10 minutes for review
-        run: sleep 60  # 600 seconds = 10 minutes
-
+    
       - name: Enhanced real-time feedback processing
         if: github.event.inputs.enable_real_time_tracking == 'true'
         run: |
