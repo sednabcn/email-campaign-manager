@@ -998,13 +998,15 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
-  campaign-run:
+  json-config-campaign:
+    needs: enhanced-validation-and-prepare
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: needs.enhanced-validation-and-prepare.outputs.validation_status == '0'
     outputs:
-      contacts_file: ${{ steps.save-paths.outputs.contacts_file }}
-      template_file: ${{ steps.save-paths.outputs.template_file }}
-      execution_status: ${{ steps.campaign-execution.outputs.status }}
-      emails_queued: ${{ steps.check-queue.outputs.emails_queued }}
+      execution_status: ${{ steps.run-json-campaign.outputs.status }}
+      emails_sent: ${{ steps.run-json-campaign.outputs.emails_sent }}
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -1012,150 +1014,331 @@ jobs:
       - name: Setup Python environment
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
       - name: Install dependencies
         run: |
           echo "Installing Python dependencies..."
           python -m pip install --upgrade pip setuptools wheel
-          
-          pip install requests>=2.31.0 pandas>=2.0.0 python-docx>=0.8.11
-          pip install openpyxl>=3.1.0 xlrd>=2.0.1 jinja2>=3.1.0
-          pip install google-auth google-auth-oauthlib google-auth-httplib2
-          pip install google-api-python-client>=2.0.0 PyGithub>=1.55
-          pip install gspread>=5.0.0 oauth2client>=4.1.0
-          pip install beautifulsoup4 lxml urllib3 chardet
+          pip install python-docx>=0.8.11 pandas>=2.0.0 requests>=2.31.0
           
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
-            echo "Installed requirements from requirements.txt"
           fi
           
-          echo "Dependencies installation completed"
+          echo "✅ Dependencies installed"
 
-      - name: Create required directories
+      - name: Verify required scripts exist
         run: |
-          echo "Creating required directories..."
-          mkdir -p contacts campaign-templates scheduled-campaigns tracking
-          echo "✅ Directories created"
-
-      - name: Run campaign processing
-        id: campaign-execution
-        run: |
-          set +e  # Don't exit on error immediately
+          echo "Verifying campaign system scripts..."
           
-          echo "Starting campaign processing..."
-          python3 utils/docx_parser.py \
-            --contacts contacts/ \
-            --scheduled campaign-templates/ \
-            --tracking tracking/ \
-            --alerts alerts@example.com \
-            --queue-emails
+          MISSING=()
           
-          EXIT_CODE=$?
-          
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "✅ Campaign processing completed successfully"
+          # Check for run_campaign_from_config.py
+          if [ ! -f ".github/scripts/run_campaign_from_config.py" ]; then
+            echo "❌ run_campaign_from_config.py not found"
+            MISSING+=("run_campaign_from_config.py")
           else
-            echo "status=failure" >> $GITHUB_OUTPUT
-            echo "❌ Campaign processing failed with exit code: $EXIT_CODE"
-            exit $EXIT_CODE
+            echo "✅ run_campaign_from_config.py found"
           fi
+          
+          # Check for email processing scripts
+          EMAIL_SCRIPT_FOUND=false
+          for script in "utils/docx_parser.py" "send_personalized_emails.py" ".github/scripts/send_personalized_emails.py" "docx_parser.py"; do
+            if [ -f "$script" ]; then
+              echo "✅ Email script found: $script"
+              EMAIL_SCRIPT_FOUND=true
+              break
+            fi
+          done
+          
+          if [ "$EMAIL_SCRIPT_FOUND" = false ]; then
+            echo "❌ No email processing script found"
+            MISSING+=("docx_parser.py or send_personalized_emails.py")
+          fi
+          
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo ""
+            echo "❌ Missing required scripts: ${MISSING[*]}"
+            echo "Please ensure all required scripts are in the repository"
+            exit 1
+          fi
+          
+          echo "✅ All required scripts verified"
 
-      - name: Check for queued emails
-        id: check-queue
-        if: always()
+      - name: Find JSON configuration files
+        id: find-configs
         run: |
-          if [ -f "github_actions_email_summary.json" ]; then
-            echo "emails_queued=true" >> $GITHUB_OUTPUT
-            echo "✅ Emails queued successfully"
+          echo "Searching for campaign configuration files..."
+          
+          # Search for JSON configs in scheduled-campaigns directory
+          if [ -d "scheduled-campaigns" ]; then
+            CONFIG_FILES=$(find scheduled-campaigns -name "*.json" -type f | grep -i campaign || true)
+          else
+            CONFIG_FILES=""
+          fi
+          
+          # Count configs
+          if [ -n "$CONFIG_FILES" ]; then
+            CONFIG_COUNT=$(echo "$CONFIG_FILES" | wc -l)
+            echo "✅ Found $CONFIG_COUNT configuration file(s)"
+            echo "$CONFIG_FILES" | while read config; do
+              echo "  - $config"
+            done
             
-            # Display summary
-            echo "📊 Queue Summary:"
-            cat github_actions_email_summary.json | python3 -m json.tool || cat github_actions_email_summary.json
+            # Use first config as default
+            DEFAULT_CONFIG=$(echo "$CONFIG_FILES" | head -1)
+            echo "default_config=$DEFAULT_CONFIG" >> $GITHUB_OUTPUT
+            echo "config_count=$CONFIG_COUNT" >> $GITHUB_OUTPUT
           else
-            echo "emails_queued=false" >> $GITHUB_OUTPUT
-            echo "⚠️ No email queue file found"
-          fi
-
-      - name: Save file paths
-        id: save-paths
-        if: steps.campaign-execution.outputs.status == 'success'
-        run: |
-          echo "Finding generated files..."
-          
-          # Find the most recent contacts CSV file
-          CONTACTS_FILE=$(find contacts/ -name "*.csv" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
-          
-          # Find the most recent template in scheduled-campaigns (priority) or campaign-templates
-          TEMPLATE_FILE=$(find scheduled-campaigns/ -name "*.docx" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
-          
-          if [ -z "$TEMPLATE_FILE" ]; then
-            TEMPLATE_FILE=$(find campaign-templates/ -name "*.docx" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
-          fi
-          
-          # Validate and set defaults if needed
-          if [ -z "$CONTACTS_FILE" ] || [ ! -f "$CONTACTS_FILE" ]; then
-            echo "⚠️ No contacts CSV file found, checking for any CSV..."
-            CONTACTS_FILE=$(find . -name "*.csv" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
-            if [ -z "$CONTACTS_FILE" ]; then
-              echo "❌ No CSV file found at all"
-              CONTACTS_FILE="contacts/not_found.csv"
+            echo "⚠️  No JSON configuration files found in scheduled-campaigns/"
+            echo "config_count=0" >> $GITHUB_OUTPUT
+            
+            # Try to find any campaign JSON
+            FALLBACK_CONFIG=$(find . -name "*campaign*.json" -type f | head -1)
+            if [ -n "$FALLBACK_CONFIG" ]; then
+              echo "✅ Found fallback config: $FALLBACK_CONFIG"
+              echo "default_config=$FALLBACK_CONFIG" >> $GITHUB_OUTPUT
+              echo "config_count=1" >> $GITHUB_OUTPUT
+            else
+              echo "❌ No configuration files found"
+              exit 1
             fi
           fi
+
+      - name: Display configuration summary
+        env:
+          CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
+        run: |
+          echo "Configuration File: $CONFIG_FILE"
+          echo ""
+          echo "Configuration Summary:"
+          python3 << 'EOF'
+          import json
+          import sys
+          import os
           
-          if [ -z "$TEMPLATE_FILE" ]; then
-            echo "⚠️ No template DOCX file found"
-            TEMPLATE_FILE=""
+          config_file = os.environ.get('CONFIG_FILE', '')
+          if not config_file or not os.path.exists(config_file):
+              print("❌ Configuration file not accessible")
+              sys.exit(1)
+          
+          try:
+              with open(config_file, 'r') as f:
+                  config = json.load(f)
+              
+              print(f"  Campaign Name: {config.get('name', 'N/A')}")
+              print(f"  Sector: {config.get('sector', 'N/A')}")
+              print(f"  Mode: {config.get('mode', 'N/A')}")
+              print(f"  Subject: {config.get('subject', 'N/A')}")
+              print(f"  From Email: {config.get('from_email', 'N/A')}")
+              print(f"  Reply-To: {config.get('reply_to', 'N/A')}")
+              print(f"  Contacts File: {config.get('contacts', 'N/A')}")
+              
+              templates = config.get('templates', [])
+              if isinstance(templates, str):
+                  templates = [templates]
+              print(f"  Templates: {len(templates)} file(s)")
+              for i, t in enumerate(templates, 1):
+                  print(f"    {i}. {t}")
+              
+              rate_limiting = config.get('rate_limiting', {})
+              if rate_limiting:
+                  print(f"  Delay between emails: {rate_limiting.get('delay_between_emails', 1.0)}s")
+                  print(f"  Batch size: {rate_limiting.get('batch_size', 50)}")
+              
+              feedback = config.get('feedback', {})
+              if feedback:
+                  print(f"  Feedback System: {'Enabled' if feedback.get('auto_inject') else 'Disabled'}")
+                  print(f"  Feedback Email: {feedback.get('email', 'N/A')}")
+              
+          except Exception as e:
+              print(f"❌ Error reading configuration: {e}")
+              sys.exit(1)
+          EOF
+
+      - name: Setup SMTP credentials
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          echo "Setting up SMTP credentials..."
+          
+          # Validate credentials are available
+          if [ -z "$SMTP_HOST" ]; then
+            echo "⚠️  SMTP_HOST not set in secrets"
+          else
+            echo "✅ SMTP_HOST configured"
           fi
           
-          echo "contacts_file=$CONTACTS_FILE" >> $GITHUB_OUTPUT
-          echo "template_file=$TEMPLATE_FILE" >> $GITHUB_OUTPUT
-          
-          echo "📁 File paths saved:"
-          echo "  Contacts: $CONTACTS_FILE"
-          echo "  Template: $TEMPLATE_FILE"
-          
-          # Verify files exist
-          if [ -f "$CONTACTS_FILE" ]; then
-            echo "  ✅ Contacts file exists ($(wc -l < "$CONTACTS_FILE") lines)"
+          if [ -z "$SMTP_PORT" ]; then
+            echo "⚠️  SMTP_PORT not set in secrets"
           else
-            echo "  ❌ Contacts file not found"
+            echo "✅ SMTP_PORT configured"
           fi
           
-          if [ -n "$TEMPLATE_FILE" ] && [ -f "$TEMPLATE_FILE" ]; then
-            echo "  ✅ Template file exists ($(stat -f%z "$TEMPLATE_FILE" 2>/dev/null || stat -c%s "$TEMPLATE_FILE") bytes)"
+          if [ -z "$SMTP_USER" ]; then
+            echo "⚠️  SMTP_USER not set in secrets"
           else
-            echo "  ℹ️ No template file (will be searched in v3-send-emails)"
+            echo "✅ SMTP_USER configured"
+          fi
+          
+          if [ -z "$SMTP_PASS" ]; then
+            echo "⚠️  SMTP_PASS not set in secrets"
+          else
+            echo "✅ SMTP_PASS configured (hidden)"
+          fi
+          
+          # Check if we have minimum required config
+          if [ -z "$SMTP_HOST" ] || [ -z "$SMTP_USER" ] || [ -z "$SMTP_PASS" ]; then
+            if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+              echo ""
+              echo "⚠️  SMTP credentials incomplete, but continuing in dry-run mode"
+            else
+              echo ""
+              echo "❌ SMTP credentials incomplete for live mode"
+              echo "Please configure secrets: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS"
+              exit 1
+            fi
+          fi
+
+      - name: Validate campaign configuration
+        env:
+          CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
+        run: |
+          echo "Validating campaign configuration..."
+          python3 .github/scripts/validate_campaign.py "$CONFIG_FILE"
+    
+          if [ $? -ne 0 ]; then
+          echo "❌ Campaign validation failed"
+          exit 1
+          fi
+    
+          echo "✅ Campaign validation passed"
+          
+      - name: Run campaign from JSON configuration
+        id: run-json-campaign
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
+        run: |
+          echo "=========================================="
+          echo "  📧 Starting JSON-based Campaign"
+          echo "=========================================="
+          echo ""
+          echo "Configuration: $CONFIG_FILE"
+          echo "Mode: ${{ github.event.inputs.dry_run == 'true' && 'DRY RUN' || 'LIVE' }}"
+          echo "Debug: ${{ github.event.inputs.debug_mode }}"
+          echo "Target Domain: ${{ github.event.inputs.target_domain || 'All' }}"
+          echo ""
+          
+          # Build command
+          CMD="python3 .github/scripts/run_campaign_from_config.py --config $CONFIG_FILE"
+          
+          # Add dry-run flag if specified
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            CMD="$CMD --dry-run"
+            echo "🧪 DRY RUN MODE - Emails will be saved to outbox/ directory"
+          else
+            CMD="$CMD"
+            echo "📤 LIVE MODE - Emails will be sent"
+          fi
+          
+          # Add debug flag if specified
+          if [ "${{ github.event.inputs.debug_mode }}" == "true" ]; then
+            CMD="$CMD --debug"
+          fi
+          
+          echo ""
+          echo "Command: $CMD"
+          echo ""
+          echo "=========================================="
+          
+          # Execute campaign
+          set +e  # Don't exit on error so we can capture status
+          $CMD 2>&1 | tee campaign_json_execution.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+          
+          echo ""
+          echo "=========================================="
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "  ✅ Campaign Completed Successfully"
+            echo "status=success" >> $GITHUB_OUTPUT
+            
+            # Try to count emails from log
+            EMAILS_SENT=$(grep -c "Sent to\|✓ Sent to" campaign_json_execution.log || echo "0")
+            echo "emails_sent=$EMAILS_SENT" >> $GITHUB_OUTPUT
+          else
+            echo "  ⚠️  Campaign Completed with Issues"
+            echo "  Exit Code: $EXIT_CODE"
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "emails_sent=0" >> $GITHUB_OUTPUT
+          fi
+          echo "=========================================="
+          
+          exit $EXIT_CODE
+
+      - name: Collect output files
+        if: always()
+        run: |
+          echo "Collecting campaign output files..."
+          
+          # List generated files
+          if [ -d "outbox" ]; then
+            echo "Dry-run output files:"
+            ls -lh outbox/ || echo "  No files in outbox/"
+          fi
+          
+          if [ -d "tracking" ]; then
+            echo "Tracking files:"
+            find tracking -type f | head -10 || echo "  No tracking files"
+          fi
+          
+          if [ -f "campaign_json_execution.log" ]; then
+            echo "Execution log size: $(wc -l < campaign_json_execution.log) lines"
           fi
 
       - name: Upload campaign artifacts
-        if: steps.campaign-execution.outputs.status == 'success'
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: campaign-files
+          name: json-campaign-output-${{ github.run_id }}
           path: |
-            contacts/*.csv
-            scheduled-campaigns/*.docx
-            campaign-templates/*.docx
+            campaign_json_execution.log
+            outbox/
             tracking/
-            github_actions_email_summary.json
-          if-no-files-found: warn
+            *.log
           retention-days: 7
+          if-no-files-found: warn
 
-      - name: Campaign summary
+      - name: Generate execution summary
         if: always()
         run: |
-          echo "### 📋 Campaign Processing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### 📧 JSON-based Campaign Execution" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Status:** ${{ steps.campaign-execution.outputs.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Emails Queued:** ${{ steps.check-queue.outputs.emails_queued }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Contacts File:** \`${{ steps.save-paths.outputs.contacts_file }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Template File:** \`${{ steps.save-paths.outputs.template_file }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Configuration:** \`${{ steps.find-configs.outputs.default_config }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** ${{ github.event.inputs.dry_run == 'true' && '🧪 Dry Run' || '📤 Live' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ steps.run-json-campaign.outputs.status == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Emails Processed:** ${{ steps.run-json-campaign.outputs.emails_sent || '0' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
+          
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            echo "📋 **Note:** Dry run mode - check artifacts for generated email files" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Validation Results:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Contacts Loaded: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Templates Found: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Config Files: ${{ steps.find-configs.outputs.config_count }}" >> $GITHUB_STEP_SUMMARY
+          
   trigger-send:
     needs: campaign-run
     # Only trigger if campaign-run succeeded
