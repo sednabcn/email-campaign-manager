@@ -181,14 +181,24 @@ def build_command(config, template_file, script_path, dry_run=False, debug=False
     
     # Add required arguments
     cmd.extend(['--contacts', config.get('contacts', '')])
-    cmd.extend(['--template', template_file])
+    cmd.extend(['--templates', template_file])
     cmd.extend(['--subject', config.get('subject', 'Email Campaign')])
     
     # Add delay from rate_limiting config
     rate_limiting = config.get('rate_limiting', {})
     delay = rate_limiting.get('delay_between_emails', 1.0)
     cmd.extend(['--delay', str(delay)])
-    
+
+    # Add optional arguments
+    if tracking_dir:
+        cmd.extend(['--tracking', tracking_dir])
+
+    if alerts_email:
+            cmd.extend(['--alerts', alerts_email])
+
+    if feedback_email and feedback_config.get('auto_inject', True):
+        cmd.extend(['--feedback', feedback_email])
+
     # Add flags
     if dry_run:
         cmd.append('--dry-run')
