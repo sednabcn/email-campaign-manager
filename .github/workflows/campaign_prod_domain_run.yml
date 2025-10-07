@@ -1069,14 +1069,14 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           repository: ${{ github.repository }}
           event-type: send-emails
-          client-payload: |
-          {
+          client-payload: >-
+            {
             "contacts": "${{ needs.campaign-run.outputs.contacts_file }}",
             "template": "${{ needs.campaign-run.outputs.template_file }}",
             "subject": "Collaboration Opportunity",
             "dry_run": "false",
             "delay": "1.5"
-          }
+            }
             
       - name: Enhanced real-time feedback processing
         if: github.event.inputs.enable_real_time_tracking == 'true'
