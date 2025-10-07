@@ -55,6 +55,7 @@ def save_email_to_queue(batch_dir, email_index, to_email, subject, body, from_na
         'body': body,
         'from_name': from_name,
         'queued_at': datetime.now().isoformat()
+        'ready_to_send': True  # 
     }
     
     email_file = batch_dir / f"email_{email_index}.json"

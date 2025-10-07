@@ -965,7 +965,38 @@ jobs:
             echo "emails_queued=false" >> $GITHUB_OUTPUT
           fi
 
-      
+  campaign-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run campaign processing
+        run: |
+          python3 docx_parser.py \
+            --contacts contacts/ \
+            --scheduled campaign-templates/ \
+            --tracking tracking/ \
+            --alerts alerts@example.com \
+            --queue-emails
+  trigger-send:
+    needs: campaign-run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for 10 minutes for review
+        run: sleep 600  # 600 seconds = 10 minutes
+
+      - name: Trigger send-emails workflow
+        uses: peter-evans/workflow-dispatch@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          workflow: send-emails.yml
+          ref: ${{ github.ref }}
+          inputs:
+            contacts: 'contacts/edu_adults_contacts_20251004_121252.csv'
+            template: 'campaign-templates/education/adult_education/adult_education_letter.docx'
+            subject: 'Collaboration Opportunity'
+            dry_run: 'false'
+            delay: '1.5'
+            
       - name: Enhanced real-time feedback processing
         if: github.event.inputs.enable_real_time_tracking == 'true'
         run: |
