@@ -1066,8 +1066,34 @@ jobs:
       subject: "Collaboration Opportunity"
       dry_run: false
       delay: "1.5"
-    secrets: inherit
+      secrets: inherit
+
+  enhanced-feedback-tracking:
+    needs: enhanced-campaign-execution
+    runs-on: ubuntu-latest
+    if: github.event.inputs.enable_real_time_tracking == 'true'
     
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install requests>=2.31.0 pandas>=2.0.0 python-docx>=0.8.11
+          pip install google-auth google-auth-oauthlib google-auth-httplib2
+          pip install google-api-python-client>=2.0.0
+          
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
       - name: Enhanced real-time feedback processing
         if: github.event.inputs.enable_real_time_tracking == 'true'
         run: |
