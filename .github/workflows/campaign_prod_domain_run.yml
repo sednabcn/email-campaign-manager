@@ -668,6 +668,16 @@ jobs:
             pip install -r requirements.txt
           fi
 
+      - name: Test SMTP connection
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          echo "Testing SMTP connection..."
+          python3 .github/scripts/test_smtp_connection.py || echo "⚠️ SMTP test failed but continuing..."
+          
       - name: Setup credentials and configuration with enhanced validation
         env:
           GOOGLE_SVC_JSON: ${{ secrets.GOOGLE_SVC_JSON }}
@@ -1251,6 +1261,12 @@ jobs:
           
           exit $EXIT_CODE
 
+      - name: Analyze campaign execution results
+        if: always()
+        run: |
+          echo "Analyzing campaign execution..."
+          python3 .github/scripts/analyze_campaign_logs.py --tracking-dir tracking --log-file campaign_json_execution.log --full-log
+    
       - name: Collect output files
         if: always()
         run: |
