@@ -965,6 +965,7 @@ jobs:
             echo "emails_queued=false" >> $GITHUB_OUTPUT
           fi
 
+          
  campaign-run:
     runs-on: ubuntu-latest
     steps:
@@ -976,6 +977,8 @@ jobs:
             --tracking tracking/ \
             --alerts alerts@example.com \
             --queue-emails
+
+            
  trigger-send:
     needs: campaign-run
     runs-on: ubuntu-latest
