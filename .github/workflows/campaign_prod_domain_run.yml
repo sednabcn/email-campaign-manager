@@ -1114,7 +1114,7 @@ jobs:
           echo "Configuration File: $CONFIG_FILE"
           echo ""
           echo "Configuration Summary:"
-          python3 << 'EOF'
+          python3 << 'PYTHON_SCRIPT'
           import json
           import sys
           import os
@@ -1156,7 +1156,7 @@ jobs:
           except Exception as e:
               print(f"❌ Error reading configuration: {e}")
               sys.exit(1)
-          EOF
+          PYTHON_SCRIPT
 
       - name: Setup SMTP credentials
         env:
