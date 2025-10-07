@@ -1340,7 +1340,7 @@ jobs:
           echo "- Config Files: ${{ steps.find-configs.outputs.config_count }}" >> $GITHUB_STEP_SUMMARY
           
   trigger-send:
-    needs: campaign-run
+    needs: json-config-campaign
     # Only trigger if campaign-run succeeded
     if: needs.campaign-run.outputs.execution_status == 'success'
     uses: ./.github/workflows/v4-send-emails.yml
