@@ -960,13 +960,23 @@ jobs:
             echo "emails_queued=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: List available files
+        if: always()
+        run: |
+          echo "Current directory contents:"
+          ls -la
+          echo "Tracking directory:"
+          ls -la tracking/ || echo "tracking/ not found"
+          echo "Reports directory:"
+          ls -la reports/ || echo "reports/ not found"
+    
       - name: Upload execution logs and reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: campaign-execution-logs-${{ github.run_id }}
           path: |
-            *.log
+            **/*.log
             tracking/**/*
             reports/**/*
           retention-days: 30
@@ -990,6 +1000,9 @@ jobs:
 
   campaign-run:
     runs-on: ubuntu-latest
+    outputs:
+      contacts_file: ${{ steps.save-paths.outputs.contacts_file }}
+      template_file: ${{ steps.save-paths.outputs.template_file }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -1035,27 +1048,35 @@ jobs:
             --alerts alerts@example.com \
             --queue-emails
 
+      - name: Save file paths
+        id: save-paths
+        run: |
+          CONTACTS_FILE=$(ls -t contacts/*.csv | head -n 1)
+          TEMPLATE_FILE=$(ls -t scheduled-campaigns/*.docx | head -n 1)
+          echo "contacts_file=$CONTACTS_FILE" >> $GITHUB_OUTPUT
+          echo "template_file=$TEMPLATE_FILE" >> $GITHUB_OUTPUT 
+            
   trigger-send:
     needs: campaign-run
     runs-on: ubuntu-latest
     steps:
       - name: Wait for 10 minutes for review
-        run: sleep 600  # 600 seconds = 10 minutes
+        run: sleep 60  # 600 seconds = 10 minutes
 
       - name: Trigger send-emails workflow
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
           repository: ${{ github.repository }}
           event-type: send-emails
           client-payload: |
-            {
-              "contacts": "contacts/edu_adults_contacts_20251004_121252.csv",
-              "template": "campaign-templates/education/adult_education/adult_education_letter.docx",
-              "subject": "Collaboration Opportunity",
-              "dry_run": "false",
-              "delay": "1.5"
-            }
+          {
+            "contacts": "${{ needs.campaign-run.outputs.contacts_file }}",
+            "template": "${{ needs.campaign-run.outputs.template_file }}",
+            "subject": "Collaboration Opportunity",
+            "dry_run": "false",
+            "delay": "1.5"
+          }
             
       - name: Enhanced real-time feedback processing
         if: github.event.inputs.enable_real_time_tracking == 'true'

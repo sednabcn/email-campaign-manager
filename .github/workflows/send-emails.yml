@@ -22,6 +22,10 @@ on:
         description: 'Delay between emails (seconds)'
         required: false
         default: '1.5'
+  
+  repository_dispatch:
+    types: [send-emails]
+
 jobs:
   send:
     runs-on: ubuntu-latest
@@ -34,19 +38,76 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      
+      - name: Determine input source
+        id: get-inputs
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "contacts=${{ github.event.client_payload.contacts }}" >> $GITHUB_OUTPUT
+            echo "template=${{ github.event.client_payload.template }}" >> $GITHUB_OUTPUT
+            echo "subject=${{ github.event.client_payload.subject }}" >> $GITHUB_OUTPUT
+            echo "dry_run=${{ github.event.client_payload.dry_run }}" >> $GITHUB_OUTPUT
+            echo "delay=${{ github.event.client_payload.delay }}" >> $GITHUB_OUTPUT
+            echo "🤖 Triggered automatically via repository_dispatch"
+          else
+            echo "contacts=${{ github.event.inputs.contacts }}" >> $GITHUB_OUTPUT
+            echo "template=${{ github.event.inputs.template }}" >> $GITHUB_OUTPUT
+            echo "subject=${{ github.event.inputs.subject }}" >> $GITHUB_OUTPUT
+            echo "dry_run=${{ github.event.inputs.dry_run }}" >> $GITHUB_OUTPUT
+            echo "delay=${{ github.event.inputs.delay || '1.5' }}" >> $GITHUB_OUTPUT
+            echo "👤 Triggered manually via workflow_dispatch"
+          fi
+      
+      - name: Verify files exist
+        run: |
+          echo "📋 Verifying input files..."
+          echo "Contacts: ${{ steps.get-inputs.outputs.contacts }}"
+          echo "Template: ${{ steps.get-inputs.outputs.template }}"
+          
+          if [ ! -f "${{ steps.get-inputs.outputs.contacts }}" ]; then
+            echo "❌ Error: Contacts file not found: ${{ steps.get-inputs.outputs.contacts }}"
+            exit 1
+          fi
+          
+          if [ ! -f "${{ steps.get-inputs.outputs.template }}" ]; then
+            echo "❌ Error: Template file not found: ${{ steps.get-inputs.outputs.template }}"
+            exit 1
+          fi
+          
+          echo "✅ All files verified"
+          ls -lh "${{ steps.get-inputs.outputs.contacts }}"
+          ls -lh "${{ steps.get-inputs.outputs.template }}"
+      
       - name: Send personalized emails
         run: |
+          echo "📧 Starting email send process..."
+          echo "Subject: ${{ steps.get-inputs.outputs.subject }}"
+          echo "Dry run: ${{ steps.get-inputs.outputs.dry_run }}"
+          echo "Delay: ${{ steps.get-inputs.outputs.delay }}s"
+          
           python .github/scripts/send_personalized_emails.py \
-            --contacts "${{ github.event.inputs.contacts }}" \
-            --template "${{ github.event.inputs.template }}" \
-            --subject "${{ github.event.inputs.subject }}" \
-            --delay ${{ github.event.inputs.delay || '1.5' }} \
-            ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
+            --contacts "${{ steps.get-inputs.outputs.contacts }}" \
+            --template "${{ steps.get-inputs.outputs.template }}" \
+            --subject "${{ steps.get-inputs.outputs.subject }}" \
+            --delay ${{ steps.get-inputs.outputs.delay }} \
+            ${{ steps.get-inputs.outputs.dry_run == 'true' && '--dry-run' || '' }}
+      
+      - name: Upload send logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: email-send-logs
+          path: |
+            **/*.log
+            logs/
+          if-no-files-found: warn
