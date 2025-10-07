@@ -1211,7 +1211,7 @@ jobs:
         run: |
           echo "Checking for latest contact file..."
     
-          python3 << 'EOF'
+          python3 << 'PYTHON_SCRIPT'
           import json
           import os
           from pathlib import Path
@@ -1241,7 +1241,7 @@ jobs:
                 print(f"✅ Config updated: {contacts_path} → {latest_file}")
             else:
                 print(f"⚠️ No matching contact files found for pattern: {contact_pattern}")
-          EOF    
+          PYTHON_SCRIPT    
 
       - name: Validate campaign configuration
         env:
