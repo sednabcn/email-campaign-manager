@@ -1003,6 +1003,8 @@ jobs:
     outputs:
       contacts_file: ${{ steps.save-paths.outputs.contacts_file }}
       template_file: ${{ steps.save-paths.outputs.template_file }}
+      execution_status: ${{ steps.campaign-execution.outputs.status }}
+      emails_queued: ${{ steps.check-queue.outputs.emails_queued }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -1018,7 +1020,6 @@ jobs:
           echo "Installing Python dependencies..."
           python -m pip install --upgrade pip setuptools wheel
           
-          # Core dependencies with version pinning
           pip install requests>=2.31.0 pandas>=2.0.0 python-docx>=0.8.11
           pip install openpyxl>=3.1.0 xlrd>=2.0.1 jinja2>=3.1.0
           pip install google-auth google-auth-oauthlib google-auth-httplib2
@@ -1036,37 +1037,138 @@ jobs:
       - name: Create required directories
         run: |
           echo "Creating required directories..."
-          mkdir -p contacts campaign-templates tracking
+          mkdir -p contacts campaign-templates scheduled-campaigns tracking
           echo "✅ Directories created"
 
       - name: Run campaign processing
+        id: campaign-execution
         run: |
+          set +e  # Don't exit on error immediately
+          
+          echo "Starting campaign processing..."
           python3 utils/docx_parser.py \
             --contacts contacts/ \
             --scheduled campaign-templates/ \
             --tracking tracking/ \
             --alerts alerts@example.com \
             --queue-emails
+          
+          EXIT_CODE=$?
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "✅ Campaign processing completed successfully"
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "❌ Campaign processing failed with exit code: $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+
+      - name: Check for queued emails
+        id: check-queue
+        if: always()
+        run: |
+          if [ -f "github_actions_email_summary.json" ]; then
+            echo "emails_queued=true" >> $GITHUB_OUTPUT
+            echo "✅ Emails queued successfully"
+            
+            # Display summary
+            echo "📊 Queue Summary:"
+            cat github_actions_email_summary.json | python3 -m json.tool || cat github_actions_email_summary.json
+          else
+            echo "emails_queued=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No email queue file found"
+          fi
 
       - name: Save file paths
         id: save-paths
+        if: steps.campaign-execution.outputs.status == 'success'
         run: |
-          CONTACTS_FILE=$(ls -t contacts/*.csv | head -n 1)
-          TEMPLATE_FILE=$(ls -t scheduled-campaigns/*.docx | head -n 1)
+          echo "Finding generated files..."
+          
+          # Find the most recent contacts CSV file
+          CONTACTS_FILE=$(find contacts/ -name "*.csv" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+          
+          # Find the most recent template in scheduled-campaigns (priority) or campaign-templates
+          TEMPLATE_FILE=$(find scheduled-campaigns/ -name "*.docx" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+          
+          if [ -z "$TEMPLATE_FILE" ]; then
+            TEMPLATE_FILE=$(find campaign-templates/ -name "*.docx" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+          fi
+          
+          # Validate and set defaults if needed
+          if [ -z "$CONTACTS_FILE" ] || [ ! -f "$CONTACTS_FILE" ]; then
+            echo "⚠️ No contacts CSV file found, checking for any CSV..."
+            CONTACTS_FILE=$(find . -name "*.csv" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+            if [ -z "$CONTACTS_FILE" ]; then
+              echo "❌ No CSV file found at all"
+              CONTACTS_FILE="contacts/not_found.csv"
+            fi
+          fi
+          
+          if [ -z "$TEMPLATE_FILE" ]; then
+            echo "⚠️ No template DOCX file found"
+            TEMPLATE_FILE=""
+          fi
+          
           echo "contacts_file=$CONTACTS_FILE" >> $GITHUB_OUTPUT
-          echo "template_file=$TEMPLATE_FILE" >> $GITHUB_OUTPUT 
+          echo "template_file=$TEMPLATE_FILE" >> $GITHUB_OUTPUT
+          
+          echo "📁 File paths saved:"
+          echo "  Contacts: $CONTACTS_FILE"
+          echo "  Template: $TEMPLATE_FILE"
+          
+          # Verify files exist
+          if [ -f "$CONTACTS_FILE" ]; then
+            echo "  ✅ Contacts file exists ($(wc -l < "$CONTACTS_FILE") lines)"
+          else
+            echo "  ❌ Contacts file not found"
+          fi
+          
+          if [ -n "$TEMPLATE_FILE" ] && [ -f "$TEMPLATE_FILE" ]; then
+            echo "  ✅ Template file exists ($(stat -f%z "$TEMPLATE_FILE" 2>/dev/null || stat -c%s "$TEMPLATE_FILE") bytes)"
+          else
+            echo "  ℹ️ No template file (will be searched in v3-send-emails)"
+          fi
+
+      - name: Upload campaign artifacts
+        if: steps.campaign-execution.outputs.status == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-files
+          path: |
+            contacts/*.csv
+            scheduled-campaigns/*.docx
+            campaign-templates/*.docx
+            tracking/
+            github_actions_email_summary.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Campaign summary
+        if: always()
+        run: |
+          echo "### 📋 Campaign Processing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ steps.campaign-execution.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Emails Queued:** ${{ steps.check-queue.outputs.emails_queued }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Contacts File:** \`${{ steps.save-paths.outputs.contacts_file }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Template File:** \`${{ steps.save-paths.outputs.template_file }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
             
   trigger-send:
     needs: campaign-run
+    # Only trigger if campaign-run succeeded
     if: needs.campaign-run.outputs.execution_status == 'success'
     uses: ./.github/workflows/v3-send-emails.yml
+    secrets: inherit
     with:
       contacts: ${{ needs.campaign-run.outputs.contacts_file }}
-      template: ${{ needs.campaign-run.outputs.template_file || '' }}
+      template: ${{ needs.campaign-run.outputs.template_file }}
       subject: "Collaboration Opportunity"
       dry_run: false
-      delay: "1.5"
-
+      delay: "1.5"        
+ 
 
   enhanced-feedback-tracking:
     needs: enhanced-campaign-execution
