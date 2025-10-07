@@ -2,7 +2,7 @@ name: Enhanced Production Email Campaign System
 
 on:
   push:
-    branches: ["dev","main", "master"]
+    branches: ["dev", "main", "master"]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -173,48 +173,47 @@ jobs:
           echo "Ensuring test data exists before validation..."
           CONTACTS_PATH="$PWD/$CONTACTS_DIR"
           SCHEDULED_PATH="$PWD/$SCHEDULED_DIR"
-    
+          
           # Always create test data if it doesn't exist
           if [ ! -f "$CONTACTS_PATH/enhanced_test_contacts.csv" ]; then
-             cat > "$CONTACTS_PATH/enhanced_test_contacts.csv" << 'EOF'
-             name,email,organization,role,domain,country
-             John Doe,john.doe@example.com,Example Corp,Manager,education,US
-             Jane Smith,jane.smith@test.org,Test Organization,Director,healthcare,UK
-             Bob Johnson,bob.johnson@sample.net,Sample Company,Analyst,finance,CA
-             Alice Brown,alice.brown@demo.edu,Demo University,Professor,education,US
-             Charlie Wilson,charlie.wilson@tech.co,Tech Solutions,CTO,technology,DE
+            cat > "$CONTACTS_PATH/enhanced_test_contacts.csv" << 'EOF'
+          name,email,organization,role,domain,country
+          John Doe,john.doe@example.com,Example Corp,Manager,education,US
+          Jane Smith,jane.smith@test.org,Test Organization,Director,healthcare,UK
+          Bob Johnson,bob.johnson@sample.net,Sample Company,Analyst,finance,CA
+          Alice Brown,alice.brown@demo.edu,Demo University,Professor,education,US
+          Charlie Wilson,charlie.wilson@tech.co,Tech Solutions,CTO,technology,DE
           EOF
             echo "✅ Test contact data created"
           fi
-
+          
           # Verify file exists and has content
           if [ -f "$CONTACTS_PATH/enhanced_test_contacts.csv" ]; then
-             echo "Contact file exists with $(wc -l < "$CONTACTS_PATH/enhanced_test_contacts.csv") lines"
-             head -5 "$CONTACTS_PATH/enhanced_test_contacts.csv"
+            echo "Contact file exists with $(wc -l < "$CONTACTS_PATH/enhanced_test_contacts.csv") lines"
+            head -5 "$CONTACTS_PATH/enhanced_test_contacts.csv"
           fi
-    
+          
           # Create test campaign
           if [ ! -f "$SCHEDULED_PATH/enhanced_welcome_campaign.txt" ]; then
-             cat > "$SCHEDULED_PATH/enhanced_welcome_campaign.txt" << 'EOF'
-            Subject: Welcome {{name}} from {{organization}} to Our Platform!
-
-            Dear {{name}},
-
-            We're excited to welcome you! This message is being sent to {{email}}.
-            
-            Your organization, {{organization}}, in the {{domain}} sector.
-            
-            Best regards,
-            The Platform Team
+            cat > "$SCHEDULED_PATH/enhanced_welcome_campaign.txt" << 'EOF'
+          Subject: Welcome {{name}} from {{organization}} to Our Platform!
+          
+          Dear {{name}},
+          
+          We're excited to welcome you! This message is being sent to {{email}}.
+          
+          Your organization, {{organization}}, in the {{domain}} sector.
+          
+          Best regards,
+          The Platform Team
           EOF
             echo "✅ Test campaign template created"
           fi
-    
+          
           # Verify creation
           echo "Verification:"
           ls -lh "$CONTACTS_PATH/"
           echo "Test file lines: $(wc -l < "$CONTACTS_PATH/enhanced_test_contacts.csv" 2>/dev/null || echo 0)"
-
 
       - name: Setup Google credentials
         env:
@@ -230,18 +229,18 @@ jobs:
         id: validation
         run: |
           echo "Running comprehensive system validation..."
-    
+          
           overall_status=0
           validation_report="# Enhanced System Validation Report\n\n"
-    
+          
           # Check if main scripts exist and can import
           echo "Checking for campaign system scripts..."
-    
+          
           # Enhanced docx_parser.py validation
           if [ -f "utils/docx_parser.py" ]; then
-             echo "✅ Found utils/docx_parser.py"
-      
-          python << 'EOF'
+            echo "✅ Found utils/docx_parser.py"
+            
+            python << 'EOF'
           import sys
           sys.path.append('.')
           sys.path.append('utils')
@@ -249,43 +248,43 @@ jobs:
             # Test if docx_parser can be imported and has expected functions
             import utils.docx_parser as parser
             print('✅ utils/docx_parser.py imports successfully')
-    
+            
             # Check for main execution capability
             if hasattr(parser, 'main') or hasattr(parser, '__main__'):
-               print('  - Main execution function available')
+              print('  - Main execution function available')
             else:
-               print('  - Script is executable as module')
+              print('  - Script is executable as module')
           except Exception as e:
-               print(f'❌ docx_parser.py import error: {e}')
-               sys.exit(1)
+            print(f'❌ docx_parser.py import error: {e}')
+            sys.exit(1)
           EOF
-      
-          if [ $? -eq 0 ]; then
-            validation_report+="## Main Campaign Processor: PASSED\n"
-          else
-            overall_status=1
-            validation_report+="## Main Campaign Processor: FAILED\n"
-            echo "❌ docx_parser.py import failed"
-          fi
+            
+            if [ $? -eq 0 ]; then
+              validation_report+="## Main Campaign Processor: PASSED\n"
+            else
+              overall_status=1
+              validation_report+="## Main Campaign Processor: FAILED\n"
+              echo "❌ docx_parser.py import failed"
+            fi
           else
             echo "❌ utils/docx_parser.py not found"
             overall_status=1
             validation_report+="## Main Campaign Processor: FAILED - File not found\n"
           fi
-    
+          
           # Check feedback system scripts
           feedback_scripts=("utils/email_feedback_injector.py" "utils/docx_feedback_processor.py" "utils/reply_tracker.py")
           feedback_available=0
-    
+          
           for script in "${feedback_scripts[@]}"; do
-          if [ -f "$script" ]; then
-                echo "✅ Found $script"
-               feedback_available=$((feedback_available + 1))
-        
-          # Extract module name from path
-          module_name=$(basename "$script" .py)
-        
-          python << EOF
+            if [ -f "$script" ]; then
+              echo "✅ Found $script"
+              feedback_available=$((feedback_available + 1))
+              
+              # Extract module name from path
+              module_name=$(basename "$script" .py)
+              
+              python << EOF
           import sys
           sys.path.append('.')
           sys.path.append('utils')
@@ -295,18 +294,18 @@ jobs:
           except Exception as e:
             print('⚠️ $module_name import warning:', e)
           EOF
-          else
-            echo "⚠️ $script not found"
-          fi
+            else
+              echo "⚠️ $script not found"
+            fi
           done
-    
+          
           validation_report+="## Feedback System: $feedback_available/3 scripts available\n"
-    
+          
           # Enhanced data_loader validation
           if [ -f "utils/data_loader.py" ]; then
-              echo "✅ Found utils/data_loader.py"
-      
-             python << 'EOF'
+            echo "✅ Found utils/data_loader.py"
+            
+            python << 'EOF'
           import sys
           sys.path.append('utils')
           try:
@@ -315,20 +314,20 @@ jobs:
           except Exception as e:
             print('⚠️ data_loader warning:', e)
           EOF
-        
-          validation_report+="## Data Loader: AVAILABLE\n"
+            
+            validation_report+="## Data Loader: AVAILABLE\n"
           else
-             echo "⚠️ utils/data_loader.py not found - using fallback"
-             validation_report+="## Data Loader: USING FALLBACK\n"
+            echo "⚠️ utils/data_loader.py not found - using fallback"
+            validation_report+="## Data Loader: USING FALLBACK\n"
           fi
-    
+          
           validation_report+="\n## Overall Validation: $([ $overall_status -eq 0 ] && echo 'PASSED' || echo 'FAILED')\n"
-    
+          
           echo "status=$overall_status" >> $GITHUB_OUTPUT
           echo "report<<EOF" >> $GITHUB_OUTPUT
           echo -e "$validation_report" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-    
+
       - name: Enhanced contact data source validation
         id: contact_validation
         run: |
@@ -388,7 +387,6 @@ jobs:
               find "$CONTACTS_DIR" -type f \( -name "*.csv" -o -name "*.xlsx" -o -name "*.url" \) | head -3 | while read file; do
                 echo "  - $(basename "$file")"
               done
-              
             else
               echo "⚠️ No contact data source files found"
             fi
@@ -397,7 +395,6 @@ jobs:
           fi
           
           echo "real_data_found=$REAL_DATA_FOUND" >> $GITHUB_OUTPUT
-
           echo "contact_files_count=$CONTACT_FILES_COUNT" >> $GITHUB_OUTPUT
 
       - name: Diagnostic - Check data pipeline
@@ -503,18 +500,18 @@ jobs:
           echo "Checking if outputs were properly set..."
           echo "Contact analysis output: ${{ steps.contact_analysis.outputs.count }}"
           echo "Domain analysis output: ${{ steps.domain_analysis.outputs.campaigns }}"
-    
+          
           # Also check the JSON files
           if [ -f contact_analysis.json ]; then
-                 echo "Contact analysis JSON exists:"
-                 cat contact_analysis.json | python3 -c "import sys, json; data=json.load(sys.stdin); print(f\"Total contacts: {data.get('total_contacts', 0)}\")"
+            echo "Contact analysis JSON exists:"
+            cat contact_analysis.json | python3 -c "import sys, json; data=json.load(sys.stdin); print(f\"Total contacts: {data.get('total_contacts', 0)}\")"
           fi
-    
+          
           if [ -f domain_analysis.json ]; then
-             echo "Domain analysis JSON exists:"
-             cat domain_analysis.json | python3 -c "import sys, json; data=json.load(sys.stdin); print(f\"Total templates: {data.get('template_count', 0)}\")"
-          fi     
-  
+            echo "Domain analysis JSON exists:"
+            cat domain_analysis.json | python3 -c "import sys, json; data=json.load(sys.stdin); print(f\"Total templates: {data.get('template_count', 0)}\")"
+          fi
+
       - name: Create enhanced test data if no real data exists
         if: steps.contact_validation.outputs.contact_files_count == '0'
         run: |
@@ -535,26 +532,26 @@ jobs:
           mkdir -p "$SCHEDULED_DIR"
           cat > "$SCHEDULED_DIR/enhanced_welcome_campaign.txt" << 'EOF'
           Subject: Welcome {{name}} from {{organization}} to Our Platform!
-
+          
           Dear {{name}},
-
+          
           We're excited to welcome you to our platform! This personalized message is being sent to {{email}} to confirm your registration.
-
+          
           Your organization, {{organization}}, has been successfully added to our records in the {{domain}} sector. As a {{role}}, we believe you'll find great value in our specialized services.
-
+          
           Key benefits for {{name}} and {{organization}}:
           - Personalized dashboard tailored for {{domain}} professionals
           - Direct support at {{email}}
           - Custom solutions designed for {{role}} responsibilities
           - {{domain}}-specific resources and insights
-
+          
           We've noted that {{organization}} is based in {{country}}, and we have local support available in your region.
-
+          
           If you have any questions, please don't hesitate to reach out to us.
-
+          
           Best regards,
           The Platform Team
-
+          
           ---
           This email was personalized for {{name}} ({{role}}) at {{organization}}.
           Contact us at support@platform.com if you need assistance.
@@ -732,23 +729,23 @@ jobs:
           # Initialize enhanced tracking metadata
           cat > tracking/execution_start.json << 'EOF'
           {
-          "workflow_run_id": "${{ github.run_id }}",
-          "execution_start": "$(date -Iseconds)",
-          "mode": "${{ github.event.inputs.dry_run == 'true' && 'dry-run' || 'live' }}",
-          "target_domain": "${{ github.event.inputs.target_domain }}",
-          "batch_size": "${{ github.event.inputs.batch_size || 50 }}",
-          "real_time_tracking": "${{ github.event.inputs.enable_real_time_tracking }}",
-          "debug_mode": "${{ github.event.inputs.debug_mode }}",
-          "feedback_injection": "${{ github.event.inputs.skip_feedback_injection != 'true' && 'enabled' || 'disabled' }}",
-          "real_data_sources": "${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}",
-          "contact_files_count": "${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
+            "workflow_run_id": "${{ github.run_id }}",
+            "execution_start": "$(date -Iseconds)",
+            "mode": "${{ github.event.inputs.dry_run == 'true' && 'dry-run' || 'live' }}",
+            "target_domain": "${{ github.event.inputs.target_domain }}",
+            "batch_size": "${{ github.event.inputs.batch_size || 50 }}",
+            "real_time_tracking": "${{ github.event.inputs.enable_real_time_tracking }}",
+            "debug_mode": "${{ github.event.inputs.debug_mode }}",
+            "feedback_injection": "${{ github.event.inputs.skip_feedback_injection != 'true' && 'enabled' || 'disabled' }}",
+            "real_data_sources": "${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}",
+            "contact_files_count": "${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
           }
           EOF
           
           # Enhanced feedback injection setup
           if [ -f "utils/email_feedback_injector.py" ]; then
             echo "Setting up enhanced feedback injection..."
-            python email_feedback_injector.py \
+            python utils/email_feedback_injector.py \
               --campaigns-dir scheduled-campaigns \
               --feedback-email "$FEEDBACK_EMAIL" \
               --setup-tracking \
@@ -784,10 +781,10 @@ jobs:
           export CONTACTS_PATH="$PWD/$CONTACTS_DIR"
           export SCHEDULED_PATH="$PWD/$SCHEDULED_DIR"
           export TRACKING_PATH="$PWD/$TRACKING_DIR"
-    
+          
           # Create directories if they don't exist
           mkdir -p "$CONTACTS_PATH" "$SCHEDULED_PATH" "$TRACKING_PATH"
-    
+          
           # Verify directories
           echo "Verifying directories:"
           ls -ld "$CONTACTS_PATH" "$SCHEDULED_PATH" "$TRACKING_PATH"
@@ -935,7 +932,6 @@ jobs:
             echo "  - Campaigns executed: $CAMPAIGNS_EXECUTED"
             echo "  - Template processing events: $TEMPLATE_VARS"
             echo "  - Log lines generated: $(wc -l < "$LOG_FILE" 2>/dev/null || echo "0")"
-            
           else
             echo "❌ Log file not created: $LOG_FILE"
           fi
@@ -947,7 +943,6 @@ jobs:
           echo "SUCCESS_INDICATORS=$SUCCESS_INDICATORS" >> $GITHUB_ENV
           
           set -e  # Re-enable exit on error
-         
 
       - name: Check for queued emails and set outputs
         id: queue_check
@@ -965,10 +960,45 @@ jobs:
             echo "emails_queued=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Upload execution logs and reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: campaign-execution-logs-${{ github.run_id }}
+          path: |
+            *.log
+            tracking/**/*
+            reports/**/*
+          retention-days: 30
+
+      - name: Generate execution summary
+        if: always()
+        run: |
+          echo "### Enhanced Campaign Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Execution Mode:** ${{ env.MODE_TEXT }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** $([ ${{ env.EXECUTION_STATUS }} -eq 0 ] && echo '✅ Success' || echo '⚠️ Issues Detected')" >> $GITHUB_STEP_SUMMARY
+          echo "**Success Indicators:** ${{ env.SUCCESS_INDICATORS }}/5" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           
- campaign-run:
+          if [ -f "${{ env.LOG_FILE }}" ]; then
+            echo "#### Execution Log Preview" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -50 "${{ env.LOG_FILE }}" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+  campaign-run:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
       - name: Run campaign processing
         run: |
           python3 docx_parser.py \
@@ -978,8 +1008,7 @@ jobs:
             --alerts alerts@example.com \
             --queue-emails
 
-            
- trigger-send:
+  trigger-send:
     needs: campaign-run
     runs-on: ubuntu-latest
     steps:
@@ -987,18 +1016,19 @@ jobs:
         run: sleep 600  # 600 seconds = 10 minutes
 
       - name: Trigger send-emails workflow
-        uses: peter-evans/workflow-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          workflow: send-emails.yml
-          ref: ${{ github.ref }}
-          inputs:
-            contacts: 'contacts/edu_adults_contacts_20251004_121252.csv'
-            template: 'campaign-templates/education/adult_education/adult_education_letter.docx'
-            subject: 'Collaboration Opportunity'
-            dry_run: 'false'
-            delay: '1.5'
+          event-type: send-emails
+          client-payload: |
+            {
+              "contacts": "contacts/edu_adults_contacts_20251004_121252.csv",
+              "template": "campaign-templates/education/adult_education/adult_education_letter.docx",
+              "subject": "Collaboration Opportunity",
+              "dry_run": "false",
+              "delay": "1.5"
+            }
             
       - name: Enhanced real-time feedback processing
         if: github.event.inputs.enable_real_time_tracking == 'true'
@@ -1579,4 +1609,5 @@ jobs:
               exit 1
               ;;
           esac
+
 
