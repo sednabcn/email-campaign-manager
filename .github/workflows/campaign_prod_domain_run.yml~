@@ -966,7 +966,7 @@ jobs:
           fi
 
           
- campaign-run:
+  campaign-run:
     runs-on: ubuntu-latest
     steps:
       - name: Run campaign processing
@@ -979,7 +979,7 @@ jobs:
             --queue-emails
 
             
- trigger-send:
+  trigger-send:
     needs: campaign-run
     runs-on: ubuntu-latest
     steps:
