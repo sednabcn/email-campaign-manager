@@ -1066,7 +1066,7 @@ jobs:
       subject: "Collaboration Opportunity"
       dry_run: false
       delay: "1.5"
-      secrets: inherit
+
 
   enhanced-feedback-tracking:
     needs: enhanced-campaign-execution
