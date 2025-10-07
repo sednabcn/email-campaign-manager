@@ -87,7 +87,7 @@ def main():
     # Get SMTP configuration from environment
     smtp_server = os.environ.get("SMTP_SERVER")
     smtp_port = os.environ.get("SMTP_PORT", "587")
-    smtp_user = os.environ.get("SMTP_USERNAME")
+    smtp_user = os.environ.get("SMTP_USER")
     smtp_pass = os.environ.get("SMTP_PASSWORD")
     mail_from = os.environ.get("MAIL_FROM")
     
@@ -96,10 +96,10 @@ def main():
         print("ERROR: Missing SMTP environment variables")
         print(f"SMTP_SERVER: {'✓' if smtp_server else '✗'}")
         print(f"SMTP_PORT: {'✓' if smtp_port else '✗'}")
-        print(f"SMTP_USERNAME: {'✓' if smtp_user else '✗'}")
+        print(f"SMTP_USER: {'✓' if smtp_user else '✗'}")
         print(f"SMTP_PASSWORD: {'✓' if smtp_pass else '✗'}")
         print(f"MAIL_FROM: {'✓' if mail_from else '✗'}")
-        raise SystemExit("Set SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, MAIL_FROM")
+        raise SystemExit("Set SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, MAIL_FROM")
     
     print(f"SMTP Configuration:")
     print(f"  Server: {smtp_server}:{smtp_port}")

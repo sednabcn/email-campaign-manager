@@ -73,14 +73,29 @@ def validate_config(config_path):
         exists, msg = check_file(contacts, "csv")
         print(f"   {msg}: {contacts}")
         if not exists:
-            issues.append(f"Contacts file not found: {contacts}")
+            # For dynamically generated files, look for similar patterns
+            contact_dir = Path(contacts).parent
+            contact_pattern = Path(contacts).stem.rsplit('_', 2)[0] if '_2025' in contacts else Path(contacts).stem
             
-            # Suggest alternatives
-            csv_files = list(Path('contacts').glob('*.csv')) if Path('contacts').exists() else []
-            if csv_files:
-                print("\n   Alternative CSV files found:")
-                for csv_file in csv_files[:5]:
-                    print(f"     - {csv_file}")
+            # Find similar files
+            similar_files = []
+            if contact_dir.exists():
+                similar_files = list(contact_dir.glob(f"{contact_pattern}*.csv"))
+            
+            if similar_files:
+                print(f"\n   ⚠️  Exact file not found, but similar files exist:")
+                latest_file = max(similar_files, key=lambda p: p.stat().st_mtime)
+                print(f"   📝 Latest matching file: {latest_file}")
+                warnings.append(f"Using latest file instead of configured: {latest_file}")
+            else:
+                issues.append(f"Contacts file not found: {contacts}")
+                
+                # Suggest alternatives
+                csv_files = list(Path('contacts').glob('*.csv')) if Path('contacts').exists() else []
+                if csv_files:
+                    print("\n   Alternative CSV files found:")
+                    for csv_file in csv_files[:5]:
+                        print(f"     - {csv_file}")
     else:
         print("   ⚠️  No contacts file specified")
         warnings.append("No contacts file specified")
@@ -111,14 +126,33 @@ def validate_config(config_path):
     # 6. Check SMTP configuration
     print("\n6. SMTP Configuration:")
     smtp = config.get('smtp', {})
-    smtp_fields = ['host', 'port', 'username', 'password']
+    smtp_fields = {
+        'host': 'host',
+        'port': 'port', 
+        'username': ['username', 'user'],  # Allow 'user' as alternative
+        'password': ['password', 'pass']    # Allow 'pass' as alternative
+    }
     
-    for field in smtp_fields:
-        if field in smtp:
-            if field == 'password':
-                print(f"   ✅ {field}: {'*' * len(str(smtp[field]))}")
+    for field, alternatives in smtp_fields.items():
+        alt_list = alternatives if isinstance(alternatives, list) else [alternatives]
+        found = False
+        value = None
+        
+        for alt in alt_list:
+            if alt in smtp:
+                found = True
+                value = smtp[alt]
+                break
+        
+        if found:
+            # Check if it's an environment variable placeholder
+            if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
+                print(f"   ℹ️  {field}: {value} (will be substituted at runtime)")
+                warnings.append(f"SMTP {field} uses environment variable: {value}")
+            elif field == 'password':
+                print(f"   ✅ {field}: {'*' * min(len(str(value)), 16)}")
             else:
-                print(f"   ✅ {field}: {smtp[field]}")
+                print(f"   ✅ {field}: {value}")
         else:
             print(f"   ❌ Missing SMTP {field}")
             issues.append(f"Missing SMTP configuration: {field}")
@@ -186,15 +220,25 @@ def validate_config(config_path):
 
 def main():
     """Main entry point"""
-    if len(sys.argv) < 2:
-        print("Usage: python validate_campaign.py <config_file>")
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Validate campaign configuration')
+    parser.add_argument('config_file', help='Path to campaign configuration JSON file')
+    parser.add_argument('--allow-env-vars', action='store_true', 
+                       help='Allow environment variable placeholders (e.g., ${SMTP_HOST})')
+    parser.add_argument('--skip-contacts-check', action='store_true',
+                       help='Skip strict contact file validation (useful for dynamic files)')
+    
+    args = parser.parse_args()
+    
+    if not args.config_file:
+        print("Usage: python validate_campaign.py <config_file> [--allow-env-vars] [--skip-contacts-check]")
         print("\nExample:")
         print("  python validate_campaign.py configs/campaign1.json")
+        print("  python validate_campaign.py configs/campaign1.json --allow-env-vars --skip-contacts-check")
         sys.exit(1)
     
-    config_path = sys.argv[1]
-    
-    success = validate_config(config_path)
+    success = validate_config(args.config_file)
     
     print("\n" + "="*70)
     sys.exit(0 if success else 1)

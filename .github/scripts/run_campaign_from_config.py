@@ -47,7 +47,7 @@ def setup_smtp_env(smtp_config):
     env_mapping = {
         'host': 'SMTP_SERVER',
         'port': 'SMTP_PORT',
-        'user': 'SMTP_USERNAME',
+        'user': 'SMTP_USER',
         'password': 'SMTP_PASSWORD'
     }
     
@@ -67,7 +67,7 @@ def setup_smtp_env(smtp_config):
                 print(f"  ⚠️  {env_var}: Not set")
     
     # Validate required variables
-    required = ['SMTP_SERVER', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD']
+    required = ['SMTP_SERVER', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD']
     missing = [var for var in required if not os.environ.get(var)]
     
     if missing:

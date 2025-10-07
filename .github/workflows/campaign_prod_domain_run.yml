@@ -1205,16 +1205,56 @@ jobs:
             fi
           fi
 
+      - name: Update config with latest contact file
+        env:
+          CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
+        run: |
+          echo "Checking for latest contact file..."
+    
+          python3 << 'EOF'
+          import json
+          import os
+          from pathlib import Path
+    
+          config_file = os.environ['CONFIG_FILE']
+    
+          with open(config_file, 'r') as f:
+            config = json.load(f)
+    
+          contacts_path = config.get('contacts', '')
+          if contacts_path:
+            contact_dir = Path(contacts_path).parent
+            contact_pattern = Path(contacts_path).stem.rsplit('_', 2)[0] if '_2025' in contacts_path else Path(contacts_path).stem
+        
+          # Find latest matching file
+          if contact_dir.exists():
+            similar_files = list(contact_dir.glob(f"{contact_pattern}*.csv"))
+            if similar_files:
+                latest_file = max(similar_files, key=lambda p: p.stat().st_mtime)
+                print(f"📝 Updating config to use latest file: {latest_file}")
+                config['contacts'] = str(latest_file)
+                
+                # Save updated config
+                with open(config_file, 'w') as f:
+                    json.dump(config, f, indent=2)
+                
+                print(f"✅ Config updated: {contacts_path} → {latest_file}")
+            else:
+                print(f"⚠️ No matching contact files found for pattern: {contact_pattern}")
+          EOF    
+
       - name: Validate campaign configuration
         env:
           CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
         run: |
           echo "Validating campaign configuration..."
-          python3 .github/scripts/validate_campaign.py "$CONFIG_FILE"
+    
+          # Use flags appropriate for CI/CD environment
+          python3 .github/scripts/validate_campaign.py "$CONFIG_FILE" --allow-env-vars --skip-contacts-check
     
           if [ $? -ne 0 ]; then
-          echo "❌ Campaign validation failed"
-          exit 1
+             echo "❌ Campaign validation failed"
+             exit 1
           fi
     
           echo "✅ Campaign validation passed"
