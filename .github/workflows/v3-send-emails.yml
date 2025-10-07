@@ -1,0 +1,262 @@
+name: Send Personalized Emails v3
+on:
+  workflow_dispatch:
+    inputs:
+      contacts:
+        description: 'Contacts CSV path (relative)'
+        required: true
+        type: string
+        default: 'contacts/edu_adults_contacts_20251004_121252.csv'
+      template:
+        description: 'Template DOCX path (relative)'
+        required: false
+        type: string
+        default: ''
+      subject:
+        description: 'Email subject'
+        required: true
+        type: string
+        default: 'Collaboration Opportunity'
+      dry_run:
+        description: 'Dry run mode'
+        required: true
+        type: boolean
+        default: false
+      delay:
+        description: 'Delay between emails (seconds)'
+        required: false
+        type: string
+        default: '1.5'
+  
+  workflow_call:
+    inputs:
+      contacts:
+        description: 'Contacts CSV path (relative)'
+        required: true
+        type: string
+      template:
+        description: 'Template DOCX path (relative)'
+        required: false
+        type: string
+        default: ''
+      subject:
+        description: 'Email subject'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run mode'
+        required: true
+        type: boolean
+      delay:
+        description: 'Delay between emails (seconds)'
+        required: false
+        type: string
+        default: '1.5'
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    env:
+      SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASS }}
+      MAIL_FROM: ${{ secrets.MAIL_FROM }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Determine trigger type
+        id: trigger-info
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_call" ]; then
+            echo "trigger=workflow_call" >> $GITHUB_OUTPUT
+            echo "🔗 Triggered via workflow_call (synchronous)"
+          else
+            echo "trigger=workflow_dispatch" >> $GITHUB_OUTPUT
+            echo "👤 Triggered manually via workflow_dispatch"
+          fi
+      
+      - name: Download campaign artifacts
+        if: github.event_name == 'workflow_call'
+        uses: actions/download-artifact@v3
+        with:
+          name: campaign-files
+        continue-on-error: true
+      
+      - name: Get input values
+        id: get-inputs
+        run: |
+          echo "contacts=${{ inputs.contacts }}" >> $GITHUB_OUTPUT
+          echo "template=${{ inputs.template }}" >> $GITHUB_OUTPUT
+          echo "subject=${{ inputs.subject }}" >> $GITHUB_OUTPUT
+          echo "dry_run=${{ inputs.dry_run }}" >> $GITHUB_OUTPUT
+          echo "delay=${{ inputs.delay }}" >> $GITHUB_OUTPUT
+          
+          echo "📋 Input values:"
+          echo "  Contacts: ${{ inputs.contacts }}"
+          echo "  Template: ${{ inputs.template }}"
+          echo "  Subject: ${{ inputs.subject }}"
+          echo "  Dry run: ${{ inputs.dry_run }}"
+          echo "  Delay: ${{ inputs.delay }}s"
+      
+      - name: Find template from scheduled-campaigns
+        id: find-template
+        run: |
+          TEMPLATE_PATH="${{ steps.get-inputs.outputs.template }}"
+          
+          # If template path is empty or doesn't exist, search scheduled-campaigns
+          if [ -z "$TEMPLATE_PATH" ] || [ ! -f "$TEMPLATE_PATH" ]; then
+            echo "🔍 Template not provided or not found, searching scheduled-campaigns..."
+            
+            # Find the most recent .docx file in scheduled-campaigns
+            FOUND_TEMPLATE=$(find scheduled-campaigns/ -name "*.docx" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+            
+            if [ -n "$FOUND_TEMPLATE" ] && [ -f "$FOUND_TEMPLATE" ]; then
+              echo "✅ Found template: $FOUND_TEMPLATE"
+              TEMPLATE_PATH="$FOUND_TEMPLATE"
+            else
+              echo "⚠️ No template found in scheduled-campaigns/"
+              echo "📁 Contents of scheduled-campaigns/:"
+              ls -la scheduled-campaigns/ || echo "scheduled-campaigns/ directory not found"
+              
+              # Try to find in campaign-templates as fallback
+              echo "🔍 Searching campaign-templates/ as fallback..."
+              FOUND_TEMPLATE=$(find campaign-templates/ -name "*.docx" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+              
+              if [ -n "$FOUND_TEMPLATE" ] && [ -f "$FOUND_TEMPLATE" ]; then
+                echo "✅ Found template in campaign-templates: $FOUND_TEMPLATE"
+                TEMPLATE_PATH="$FOUND_TEMPLATE"
+              else
+                echo "❌ No template found in campaign-templates/ either"
+                ls -la campaign-templates/ || echo "campaign-templates/ directory not found"
+              fi
+            fi
+          else
+            echo "✅ Using provided template: $TEMPLATE_PATH"
+          fi
+          
+          echo "template_path=$TEMPLATE_PATH" >> $GITHUB_OUTPUT
+      
+      - name: Verify files exist
+        run: |
+          echo "============================================="
+          echo " FILE VERIFICATION"
+          echo "============================================="
+          echo ""
+          echo "📋 Contacts: ${{ steps.get-inputs.outputs.contacts }}"
+          echo "📄 Template: ${{ steps.find-template.outputs.template_path }}"
+          echo ""
+          
+          VERIFICATION_FAILED=0
+          
+          if [ ! -f "${{ steps.get-inputs.outputs.contacts }}" ]; then
+            echo "❌ Error: Contacts file not found!"
+            echo "📁 Contents of contacts/:"
+            ls -la contacts/ || echo "contacts/ directory not found"
+            VERIFICATION_FAILED=1
+          else
+            echo "✅ Contacts file verified"
+            ls -lh "${{ steps.get-inputs.outputs.contacts }}"
+            CONTACT_COUNT=$(tail -n +2 "${{ steps.get-inputs.outputs.contacts }}" | wc -l)
+            echo "📊 Total contacts: $CONTACT_COUNT"
+          fi
+          
+          echo ""
+          
+          if [ ! -f "${{ steps.find-template.outputs.template_path }}" ]; then
+            echo "❌ Error: Template file not found!"
+            echo "📁 Contents of scheduled-campaigns/:"
+            ls -la scheduled-campaigns/ || echo "scheduled-campaigns/ directory not found"
+            echo "📁 Contents of campaign-templates/:"
+            ls -la campaign-templates/ || echo "campaign-templates/ directory not found"
+            VERIFICATION_FAILED=1
+          else
+            echo "✅ Template file verified"
+            ls -lh "${{ steps.find-template.outputs.template_path }}"
+          fi
+          
+          echo ""
+          
+          if [ $VERIFICATION_FAILED -eq 1 ]; then
+            echo "============================================="
+            echo " ❌ FILE VERIFICATION FAILED"
+            echo "============================================="
+            exit 1
+          fi
+          
+          echo "============================================="
+          echo " ✅ ALL FILES VERIFIED"
+          echo "============================================="
+      
+      - name: Send personalized emails
+        run: |
+          echo "============================================="
+          echo " 📧 STARTING EMAIL SEND PROCESS"
+          echo "============================================="
+          echo ""
+          echo "Subject: ${{ steps.get-inputs.outputs.subject }}"
+          echo "Dry run: ${{ steps.get-inputs.outputs.dry_run }}"
+          echo "Delay: ${{ steps.get-inputs.outputs.delay }}s"
+          echo "Contacts: ${{ steps.get-inputs.outputs.contacts }}"
+          echo "Template: ${{ steps.find-template.outputs.template_path }}"
+          echo ""
+          
+          if [ "${{ steps.get-inputs.outputs.dry_run }}" = "true" ]; then
+            echo "🧪 DRY RUN MODE - No emails will be sent"
+            python .github/scripts/send_personalized_emails.py \
+              --contacts "${{ steps.get-inputs.outputs.contacts }}" \
+              --template "${{ steps.find-template.outputs.template_path }}" \
+              --subject "${{ steps.get-inputs.outputs.subject }}" \
+              --delay ${{ steps.get-inputs.outputs.delay }} \
+              --dry-run
+          else
+            echo "📤 LIVE MODE - Sending emails"
+            python .github/scripts/send_personalized_emails.py \
+              --contacts "${{ steps.get-inputs.outputs.contacts }}" \
+              --template "${{ steps.find-template.outputs.template_path }}" \
+              --subject "${{ steps.get-inputs.outputs.subject }}" \
+              --delay ${{ steps.get-inputs.outputs.delay }}
+          fi
+          
+          echo ""
+          echo "============================================="
+          echo " ✅ EMAIL SEND PROCESS COMPLETED"
+          echo "============================================="
+      
+      - name: Upload send logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: email-send-logs-${{ github.run_id }}
+          path: |
+            **/*.log
+            logs/
+            tracking/
+          if-no-files-found: warn
+      
+      - name: Final summary
+        if: always()
+        run: |
+          echo "============================================="
+          echo " 📊 EXECUTION SUMMARY"
+          echo "============================================="
+          echo ""
+          echo "Trigger: ${{ steps.trigger-info.outputs.trigger }}"
+          echo "Contacts: ${{ steps.get-inputs.outputs.contacts }}"
+          echo "Template: ${{ steps.find-template.outputs.template_path }}"
+          echo "Subject: ${{ steps.get-inputs.outputs.subject }}"
+          echo "Dry run: ${{ steps.get-inputs.outputs.dry_run }}"
+          echo "Status: ${{ job.status }}"
+          echo ""
+          echo "============================================="

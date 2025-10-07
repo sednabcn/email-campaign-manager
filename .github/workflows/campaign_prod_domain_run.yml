@@ -1058,26 +1058,20 @@ jobs:
             
   trigger-send:
     needs: campaign-run
+    if: needs.campaign-run.outputs.execution_status == 'success'
+    uses: ./.github/workflows/v3-send-emails.yml
+    with:
+      contacts: ${{ needs.campaign-run.outputs.contacts_file }}
+      template: ${{ needs.campaign-run.outputs.template_file || '' }}
+      subject: "Collaboration Opportunity"
+      dry_run: false
+      delay: "1.5"
+    secrets: inherit
     runs-on: ubuntu-latest
     steps:
       - name: Wait for 10 minutes for review
         run: sleep 60  # 600 seconds = 10 minutes
 
-      - name: Trigger send-emails workflow
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.GH_TOKEN }}
-          repository: ${{ github.repository }}
-          event-type: send-emails
-          client-payload: >-
-            {
-            "contacts": "${{ needs.campaign-run.outputs.contacts_file }}",
-            "template": "${{ needs.campaign-run.outputs.template_file }}",
-            "subject": "Collaboration Opportunity",
-            "dry_run": "false",
-            "delay": "1.5"
-            }
-            
       - name: Enhanced real-time feedback processing
         if: github.event.inputs.enable_real_time_tracking == 'true'
         run: |
