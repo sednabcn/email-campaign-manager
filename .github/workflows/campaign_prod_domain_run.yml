@@ -998,6 +998,33 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          echo "Installing Python dependencies..."
+          python -m pip install --upgrade pip setuptools wheel
+          
+          # Core dependencies with version pinning
+          pip install requests>=2.31.0 pandas>=2.0.0 python-docx>=0.8.11
+          pip install openpyxl>=3.1.0 xlrd>=2.0.1 jinja2>=3.1.0
+          pip install google-auth google-auth-oauthlib google-auth-httplib2
+          pip install google-api-python-client>=2.0.0 PyGithub>=1.55
+          pip install gspread>=5.0.0 oauth2client>=4.1.0
+          pip install beautifulsoup4 lxml urllib3 chardet
+          
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+            echo "Installed requirements from requirements.txt"
+          fi
+          
+          echo "Dependencies installation completed"
+
+      - name: Create required directories
+        run: |
+          echo "Creating required directories..."
+          mkdir -p contacts campaign-templates tracking
+          echo "✅ Directories created"
 
       - name: Run campaign processing
         run: |
