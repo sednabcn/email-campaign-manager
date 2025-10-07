@@ -1155,20 +1155,19 @@ jobs:
           echo "**Contacts File:** \`${{ steps.save-paths.outputs.contacts_file }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Template File:** \`${{ steps.save-paths.outputs.template_file }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-            
+
   trigger-send:
     needs: campaign-run
     # Only trigger if campaign-run succeeded
     if: needs.campaign-run.outputs.execution_status == 'success'
-    uses: ./.github/workflows/v3-send-emails.yml
+    uses: ./.github/workflows/v4-send-emails.yml
     secrets: inherit
     with:
       contacts: ${{ needs.campaign-run.outputs.contacts_file }}
       template: ${{ needs.campaign-run.outputs.template_file }}
       subject: "Collaboration Opportunity"
       dry_run: false
-      delay: "1.5"        
- 
+      delay: "1.5"
 
   enhanced-feedback-tracking:
     needs: enhanced-campaign-execution
