@@ -236,7 +236,8 @@ jobs:
           chmod 600 /tmp/google_svc.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/google_svc.json" >> $GITHUB_ENV
           echo "✅ Google credentials configured"
-- name: Enhanced system validation using existing scripts
+          
+      - name: Enhanced system validation using existing scripts
         id: validation
         run: |
           echo "Running comprehensive system validation..."
@@ -570,7 +571,8 @@ jobs:
           
           echo "✅ Enhanced test data created with multiple template variables"
           echo "Template variables: {{name}}, {{email}}, {{organization}}, {{role}}, {{domain}}, {{country}}"
-- name: Enhanced file system verification
+          
+      - name: Enhanced file system verification
         run: |
           echo "=== ENHANCED PRE-EXECUTION FILE SYSTEM VERIFICATION ==="
           echo "Current working directory: $PWD"
@@ -643,6 +645,7 @@ jobs:
           echo "**Contacts Loaded:** ${{ steps.contact_analysis.outputs.count }}" >> $GITHUB_STEP_SUMMARY
           echo "**Campaign Templates:** ${{ steps.domain_analysis.outputs.campaigns }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
 enhanced-campaign-execution:
     needs: enhanced-validation-and-prepare
     runs-on: ubuntu-latest
@@ -786,7 +789,8 @@ enhanced-campaign-execution:
           else
             echo "docx_feedback_processor.py not found - DOCX processing will be handled by main processor"
           fi
-- name: Enhanced campaign execution with comprehensive logging
+          
+      - name: Enhanced campaign execution with comprehensive logging
         id: execution
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -1014,6 +1018,7 @@ enhanced-campaign-execution:
             head -50 "${{ env.LOG_FILE }}" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+          
 json-config-campaign:
     needs: enhanced-validation-and-prepare
     runs-on: ubuntu-latest
@@ -1200,7 +1205,8 @@ json-config-campaign:
           fi
           
           echo "✅ Campaign validation passed"
-- name: Run campaign from JSON configuration
+          
+      - name: Run campaign from JSON configuration
         id: run-json-campaign
         continue-on-error: true
         env:
@@ -1360,7 +1366,8 @@ json-config-campaign:
           echo "- Contacts Loaded: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
           echo "- Templates Found: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
           echo "- Config Files: ${{ steps.find-configs.outputs.config_count }}" >> $GITHUB_STEP_SUMMARY
-- name: Generate comprehensive enhanced campaign report
+
+      - name: Generate comprehensive enhanced campaign report
         run: |
           echo "Generating comprehensive enhanced campaign report..."
           
@@ -1526,7 +1533,8 @@ json-config-campaign:
           print(f'Execution status: {execution_status}')
           print(f'Mode: {mode_text}')
           """
-- name: Create enhanced GitHub issue notification
+          
+      - name: Create enhanced GitHub issue notification
         if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1700,7 +1708,8 @@ json-config-campaign:
           echo "- **Production Features:** Comprehensive validation and error handling" >> $GITHUB_STEP_SUMMARY
           echo "- **Summary Generation:** ${SUMMARY_METHOD:-integrated} method used" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-- name: Enhanced final execution validation and report
+          
+      - name: Enhanced final execution validation and report
         if: always()
         run: |
           echo "============================================="
