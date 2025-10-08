@@ -171,6 +171,7 @@ def find_email_script():
     
     return None
 
+
 def build_command(config, template_file, script_path, dry_run=False, debug=False):
     """
     Build the command to execute the email script (docx_parser.py)
@@ -205,6 +206,7 @@ def build_command(config, template_file, script_path, dry_run=False, debug=False
     
     # Extract other required settings
     alerts_email = config.get('alerts_email', 'alerts@modelphysmat.com')
+    scheduled_dir = config.get('scheduled_dir', 'scheduled-campaigns')
     
     # Extract optional domain/sector filtering
     domain = config.get('domain')
@@ -214,17 +216,18 @@ def build_command(config, template_file, script_path, dry_run=False, debug=False
     if not contacts_file:
         raise ValueError("Missing required field: contacts")
     
-    # Build base command with REQUIRED arguments
-    # When using --templates with a specific file, we DON'T use --scheduled
-    # --scheduled is only for domain-based scanning mode
+    # Build base command with REQUIRED arguments in specific order
+    # Order matters! Keep --scheduled, --contacts, --tracking, --alerts together
     cmd = [
         'python3', script_path,
+        '--scheduled', scheduled_dir,
         '--contacts', contacts_file,
         '--tracking', tracking_dir,
         '--alerts', alerts_email,
     ]
     
-    # Add template file (this is the primary mode for JSON campaigns)
+    # Add template file if specified
+    # Note: When using --templates, the --scheduled dir is still required but not used
     if template_file:
         cmd.extend(['--templates', template_file])
     
