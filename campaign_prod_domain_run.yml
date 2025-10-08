@@ -620,6 +620,7 @@ jobs:
           echo "Testing SMTP connection..."
           python3 .github/scripts/test_smtp_connection.py || echo "⚠️ SMTP test failed but continuing..."
 
+
       - name: Setup credentials and configuration with enhanced validation
         env:
           GOOGLE_SVC_JSON: ${{ secrets.GOOGLE_SVC_JSON }}
@@ -670,6 +671,71 @@ jobs:
             print('⚠️ IMAP credentials incomplete - reply tracking may be limited')
           """
 
+      - name: Create comprehensive tracking directory structure
+        run: |
+          echo "Creating comprehensive tracking directory structure..."
+          
+          # Create tracking structure using Python for better reliability
+          python3 << 'PYTHON_SCRIPT'
+          from pathlib import Path
+          
+          base_path = Path("tracking")
+          
+          # Main tracking subdirectories
+          main_dirs = [
+              "feedback_responses",
+              "domain_stats",
+              "execution_logs",
+              "batch_reports",
+              "reply_tracking"
+          ]
+          
+          # Domain-specific directories
+          domains = {
+              "education": ["adult_education", "higher_education", "k12_education", "vocational"],
+              "finance": ["banking", "insurance", "investment", "accounting"],
+              "healthcare": ["hospitals", "clinics", "research", "pharma"],
+              "industry": ["manufacturing", "retail", "services", "construction"],
+              "technology": ["software", "hardware", "telecom", "it_services"],
+              "government": ["federal", "state", "local", "agencies"]
+          }
+          
+          print(f"Creating tracking structure in: {base_path.absolute()}")
+          
+          # Create main directories
+          for dir_name in main_dirs:
+              dir_path = base_path / dir_name
+              dir_path.mkdir(parents=True, exist_ok=True)
+              print(f"✅ {dir_path}")
+          
+          # Create domain-specific directories
+          for domain, subdomains in domains.items():
+              domain_path = base_path / domain
+              domain_path.mkdir(parents=True, exist_ok=True)
+              print(f"✅ {domain_path}")
+              
+              for subdomain in subdomains:
+                  subdomain_path = domain_path / subdomain
+                  subdomain_path.mkdir(parents=True, exist_ok=True)
+          
+          print(f"\n✅ All tracking directories created successfully")
+          PYTHON_SCRIPT
+          
+          echo "Verifying directory structure..."
+          ls -la tracking/
+          echo ""
+          echo "Domain directories:"
+          find tracking -type d -maxdepth 2 | sort      - name: Report campaign execution results
+          
+      - name: Report campaign execution results
+        if: always()
+        run: |
+          echo "### Campaign Execution Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Emails Queued:** ${{ steps.execution.outputs.emails_queued }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Batch Directory:** ${{ steps.execution.outputs.batch_directory }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** ${{ github.event.inputs.dry_run == 'true' && 'Dry Run' || 'Queue' }}" >> $GITHUB_STEP_SUMMARY
+    
       - name: Enhanced feedback system setup
         if: github.event.inputs.skip_feedback_injection != 'true'
         run: |
@@ -1001,35 +1067,232 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
+      - name: Report campaign execution results
+        if: always()
+        run: |
+          echo "### Campaign Execution Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Emails Queued:** ${{ steps.execution.outputs.emails_queued }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Batch Directory:** ${{ steps.execution.outputs.batch_directory }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** ${{ github.event.inputs.dry_run == 'true' && 'Dry Run' || 'Queue' }}" >> $GITHUB_STEP_SUMMARY
 
   send-queued-emails:
     needs: enhanced-campaign-execution
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: |
       needs.enhanced-campaign-execution.outputs.emails_queued == 'true' &&
       github.event.inputs.dry_run != 'true'
-    uses: ./.github/workflows/send-queued-emails.yml
-    with:
-      batch_directory: ${{ needs.enhanced-campaign-execution.outputs.batch_directory }}
-      batch_size: ${{ github.event.inputs.batch_size || '50' }}
-      delay_between_batches: ${{ github.event.inputs.delay_between_batches || '5' }}
-      delay_between_emails: '1.5'
-      force_immediate_send: true
-      debug_mode: ${{ github.event.inputs.debug_mode == 'true' }}
-    secrets:
-      SMTP_HOST: ${{ secrets.SMTP_HOST }}
-      SMTP_PORT: ${{ secrets.SMTP_PORT }}
-      SMTP_USER: ${{ secrets.SMTP_USER }}
-      SMTP_PASS: ${{ secrets.SMTP_PASS }}
-
-       
-      - name: Report sending results
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download queued emails artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: queued-emails-${{ github.run_id }}
+          path: ./
+      
+      - name: Verify batch directory after download
+        run: |
+          echo "Verifying downloaded batch directory..."
+          BATCH_DIR="${{ needs.enhanced-campaign-execution.outputs.batch_directory }}"
+          
+          echo "Expected batch directory: $BATCH_DIR"
+          echo ""
+          echo "Current directory contents:"
+          ls -la
+          echo ""
+          
+          # Look for batch directories
+          echo "Looking for email_batch_* directories:"
+          find . -type d -name "email_batch_*" -ls || echo "No batch directories found"
+          echo ""
+          
+          # If batch dir not found at expected location, search for it
+          if [ ! -d "$BATCH_DIR" ]; then
+            echo "⚠️ Batch directory not at expected location"
+            
+            # Try to find it
+            FOUND_DIR=$(find . -type d -name "$(basename "$BATCH_DIR")" | head -1)
+            if [ -n "$FOUND_DIR" ]; then
+              echo "✅ Found batch directory at: $FOUND_DIR"
+              BATCH_DIR="$FOUND_DIR"
+            else
+              echo "❌ ERROR: Batch directory not found: $BATCH_DIR"
+              echo ""
+              echo "Available directories:"
+              find . -type d -name "email_batch_*" || echo "No batch directories found"
+              exit 1
+            fi
+          fi
+          
+          # Verify email files
+          EMAIL_COUNT=$(find "$BATCH_DIR" -name "email_*.json" -type f | wc -l)
+          echo "✅ Batch directory verified: $BATCH_DIR"
+          echo "📧 Email files found: $EMAIL_COUNT"
+          
+          if [ "$EMAIL_COUNT" -eq 0 ]; then
+            echo "❌ ERROR: No email files found in batch directory"
+            exit 1
+          fi
+          
+          # Export for use in later steps
+          echo "BATCH_DIR=$BATCH_DIR" >> $GITHUB_ENV
+      
+      - name: Setup Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests>=2.31.0
+      
+      - name: Send emails from batch
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          BATCH_SIZE: ${{ github.event.inputs.batch_size || '50' }}
+          DELAY_BETWEEN_BATCHES: ${{ github.event.inputs.delay_between_batches || '5' }}
+          DELAY_BETWEEN_EMAILS: '1.5'
+          DEBUG_MODE: ${{ github.event.inputs.debug_mode == 'true' }}
+        run: |
+          echo "================================================"
+          echo "  📧 SENDING QUEUED EMAILS"
+          echo "================================================"
+          echo ""
+          echo "Batch Directory: $BATCH_DIR"
+          echo "Batch Size: $BATCH_SIZE"
+          echo "Delay Between Batches: ${DELAY_BETWEEN_BATCHES}s"
+          echo "Delay Between Emails: ${DELAY_BETWEEN_EMAILS}s"
+          echo ""
+          
+          # Check if send script exists
+          SEND_SCRIPT=""
+          for script in ".github/scripts/send_batch_emails.py" "utils/send_batch_emails.py" "send_batch_emails.py"; do
+            if [ -f "$script" ]; then
+              SEND_SCRIPT="$script"
+              echo "✅ Found send script: $script"
+              break
+            fi
+          done
+          
+          if [ -z "$SEND_SCRIPT" ]; then
+            echo "⚠️ No dedicated send script found, using inline Python"
+            
+            python3 << 'PYTHON_SCRIPT'
+          import os
+          import sys
+          import json
+          import time
+          import smtplib
+          from pathlib import Path
+          from email.mime.text import MIMEText
+          from email.mime.multipart import MIMEMultipart
+          
+          batch_dir = Path(os.environ['BATCH_DIR'])
+          batch_size = int(os.environ.get('BATCH_SIZE', 50))
+          delay_batches = float(os.environ.get('DELAY_BETWEEN_BATCHES', 5))
+          delay_emails = float(os.environ.get('DELAY_BETWEEN_EMAILS', 1.5))
+          debug = os.environ.get('DEBUG_MODE', 'false').lower() == 'true'
+          
+          smtp_host = os.environ.get('SMTP_HOST')
+          smtp_port = int(os.environ.get('SMTP_PORT', 587))
+          smtp_user = os.environ.get('SMTP_USER')
+          smtp_pass = os.environ.get('SMTP_PASS')
+          
+          if not all([smtp_host, smtp_user, smtp_pass]):
+              print("❌ ERROR: SMTP credentials not configured")
+              sys.exit(1)
+          
+          email_files = sorted(batch_dir.glob('email_*.json'))
+          total_emails = len(email_files)
+          
+          print(f"📧 Found {total_emails} emails to send")
+          print(f"📦 Processing in batches of {batch_size}")
+          print()
+          
+          sent_count = 0
+          failed_count = 0
+          
+          for i, email_file in enumerate(email_files, 1):
+              try:
+                  with open(email_file) as f:
+                      email_data = json.load(f)
+                  
+                  msg = MIMEMultipart('alternative')
+                  msg['From'] = email_data['from']
+                  msg['To'] = email_data['to']
+                  msg['Subject'] = email_data['subject']
+                  
+                  if 'reply_to' in email_data:
+                      msg['Reply-To'] = email_data['reply_to']
+                  
+                  msg.attach(MIMEText(email_data['body'], 'plain'))
+                  if 'html_body' in email_data:
+                      msg.attach(MIMEText(email_data['html_body'], 'html'))
+                  
+                  with smtplib.SMTP(smtp_host, smtp_port) as server:
+                      server.starttls()
+                      server.login(smtp_user, smtp_pass)
+                      server.send_message(msg)
+                  
+                  sent_count += 1
+                  print(f"✅ [{i}/{total_emails}] Sent to {email_data['to']}")
+                  
+                  if i % batch_size == 0 and i < total_emails:
+                      print(f"⏸️  Batch complete, waiting {delay_batches}s...")
+                      time.sleep(delay_batches)
+                  else:
+                      time.sleep(delay_emails)
+              
+              except Exception as e:
+                  failed_count += 1
+                  print(f"❌ [{i}/{total_emails}] Failed to send {email_file.name}: {e}")
+          
+          print()
+          print("================================================")
+          print(f"  ✅ Sent: {sent_count}/{total_emails}")
+          print(f"  ❌ Failed: {failed_count}/{total_emails}")
+          print("================================================")
+          
+          if failed_count > 0:
+              sys.exit(1)
+          PYTHON_SCRIPT
+          else
+            echo "Using dedicated send script: $SEND_SCRIPT"
+            python3 "$SEND_SCRIPT" \
+              --batch-dir "$BATCH_DIR" \
+              --batch-size "$BATCH_SIZE" \
+              --delay-batches "$DELAY_BETWEEN_BATCHES" \
+              --delay-emails "$DELAY_BETWEEN_EMAILS" \
+              $([ "$DEBUG_MODE" == "true" ] && echo "--debug")
+          fi
+      
+      - name: Upload sending results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: email-sending-results-${{ github.run_id }}
+          path: |
+            *.log
+            tracking/
+          retention-days: 7
+          if-no-files-found: ignore
+      
+      - name: Generate sending summary
         if: always()
         run: |
-          echo "### Email Sending Results" >> $GITHUB_STEP_SUMMARY
+          echo "### 📧 Email Sending Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Batch Directory:** ${{ needs.enhanced-campaign-execution.outputs.batch_directory }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Emails Queued:** ${{ needs.enhanced-campaign-execution.outputs.emails_queued }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Send Mode:** ${{ github.event.inputs.dry_run == 'true' && 'Dry Run' || 'Live' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Batch Directory:** \`$BATCH_DIR\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Batch Size:** ${{ github.event.inputs.batch_size || '50' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
      
   json-config-campaign:
     needs: enhanced-validation-and-prepare
@@ -1720,7 +1983,7 @@ jobs:
           echo "- **Production Features:** Comprehensive validation and error handling" >> $GITHUB_STEP_SUMMARY
           echo "- **Summary Generation:** ${SUMMARY_METHOD:-integrated} method used" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
       - name: Enhanced final execution validation and report
         if: always()
         run: |
@@ -1737,7 +2000,12 @@ jobs:
           echo "Validation: Comprehensive pre-execution checks"
           echo ""
           echo "ENHANCED EXECUTION RESULTS"
-          echo "Execution Status: $([ \"${EXECUTION_STATUS:-1}\" -eq 0 ] && echo 'SUCCESS' || echo 'ISSUES DETECTED')"
+          
+          # Clean and validate EXECUTION_STATUS
+          EXEC_STATUS_CLEAN="${EXECUTION_STATUS//\"/}"
+          EXEC_STATUS_CLEAN="${EXEC_STATUS_CLEAN:-1}"
+          
+          echo "Execution Status: $([ "$EXEC_STATUS_CLEAN" -eq 0 ] 2>/dev/null && echo 'SUCCESS' || echo 'ISSUES DETECTED')"
           echo "Success Indicators: ${SUCCESS_INDICATORS:-0}/5"
           echo "Mode: ${MODE_TEXT:-Unknown}"
           echo "Real Data Sources: ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}"
