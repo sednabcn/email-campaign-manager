@@ -726,8 +726,6 @@ jobs:
           echo ""
           echo "Domain directories:"
           find tracking -type d -maxdepth 2 | sort      - name: Report campaign execution results
-        if: always()
-        run: |
           echo "### Campaign Execution Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Emails Queued:** ${{ steps.execution.outputs.emails_queued }}" >> $GITHUB_STEP_SUMMARY
