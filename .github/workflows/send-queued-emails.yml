@@ -1,0 +1,306 @@
+name: Send Queued Emails from Batch
+
+on:
+  workflow_call:
+    inputs:
+      batch_directory:
+        description: 'Batch directory containing queued email JSON files'
+        required: true
+        type: string
+      batch_size:
+        description: 'Number of emails to send per batch'
+        required: false
+        type: string
+        default: '50'
+      delay_between_batches:
+        description: 'Delay between batches (seconds)'
+        required: false
+        type: string
+        default: '5'
+      delay_between_emails:
+        description: 'Delay between individual emails (seconds)'
+        required: false
+        type: string
+        default: '1.5'
+      force_immediate_send:
+        description: 'Send immediately (ignore any queued delays)'
+        required: false
+        type: boolean
+        default: true
+      debug_mode:
+        description: 'Enable debug logging'
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      SMTP_HOST:
+        required: true
+      SMTP_PORT:
+        required: true
+      SMTP_USER:
+        required: true
+      SMTP_PASS:
+        required: true
+
+jobs:
+  send-queued-emails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests python-dotenv
+          
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Verify batch directory
+        id: verify
+        run: |
+          BATCH_DIR="${{ inputs.batch_directory }}"
+          echo "Verifying batch directory: $BATCH_DIR"
+          
+          if [ ! -d "$BATCH_DIR" ]; then
+            echo "ERROR: Batch directory not found: $BATCH_DIR"
+            echo "Available directories:"
+            find . -type d -name "email_batch_*" 2>/dev/null || echo "No batch directories found"
+            exit 1
+          fi
+          
+          # Count email files
+          EMAIL_COUNT=$(find "$BATCH_DIR" -name "email_*.json" -type f | wc -l)
+          echo "Found $EMAIL_COUNT email JSON files"
+          
+          if [ "$EMAIL_COUNT" -eq 0 ]; then
+            echo "ERROR: No email files found in $BATCH_DIR"
+            ls -la "$BATCH_DIR"
+            exit 1
+          fi
+          
+          echo "email_count=$EMAIL_COUNT" >> $GITHUB_OUTPUT
+          echo "✅ Verified $EMAIL_COUNT emails ready to send"
+
+      - name: Create email sender script
+        run: |
+          cat > send_queued.py << 'PYTHON_SCRIPT'
+          #!/usr/bin/env python3
+          import json
+          import os
+          import sys
+          import time
+          import smtplib
+          from email.mime.text import MIMEText
+          from email.mime.multipart import MIMEMultipart
+          from pathlib import Path
+          from datetime import datetime
+
+          def send_email(smtp_conn, email_data, from_email, debug=False):
+              """Send a single email"""
+              try:
+                  msg = MIMEMultipart('alternative')
+                  msg['Subject'] = email_data['subject']
+                  msg['From'] = f"{email_data.get('from_name', 'Campaign System')} <{from_email}>"
+                  msg['To'] = email_data['to']
+                  msg['Date'] = datetime.now().strftime('%a, %d %b %Y %H:%M:%S %z')
+                  
+                  # Add body (support both plain text and HTML)
+                  body = email_data['body']
+                  if '<html>' in body.lower() or '<div>' in body.lower():
+                      msg.attach(MIMEText(body, 'html'))
+                  else:
+                      msg.attach(MIMEText(body, 'plain'))
+                  
+                  smtp_conn.send_message(msg)
+                  
+                  if debug:
+                      print(f"  ✅ Sent to: {email_data['to']}")
+                      print(f"     Subject: {email_data['subject']}")
+                  
+                  return True, None
+              
+              except Exception as e:
+                  error_msg = f"Failed to send to {email_data['to']}: {str(e)}"
+                  print(f"  ❌ {error_msg}")
+                  return False, error_msg
+
+          def main():
+              batch_dir = sys.argv[1] if len(sys.argv) > 1 else '.'
+              batch_size = int(sys.argv[2]) if len(sys.argv) > 2 else 50
+              delay_between_batches = float(sys.argv[3]) if len(sys.argv) > 3 else 5.0
+              delay_between_emails = float(sys.argv[4]) if len(sys.argv) > 4 else 1.5
+              debug = sys.argv[5].lower() == 'true' if len(sys.argv) > 5 else False
+              
+              print(f"{'='*70}")
+              print(f"  QUEUED EMAIL SENDER")
+              print(f"{'='*70}")
+              print(f"Batch directory: {batch_dir}")
+              print(f"Batch size: {batch_size}")
+              print(f"Delay between batches: {delay_between_batches}s")
+              print(f"Delay between emails: {delay_between_emails}s")
+              print(f"Debug mode: {debug}")
+              print()
+              
+              # Get SMTP credentials
+              smtp_host = os.getenv('SMTP_HOST')
+              smtp_port = int(os.getenv('SMTP_PORT', '587'))
+              smtp_user = os.getenv('SMTP_USER')
+              smtp_pass = os.getenv('SMTP_PASS')
+              
+              if not all([smtp_host, smtp_user, smtp_pass]):
+                  print("ERROR: Missing SMTP credentials")
+                  sys.exit(1)
+              
+              print(f"SMTP Server: {smtp_host}:{smtp_port}")
+              print(f"SMTP User: {smtp_user}")
+              print()
+              
+              # Find all email JSON files
+              email_files = sorted(Path(batch_dir).glob('email_*.json'))
+              total_emails = len(email_files)
+              
+              if total_emails == 0:
+                  print("ERROR: No email files found")
+                  sys.exit(1)
+              
+              print(f"Found {total_emails} emails to send")
+              print()
+              
+              # Connect to SMTP
+              print("Connecting to SMTP server...")
+              try:
+                  smtp = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
+                  smtp.ehlo()
+                  smtp.starttls()
+                  smtp.login(smtp_user, smtp_pass)
+                  print("✅ Connected to SMTP server")
+                  print()
+              except Exception as e:
+                  print(f"❌ SMTP connection failed: {e}")
+                  sys.exit(1)
+              
+              # Send emails in batches
+              sent_count = 0
+              failed_count = 0
+              batch_num = 0
+              
+              for i, email_file in enumerate(email_files):
+                  # Check if we need to start a new batch
+                  if i > 0 and i % batch_size == 0:
+                      batch_num += 1
+                      print(f"\n--- Batch {batch_num} complete ---")
+                      print(f"Progress: {i}/{total_emails} emails processed")
+                      print(f"Waiting {delay_between_batches}s before next batch...\n")
+                      time.sleep(delay_between_batches)
+                  
+                  # Load email data
+                  try:
+                      with open(email_file, 'r') as f:
+                          email_data = json.load(f)
+                      
+                      # Send email
+                      success, error = send_email(smtp, email_data, smtp_user, debug)
+                      
+                      if success:
+                          sent_count += 1
+                      else:
+                          failed_count += 1
+                      
+                      # Delay between emails (except for last one in batch)
+                      if (i + 1) % batch_size != 0 and i < total_emails - 1:
+                          time.sleep(delay_between_emails)
+                  
+                  except Exception as e:
+                      print(f"❌ Error processing {email_file.name}: {e}")
+                      failed_count += 1
+              
+              # Close SMTP connection
+              smtp.quit()
+              
+              # Summary
+              print(f"\n{'='*70}")
+              print(f"  SENDING COMPLETE")
+              print(f"{'='*70}")
+              print(f"Total emails: {total_emails}")
+              print(f"Sent successfully: {sent_count}")
+              print(f"Failed: {failed_count}")
+              print(f"Success rate: {(sent_count/total_emails*100):.1f}%")
+              print(f"{'='*70}")
+              
+              # Save results
+              results = {
+                  'total_emails': total_emails,
+                  'sent': sent_count,
+                  'failed': failed_count,
+                  'success_rate': sent_count/total_emails*100,
+                  'timestamp': datetime.now().isoformat(),
+                  'batch_directory': batch_dir
+              }
+              
+              with open('send_results.json', 'w') as f:
+                  json.dump(results, f, indent=2)
+              
+              if failed_count > 0:
+                  sys.exit(1)
+
+          if __name__ == '__main__':
+              main()
+          PYTHON_SCRIPT
+          
+          chmod +x send_queued.py
+
+      - name: Send queued emails
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          python send_queued.py \
+            "${{ inputs.batch_directory }}" \
+            "${{ inputs.batch_size }}" \
+            "${{ inputs.delay_between_batches }}" \
+            "${{ inputs.delay_between_emails }}" \
+            "${{ inputs.debug_mode }}"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: send-results-${{ github.run_id }}
+          path: |
+            send_results.json
+            *.log
+          retention-days: 7
+
+      - name: Generate summary
+        if: always()
+        run: |
+          if [ -f send_results.json ]; then
+            echo "### 📧 Email Sending Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            python3 << 'EOF'
+          import json
+          
+          with open('send_results.json') as f:
+              results = json.load(f)
+          
+          print(f"**Total Emails:** {results['total_emails']}")
+          print(f"**Sent Successfully:** {results['sent']}")
+          print(f"**Failed:** {results['failed']}")
+          print(f"**Success Rate:** {results['success_rate']:.1f}%")
+          print(f"**Batch Directory:** {results['batch_directory']}")
+          EOF
+          fi
