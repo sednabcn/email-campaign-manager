@@ -1298,15 +1298,6 @@ jobs:
               print(f"\n⚠️  {failed_count} emails failed - check logs for details")
               sys.exit(1)
           PYTHON_SCRIPT
-          else
-            echo "Using dedicated send script: $SEND_SCRIPT"
-            python3 "$SEND_SCRIPT" \
-              --batch-dir "$BATCH_DIR" \
-              --batch-size "$BATCH_SIZE" \
-              --delay-batches "$DELAY_BETWEEN_BATCHES" \
-              --delay-emails "$DELAY_BETWEEN_EMAILS" \
-              $([ "$DEBUG_MODE" == "true" ] && echo "--debug")
-          fi
       
       - name: Upload sending results
         if: always()
