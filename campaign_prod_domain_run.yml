@@ -1001,14 +1001,6 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Report campaign execution results
-        if: always()
-        run: |
-          echo "### Campaign Execution Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Emails Queued:** ${{ steps.execution.outputs.emails_queued }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Batch Directory:** ${{ steps.execution.outputs.batch_directory }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Mode:** ${{ github.event.inputs.dry_run == 'true' && 'Dry Run' || 'Queue' }}" >> $GITHUB_STEP_SUMMARY
 
   send-queued-emails:
     needs: enhanced-campaign-execution
@@ -1027,8 +1019,17 @@ jobs:
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
       SMTP_PORT: ${{ secrets.SMTP_PORT }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
-      SMTP_PASS: ${{ secrets.SMTP_PASS }} 
- 
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+
+       
+      - name: Report sending results
+        if: always()
+        run: |
+          echo "### Email Sending Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Batch Directory:** ${{ needs.enhanced-campaign-execution.outputs.batch_directory }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Emails Queued:** ${{ needs.enhanced-campaign-execution.outputs.emails_queued }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Send Mode:** ${{ github.event.inputs.dry_run == 'true' && 'Dry Run' || 'Live' }}" >> $GITHUB_STEP_SUMMARY
      
   json-config-campaign:
     needs: enhanced-validation-and-prepare
