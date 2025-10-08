@@ -1654,171 +1654,173 @@ jobs:
           except Exception as e:
             print(f'Error creating enhanced GitHub issue: {e}') """
 
-    
-        - name: Upload comprehensive enhanced artifacts
+    - name: Upload comprehensive enhanced artifacts
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: enhanced-production-results-0-${{ github.run_id }}
         path: |
-          *.log
-          tracking/
-          reports/
-          contact_analysis.json
-          domain_analysis.json
-          utils/
-          contacts/
-          scheduled-campaigns/
-          campaign-templates/
-        retention-days: 30
+            *.log
+            tracking/
+            reports/
+            contact_analysis.json
+            domain_analysis.json
+            utils/
+            contacts/
+            scheduled-campaigns/
+            campaign-templates/
+          retention-days: 30
 
     - name: Update enhanced GitHub Step Summary
       if: always()
       run: |
-        echo "## Enhanced Email Campaign Execution Report" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Enhanced Email Campaign Execution Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "reports/enhanced_summary.md" ]; then
+            cat reports/enhanced_summary.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Status:** ${EXECUTION_STATUS:-unknown}" >> $GITHUB_STEP_SUMMARY
+            echo "**Mode:** ${MODE_TEXT:-Unknown}" >> $GITHUB_STEP_SUMMARY
+            echo "**Success Score:** ${SUCCESS_INDICATORS:-0}/5" >> $GITHUB_STEP_SUMMARY
+            echo "**Contacts:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Templates:** ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Enhanced System Features" >> $GITHUB_STEP_SUMMARY
+          echo "- **Template Processing:** Variable substitution active" >> $GITHUB_STEP_SUMMARY
+          echo "- **Multi-source Data:** CSV, Excel, Google Sheets supported" >> $GITHUB_STEP_SUMMARY
+          echo "- **Feedback System:** Injection and tracking integrated" >> $GITHUB_STEP_SUMMARY
+          echo "- **Real-time Analysis:** Reply processing and metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- **Production Features:** Comprehensive validation and error handling" >> $GITHUB_STEP_SUMMARY
+          echo "- **Summary Generation:** ${SUMMARY_METHOD:-integrated} method used" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-        if [ -f "reports/enhanced_summary.md" ]; then
-          cat reports/enhanced_summary.md >> $GITHUB_STEP_SUMMARY
-        else
-          echo "**Status:** ${EXECUTION_STATUS:-unknown}" >> $GITHUB_STEP_SUMMARY
-          echo "**Mode:** ${MODE_TEXT:-Unknown}" >> $GITHUB_STEP_SUMMARY
-          echo "**Success Score:** ${SUCCESS_INDICATORS:-0}/5" >> $GITHUB_STEP_SUMMARY
-          echo "**Contacts:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Templates:** ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
-        fi
-
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Enhanced System Features" >> $GITHUB_STEP_SUMMARY
-        echo "- **Template Processing:** Variable substitution active" >> $GITHUB_STEP_SUMMARY
-        echo "- **Multi-source Data:** CSV, Excel, Google Sheets supported" >> $GITHUB_STEP_SUMMARY
-        echo "- **Feedback System:** Injection and tracking integrated" >> $GITHUB_STEP_SUMMARY
-        echo "- **Real-time Analysis:** Reply processing and metrics" >> $GITHUB_STEP_SUMMARY
-        echo "- **Production Features:** Comprehensive validation and error handling" >> $GITHUB_STEP_SUMMARY
-        echo "- **Summary Generation:** ${SUMMARY_METHOD:-integrated} method used" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
+          
     - name: Enhanced final execution validation and report
       if: always()
       run: |
-        echo "============================================="
-        echo "   ENHANCED CAMPAIGN EXECUTION COMPLETED    "
-        echo "============================================="
-        echo ""
-        echo "ENHANCED SYSTEM STATUS"
-        echo "Main Processor: utils/docx_parser.py (Enhanced Mode)"
-        echo "Data Integration: Multi-source with professional data_loader.py"
-        echo "Template Engine: Variable substitution active"
-        echo "Feedback System: Injection and tracking integrated"
-        echo "Reply Analysis: Real-time processing with enhanced metrics"
-        echo "Validation: Comprehensive pre-execution checks"
-        echo ""
-        echo "ENHANCED EXECUTION RESULTS"
-        echo "Execution Status: $([ \"${EXECUTION_STATUS:-1}\" -eq 0 ] && echo 'SUCCESS' || echo 'ISSUES DETECTED')"
-        echo "Success Indicators: ${SUCCESS_INDICATORS:-0}/5"
-        echo "Mode: ${MODE_TEXT:-Unknown}"
-        echo "Real Data Sources: ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}"
-        echo "Contact Files: ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
-        echo "Contacts Processed: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}"
-        echo "Templates Available: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}"
-        echo "Target Domain: ${{ github.event.inputs.target_domain || 'All domains' }}"
-        echo "Feedback Injection: ${{ github.event.inputs.skip_feedback_injection != 'true' && 'ENABLED' || 'DISABLED' }}"
-        echo "Real-time Tracking: ${{ github.event.inputs.enable_real_time_tracking }}"
-        echo "Debug Mode: ${{ github.event.inputs.debug_mode }}"
-        echo ""
-        echo "ENHANCED FEATURES VALIDATED"
-        echo "- Template Variable Processing: {{name}}, {{email}}, {{organization}}, etc."
-        echo "- Multi-source Contact Loading: CSV, Excel, Google Sheets, JSON"
-        echo "- Professional Data Loader Integration: Fallback system available"
-        echo "- Feedback Injection System: email_feedback_injector.py"
-        echo "- Real-time Reply Tracking: reply_tracker.py with enhanced analysis"
-        echo "- DOCX Template Processing: docx_feedback_processor.py"
-        echo "- Comprehensive Error Handling: Enhanced validation and recovery"
-        echo "- Production-grade Logging: Detailed execution tracking"
-        echo ""
-        echo "ENHANCED ARTIFACTS GENERATED"
-        echo "- ${LOG_FILE:-campaign_execution.log} (detailed execution log)"
-        echo "- reports/enhanced_campaign_report.md (comprehensive analysis)"
-        echo "- tracking/execution_start.json (execution metadata)"
-        echo "- contact_analysis.json (enhanced contact statistics)"
-        echo "- domain_analysis.json (template analysis with variables)"
-        echo "- tracking/reply_tracking/ (enhanced reply analysis)"
-        echo "- tracking/ (comprehensive feedback and metrics)"
-        echo ""
-        echo "ENHANCED NOTIFICATIONS"
-        echo "- GitHub issue created with comprehensive report"
-        echo "- Enhanced step summary with success metrics"
-        echo "- Comprehensive artifacts uploaded for 30-day retention"
-        echo ""
-        echo "SYSTEM INTEGRATION ASSESSMENT"
+          echo "============================================="
+          echo "   ENHANCED CAMPAIGN EXECUTION COMPLETED    "
+          echo "============================================="
+          echo ""
+          echo "ENHANCED SYSTEM STATUS"
+          echo "Main Processor: utils/docx_parser.py (Enhanced Mode)"
+          echo "Data Integration: Multi-source with professional data_loader.py"
+          echo "Template Engine: Variable substitution active"
+          echo "Feedback System: Injection and tracking integrated"
+          echo "Reply Analysis: Real-time processing with enhanced metrics"
+          echo "Validation: Comprehensive pre-execution checks"
+          echo ""
+          echo "ENHANCED EXECUTION RESULTS"
+          echo "Execution Status: $([ "${EXECUTION_STATUS:-1}" -eq 0 ] && echo 'SUCCESS' || echo 'ISSUES DETECTED')"
+          echo "Success Indicators: ${SUCCESS_INDICATORS:-0}/5"
+          echo "Mode: ${MODE_TEXT:-Unknown}"
+          echo "Real Data Sources: ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}"
+          echo "Contact Files: ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
+          echo "Contacts Processed: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}"
+          echo "Templates Available: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}"
+          echo "Target Domain: ${{ github.event.inputs.target_domain || 'All domains' }}"
+          echo "Feedback Injection: ${{ github.event.inputs.skip_feedback_injection != 'true' && 'ENABLED' || 'DISABLED' }}"
+          echo "Real-time Tracking: ${{ github.event.inputs.enable_real_time_tracking }}"
+          echo "Debug Mode: ${{ github.event.inputs.debug_mode }}"
+          echo ""
+          echo "ENHANCED FEATURES VALIDATED"
+          echo "- Template Variable Processing: {{name}}, {{email}}, {{organization}}, etc."
+          echo "- Multi-source Contact Loading: CSV, Excel, Google Sheets, JSON"
+          echo "- Professional Data Loader Integration: Fallback system available"
+          echo "- Feedback Injection System: email_feedback_injector.py"
+          echo "- Real-time Reply Tracking: reply_tracker.py with enhanced analysis"
+          echo "- DOCX Template Processing: docx_feedback_processor.py"
+          echo "- Comprehensive Error Handling: Enhanced validation and recovery"
+          echo "- Production-grade Logging: Detailed execution tracking"
+          echo ""
+          echo "ENHANCED ARTIFACTS GENERATED"
+          echo "- ${LOG_FILE:-campaign_execution.log} (detailed execution log)"
+          echo "- reports/enhanced_campaign_report.md (comprehensive analysis)"
+          echo "- tracking/execution_start.json (execution metadata)"
+          echo "- contact_analysis.json (enhanced contact statistics)"
+          echo "- domain_analysis.json (template analysis with variables)"
+          echo "- tracking/reply_tracking/ (enhanced reply analysis)"
+          echo "- tracking/ (comprehensive feedback and metrics)"
+          echo ""
+          echo "ENHANCED NOTIFICATIONS"
+          echo "- GitHub issue created with comprehensive report"
+          echo "- Enhanced step summary with success metrics"
+          echo "- Comprehensive artifacts uploaded for 30-day retention"
+          echo ""
+          echo "SYSTEM INTEGRATION ASSESSMENT"
+          
+          # Enhanced final status determination
+          final_status="UNKNOWN"
+          if [ "${EXECUTION_STATUS:-1}" -eq 0 ] && [ "${SUCCESS_INDICATORS:-0}" -ge 4 ]; then
+            final_status="COMPLETE_SUCCESS"
+            echo "STATUS: COMPLETE SUCCESS"
+            echo "All enhanced systems operational with full feature integration"
+          elif [ "${EXECUTION_STATUS:-1}" -eq 0 ] && [ "${SUCCESS_INDICATORS:-0}" -ge 2 ]; then
+            final_status="SUCCESS"
+            echo "STATUS: SUCCESS"
+            echo "Core enhanced functionality working with comprehensive features"
+          elif [ "${SUCCESS_INDICATORS:-0}" -ge 2 ]; then
+            final_status="PARTIAL_SUCCESS"
+            echo "STATUS: PARTIAL SUCCESS"
+            echo "Enhanced systems partially operational - review recommended"
+          else
+            final_status="ISSUES_DETECTED"
+            echo "STATUS: ISSUES DETECTED"
+            echo "Enhanced system validation required - check execution logs"
+          fi
+          
+          echo ""
+          echo "ENHANCED ARCHITECTURE BENEFITS"
+          echo "- Dry-run workflow's validation approach integrated into production"
+          echo "- Production workflow's advanced features preserved and enhanced"
+          echo "- Best practices from both workflows combined"
+          echo "- Comprehensive error handling and recovery mechanisms"
+          echo "- Multi-source data integration with professional-grade processing"
+          echo "- Template processing with full variable substitution"
+          echo "- Real-time feedback and reply analysis"
+          echo "- Production-ready with enhanced validation and monitoring"
+          echo ""
+          
+          if [ "${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}" == "true" ]; then
+            echo "PRODUCTION READINESS: CONFIRMED"
+            echo "Real contact data sources detected and successfully integrated"
+            echo "Google Sheets, CSV, and Excel files processed"
+            echo "System ready for immediate production deployment"
+          else
+            echo "PRODUCTION READINESS: TEST MODE"
+            echo "Sample data validated successfully - system architecture confirmed"
+            echo "Add real contact data files to contacts/ directory for production use"
+            echo "System ready for real data integration"
+          fi
+          
+          echo ""
+          echo "ENHANCED WORKFLOW SUCCESS"
+          echo "This enhanced production workflow successfully combines:"
+          echo "- Dry-run workflow's systematic validation and error handling"
+          echo "- Production workflow's advanced feedback and tracking features"
+          echo "- Enhanced template processing and variable substitution"
+          echo "- Comprehensive multi-source data integration"
+          echo "- Production-grade reliability and monitoring"
+          echo ""
+          
+          # Set final exit status based on enhanced analysis
+          case "$final_status" in
+            "COMPLETE_SUCCESS"|"SUCCESS")
+              echo "ENHANCED CAMPAIGN EXECUTION: SUCCESSFUL COMPLETION"
+              exit 0
+              ;;
+            "PARTIAL_SUCCESS")
+              echo "ENHANCED CAMPAIGN EXECUTION: COMPLETED WITH RECOMMENDATIONS"
+              exit 0
+              ;;
+            *)
+              echo "ENHANCED CAMPAIGN EXECUTION: COMPLETED WITH ISSUES"
+              echo "Check execution logs and validation reports for details"
+              exit 1
+              ;;
+          esac
 
-        # Enhanced final status determination
-        final_status="UNKNOWN"
-        if [ "${EXECUTION_STATUS:-1}" -eq 0 ] && [ "${SUCCESS_INDICATORS:-0}" -ge 4 ]; then
-          final_status="COMPLETE_SUCCESS"
-          echo "STATUS: COMPLETE SUCCESS"
-          echo "All enhanced systems operational with full feature integration"
-        elif [ "${EXECUTION_STATUS:-1}" -eq 0 ] && [ "${SUCCESS_INDICATORS:-0}" -ge 2 ]; then
-          final_status="SUCCESS"
-          echo "STATUS: SUCCESS"
-          echo "Core enhanced functionality working with comprehensive features"
-        elif [ "${SUCCESS_INDICATORS:-0}" -ge 2 ]; then
-          final_status="PARTIAL_SUCCESS"
-          echo "STATUS: PARTIAL SUCCESS"
-          echo "Enhanced systems partially operational - review recommended"
-        else
-          final_status="ISSUES_DETECTED"
-          echo "STATUS: ISSUES DETECTED"
-          echo "Enhanced system validation required - check execution logs"
-        fi
 
-        echo ""
-        echo "ENHANCED ARCHITECTURE BENEFITS"
-        echo "- Dry-run workflow's validation approach integrated into production"
-        echo "- Production workflow's advanced features preserved and enhanced"
-        echo "- Best practices from both workflows combined"
-        echo "- Comprehensive error handling and recovery mechanisms"
-        echo "- Multi-source data integration with professional-grade processing"
-        echo "- Template processing with full variable substitution"
-        echo "- Real-time feedback and reply analysis"
-        echo "- Production-ready with enhanced validation and monitoring"
-        echo ""
-
-        if [ "${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}" == "true" ]; then
-          echo "PRODUCTION READINESS: CONFIRMED"
-          echo "Real contact data sources detected and successfully integrated"
-          echo "Google Sheets, CSV, and Excel files processed"
-          echo "System ready for immediate production deployment"
-        else
-          echo "PRODUCTION READINESS: TEST MODE"
-          echo "Sample data validated successfully - system architecture confirmed"
-          echo "Add real contact data files to contacts/ directory for production use"
-          echo "System ready for real data integration"
-        fi
-
-        echo ""
-        echo "ENHANCED WORKFLOW SUCCESS"
-        echo "This enhanced production workflow successfully combines:"
-        echo "- Dry-run workflow's systematic validation and error handling"
-        echo "- Production workflow's advanced feedback and tracking features"
-        echo "- Enhanced template processing and variable substitution"
-        echo "- Comprehensive multi-source data integration"
-        echo "- Production-grade reliability and monitoring"
-        echo ""
-
-        # Set final exit status based on enhanced analysis
-        case "$final_status" in
-          "COMPLETE_SUCCESS"|"SUCCESS")
-            echo "ENHANCED CAMPAIGN EXECUTION: SUCCESSFUL COMPLETION"
-            exit 0
-            ;;
-          "PARTIAL_SUCCESS")
-            echo "ENHANCED CAMPAIGN EXECUTION: COMPLETED WITH RECOMMENDATIONS"
-            exit 0
-            ;;
-          *)
-            echo "ENHANCED CAMPAIGN EXECUTION: COMPLETED WITH ISSUES"
-            echo "Check execution logs and validation reports for details"
-            exit 1
-            ;;
-        esac
