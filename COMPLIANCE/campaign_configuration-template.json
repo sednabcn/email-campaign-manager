@@ -1,0 +1,110 @@
+{
+  "_comment": "Compliant Email Campaign Configuration",
+  
+  "sender_info": {
+    "from_name": "Your Full Name",
+    "from_email": "your.email@domain.com",
+    "reply_to": "your.email@domain.com",
+    "physical_address": "Your Street Address, City, State/Province, Country, Postal Code",
+    "_note": "Physical address is REQUIRED by CAN-SPAM Act"
+  },
+  
+  "unsubscribe": {
+    "base_url": "https://your-domain.com/unsubscribe",
+    "_note": "You MUST create this unsubscribe page - see integration guide"
+  },
+  
+  "rate_limits": {
+    "max_daily_sends": 50,
+    "_daily_note": "Conservative limit - 50 emails per day maximum",
+    
+    "max_hourly_sends": 10,
+    "_hourly_note": "Spread emails throughout the day - 10 per hour max",
+    
+    "max_per_domain_daily": 5,
+    "_domain_note": "Don't flood same organization - 5 per domain max",
+    
+    "min_delay_seconds": 30,
+    "_delay_note": "Minimum 30 seconds between emails",
+    
+    "burst_protection": true,
+    "_burst_note": "Prevents sudden bursts that look like spam"
+  },
+  
+  "targeting": {
+    "min_days_between_contacts": 90,
+    "_days_note": "Don't contact same person within 90 days",
+    
+    "respect_opt_outs": true,
+    "_optout_note": "Always honor unsubscribe requests",
+    
+    "skip_bounced": true,
+    "_bounce_note": "Don't retry bounced addresses"
+  },
+  
+  "personalization": {
+    "require_name": true,
+    "_name_note": "Skip contacts without names - shows you did research",
+    
+    "require_organization": false,
+    "_org_note": "Organization helpful but not required",
+    
+    "validate_before_send": true,
+    "_validate_note": "Check all {{variables}} are filled"
+  },
+  
+  "compliance": {
+    "add_unsubscribe_footer": true,
+    "add_physical_address": true,
+    "add_list_unsubscribe_header": true,
+    "mark_as_bulk": true,
+    "_note": "ALL of these should be true for compliance"
+  },
+  
+  "smtp": {
+    "host": "smtp.your-provider.com",
+    "port": 587,
+    "use_tls": true,
+    "username": "your.email@domain.com",
+    "password": "stored_in_secrets",
+    "_note": "Never commit passwords - use environment variables or secrets"
+  },
+  
+  "tracking": {
+    "log_all_sends": true,
+    "log_directory": "tracking",
+    "track_bounces": true,
+    "track_opt_outs": true,
+    "_note": "Keep detailed logs for compliance and improvement"
+  },
+  
+  "safety": {
+    "require_dry_run_first": true,
+    "_dryrun_note": "Always test with --dry-run before live sending",
+    
+    "max_campaign_size": 100,
+    "_size_note": "Don't allow campaigns over 100 emails without review",
+    
+    "require_confirmation": true,
+    "_confirm_note": "Ask for confirmation before sending"
+  },
+  
+  "professional_guidelines": {
+    "_purpose": "These are YOUR ethical guidelines - enforce them",
+    
+    "only_relevant_contacts": true,
+    "_relevant_note": "Only contact people relevant to your field/goals",
+    
+    "personalize_each_email": true,
+    "_personal_note": "Each email should be genuinely personalized",
+    
+    "genuine_outreach": true,
+    "_genuine_note": "Be honest about your intent - no deception",
+    
+    "respect_responses": true,
+    "_response_note": "If someone says no or doesn't respond, respect it",
+    
+    "quality_over_quantity": true,
+    "_quality_note": "10 thoughtful emails beat 100 generic ones"
+  }
+}

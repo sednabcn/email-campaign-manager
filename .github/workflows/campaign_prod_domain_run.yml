@@ -1505,7 +1505,7 @@ jobs:
           fi
           
           echo "✅ Campaign validation passed"
-          
+
       - name: Run campaign from JSON configuration
         id: run-json-campaign
         continue-on-error: true
@@ -1573,27 +1573,21 @@ jobs:
           echo "=========================================="
           echo "Setting outputs: status=$STATUS, emails_sent=$EMAILS_SENT"
           
-          # CRITICAL: Set outputs using proper format with error checking
-          {
-            echo "status=$STATUS"
-            echo "emails_sent=$EMAILS_SENT"
-          } >> "$GITHUB_OUTPUT" || {
-            echo "ERROR: Failed to write to GITHUB_OUTPUT"
-            echo "GITHUB_OUTPUT path: $GITHUB_OUTPUT"
-            ls -la "$GITHUB_OUTPUT" 2>/dev/null || echo "File does not exist"
-          }
+          # CRITICAL: Set outputs using proper format with quotes
+          cat >> "$GITHUB_OUTPUT" << EOF
+          status=$STATUS
+          emails_sent=$EMAILS_SENT
+          EOF
           
           # Verify outputs were written
           if [ -f "$GITHUB_OUTPUT" ]; then
             echo "Output file contents:"
-            cat "$GITHUB_OUTPUT"
+            tail -5 "$GITHUB_OUTPUT"
           fi
           
-          # Don't exit with error code - let continue-on-error handle it
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "Campaign execution had issues (exit code: $EXIT_CODE)"
-          fi
-
+          # Exit with 0 since we have continue-on-error
+          exit 0
+      
       - name: Verify outputs were set
         if: always()
         run: |
