@@ -1320,24 +1320,16 @@ jobs:
           echo "- Contacts Loaded: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
           echo "- Templates Found: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
           echo "- Config Files: ${{ steps.find-configs.outputs.config_count }}" >> $GITHUB_STEP_SUMMARY
+
           
   trigger-send:
-    needs: json-config-campaign
-    # Only trigger if campaign-run succeeded
-    if: needs.campaign-run.outputs.execution_status == 'success'
-    uses: ./.github/workflows/v4-send-emails.yml
-    secrets: inherit
-    with:
-      contacts: ${{ needs.campaign-run.outputs.contacts_file }}
-      template: ${{ needs.campaign-run.outputs.template_file }}
-      subject: "Collaboration Opportunity"
-      dry_run: false
-      delay: "1.5"
-
-  enhanced-feedback-tracking:
-    needs: enhanced-campaign-execution
+    needs: [enhanced-campaign-execution, json-config-campaign]
     runs-on: ubuntu-latest
-    if: github.event.inputs.enable_real_time_tracking == 'true'
+    # Only trigger if emails were queued
+    if: |
+      always() && 
+      (needs.enhanced-campaign-execution.outputs.emails_queued == 'true' || 
+       needs.json-config-campaign.outputs.execution_status == 'success')
     
     steps:
       - name: Checkout repository
@@ -1352,127 +1344,296 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install requests>=2.31.0 pandas>=2.0.0 python-docx>=0.8.11
-          pip install google-auth google-auth-oauthlib google-auth-httplib2
-          pip install google-api-python-client>=2.0.0
+          pip install python-docx>=0.8.11 pandas>=2.0.0 requests>=2.31.0
           
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
 
-      - name: Enhanced real-time feedback processing
-        if: github.event.inputs.enable_real_time_tracking == 'true'
-        run: |
-          echo "Processing enhanced real-time feedback and replies..."
-          
-          # Enhanced reply tracking
-          if [ -f "reply_tracker.py" ]; then
-            echo "Running enhanced reply tracking..."
-            python -c """
-            import sys
-            import json
-            import os
-            from datetime import datetime
-            sys.path.append('.')
+      - name: Download queued emails artifact
+        if: needs.enhanced-campaign-execution.outputs.emails_queued == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: campaign-execution-logs-${{ github.run_id }}
+          path: ./
 
-            try:
-               from reply_tracker import ReplyTracker
-    
-               # Enhanced tracker initialization
-               tracker = ReplyTracker(
-               imap_host='${{ secrets.IMAP_HOST }}' or None,
-               imap_user='${{ secrets.IMAP_USER }}' or None,
-               imap_pass='${{ secrets.IMAP_PASS }}' or None,
-               mark_seen=False,
-               enhanced_mode=True
-              )
-    
-              print('Fetching replies with enhanced ReplyTracker...')
-              replies = tracker.fetch_replies()
-    
-              print(f'Processed {len(replies)} replies with enhanced analysis')
-    
-              # Enhanced reply analysis
-              bounces = [r for r in replies if r.get('bounce', False)]
-              feedback_replies = [r for r in replies if r.get('tid') and not r.get('bounce', False)]
-              auto_replies = [r for r in replies if r.get('auto_reply', False)]
-              genuine_feedback = [r for r in feedback_replies if not r.get('auto_reply', False)]
-    
-              # Enhanced reply classification
-              reply_categories = {}
-              for reply in replies:
-                category = 'unknown'
-                if reply.get('bounce', False):
-                  category = 'bounce'
-                elif reply.get('auto_reply', False):
-                  category = 'auto_reply'
-                elif reply.get('tid'):
-                  category = 'genuine_feedback'
-                else:
-                  category = 'general_reply'
-                
-                reply_categories[category] = reply_categories.get(category, 0) + 1
-    
-              # Enhanced reply analysis with sentiment
-              enhanced_analysis = {
-              'total_replies': len(replies),
-              'reply_categories': reply_categories,
-              'bounces': len(bounces),
-              'feedback_replies': len(feedback_replies),
-              'auto_replies': len(auto_replies),
-              'genuine_feedback': len(genuine_feedback),
-              'processing_time': datetime.now().isoformat(),
-              'workflow_run_id': '${{ github.run_id }}',
-              'enhanced_mode': True,
-              'bounce_rate': len(bounces) / len(replies) * 100 if replies else 0,
-              'feedback_rate': len(genuine_feedback) / len(replies) * 100 if replies else 0,
-              'sample_bounce_emails': [r.get('from', '') for r in bounces][:5],
-              'sample_feedback_emails': [r.get('from', '') for r in genuine_feedback][:5]
-              }
-    
-              # Save enhanced tracking data
-              os.makedirs('tracking/reply_tracking', exist_ok=True)
-    
-              with open('tracking/reply_tracking/enhanced_reply_analysis.json', 'w') as f:
-                json.dump(enhanced_analysis, f, indent=2)
-    
-              # Save detailed replies
-              if replies:
-                with open('tracking/reply_tracking/all_enhanced_replies.json', 'w') as f:
-                  json.dump(replies, f, indent=2, default=str)
-    
-              print(f'Enhanced reply analysis: {len(replies)} total, {len(bounces)} bounces ({enhanced_analysis[\"bounce_rate\"]:.1f}%), {len(genuine_feedback)} genuine feedback ({enhanced_analysis[\"feedback_rate\"]:.1f}%)')
-        
-            except ImportError as e:
-              print(f'ReplyTracker not available: {e}')
-              print('Creating placeholder enhanced reply analysis...')
-    
-              os.makedirs('tracking/reply_tracking', exist_ok=True)
-              with open('tracking/reply_tracking/enhanced_reply_analysis.json', 'w') as f:
-                json.dump({
-                'error': 'ReplyTracker not available',
-                'total_replies': 0,
-                'enhanced_mode': False,
-                'processing_time': datetime.now().isoformat()
-                }, f, indent=2)
-        
-            except Exception as e:
-              print(f'Error in enhanced reply processing: {e}')
-              
-              os.makedirs('tracking/reply_tracking', exist_ok=True)
-              with open('tracking/reply_tracking/enhanced_reply_analysis.json', 'w') as f:
-                json.dump({
-                'error': str(e),
-                'total_replies': 0,
-                'enhanced_mode': False,
-                'processing_time': datetime.now().isoformat()
-                }, f, indent=2) """
+      - name: Check for queued emails
+        id: check_queue
+        run: |
+          echo "Checking for queued email batch..."
+          
+          # Check if github_actions_email_summary.json exists
+          if [ -f "github_actions_email_summary.json" ]; then
+            echo "✅ Found email queue summary"
+            cat github_actions_email_summary.json
+            
+            BATCH_DIR=$(python3 -c "import json; print(json.load(open('github_actions_email_summary.json'))['batch_directory'])")
+            TOTAL_EMAILS=$(python3 -c "import json; print(json.load(open('github_actions_email_summary.json'))['total_emails'])")
+            
+            echo "batch_directory=$BATCH_DIR" >> $GITHUB_OUTPUT
+            echo "total_emails=$TOTAL_EMAILS" >> $GITHUB_OUTPUT
+            echo "has_queue=true" >> $GITHUB_OUTPUT
+            
+            echo "Batch directory: $BATCH_DIR"
+            echo "Total emails to send: $TOTAL_EMAILS"
           else
-            echo "reply_tracker.py not found - creating basic tracking structure"
-            mkdir -p tracking/reply_tracking
-            echo '{"error": "reply_tracker.py not found", "total_replies": 0, "enhanced_mode": false}' > tracking/reply_tracking/enhanced_reply_analysis.json
+            echo "❌ No email queue found"
+            echo "has_queue=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Send queued emails
+        if: steps.check_queue.outputs.has_queue == 'true'
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          BATCH_DIR: ${{ steps.check_queue.outputs.batch_directory }}
+          TOTAL_EMAILS: ${{ steps.check_queue.outputs.total_emails }}
+        run: |
+          echo "=========================================="
+          echo "  📤 Sending Queued Emails"
+          echo "=========================================="
+          echo ""
+          echo "Batch Directory: $BATCH_DIR"
+          echo "Total Emails: $TOTAL_EMAILS"
+          echo ""
+          
+          # Check if batch directory exists
+          if [ ! -d "$BATCH_DIR" ]; then
+            echo "❌ Batch directory not found: $BATCH_DIR"
+            echo "Available directories:"
+            ls -la
+            exit 1
+          fi
+          
+          # Count email files
+          EMAIL_COUNT=$(find "$BATCH_DIR" -name "email_*.json" -type f | wc -l)
+          echo "Found $EMAIL_COUNT email file(s) in batch directory"
+          
+          if [ "$EMAIL_COUNT" -eq 0 ]; then
+            echo "❌ No email files found in batch directory"
+            exit 1
+          fi
+          
+          # Send emails using Python script
+          python3 << 'SEND_SCRIPT'
+          import os
+          import sys
+          import json
+          import smtplib
+          from email.mime.text import MIMEText
+          from email.mime.multipart import MIMEMultipart
+          from pathlib import Path
+          from datetime import datetime
+          import time
+
+          # Get configuration
+          smtp_host = os.getenv('SMTP_HOST')
+          smtp_port = int(os.getenv('SMTP_PORT', '587'))
+          smtp_user = os.getenv('SMTP_USER')
+          smtp_pass = os.getenv('SMTP_PASS')
+          batch_dir = Path(os.getenv('BATCH_DIR'))
+
+          if not all([smtp_host, smtp_user, smtp_pass]):
+              print("❌ SMTP credentials not configured")
+              sys.exit(1)
+
+          print(f"Connecting to SMTP server: {smtp_host}:{smtp_port}")
+          
+          # Connect to SMTP server
+          try:
+              server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
+              server.starttls()
+              server.login(smtp_user, smtp_pass)
+              print("✅ Connected to SMTP server")
+          except Exception as e:
+              print(f"❌ Failed to connect to SMTP server: {e}")
+              sys.exit(1)
+
+          # Get all email files
+          email_files = sorted(batch_dir.glob('email_*.json'))
+          total_emails = len(email_files)
+          sent_count = 0
+          failed_count = 0
+
+          print(f"\nSending {total_emails} emails...")
+          print("=" * 50)
+
+          for i, email_file in enumerate(email_files, 1):
+              try:
+                  # Load email data
+                  with open(email_file, 'r') as f:
+                      email_data = json.load(f)
+                  
+                  to_email = email_data['to']
+                  subject = email_data['subject']
+                  body = email_data['body']
+                  from_name = email_data.get('from_name', 'Campaign System')
+                  
+                  # Create message
+                  msg = MIMEMultipart('alternative')
+                  msg['Subject'] = subject
+                  msg['From'] = f"{from_name} <{smtp_user}>"
+                  msg['To'] = to_email
+                  
+                  # Add body
+                  if '<html>' in body.lower() or '<body>' in body.lower():
+                      msg.attach(MIMEText(body, 'html'))
+                  else:
+                      msg.attach(MIMEText(body, 'plain'))
+                  
+                  # Send email
+                  server.send_message(msg)
+                  sent_count += 1
+                  
+                  print(f"✅ Sent {i}/{total_emails}: {to_email}")
+                  
+                  # Small delay between emails
+                  if i < total_emails:
+                      time.sleep(1.5)
+                  
+              except Exception as e:
+                  failed_count += 1
+                  print(f"❌ Failed {i}/{total_emails}: {email_file.name} - {e}")
+                  continue
+
+          # Close connection
+          server.quit()
+
+          print("=" * 50)
+          print(f"\n📊 Email Sending Summary:")
+          print(f"  Total: {total_emails}")
+          print(f"  Sent: {sent_count}")
+          print(f"  Failed: {failed_count}")
+          print(f"  Success Rate: {(sent_count/total_emails*100):.1f}%")
+
+          # Create summary file
+          summary = {
+              'timestamp': datetime.now().isoformat(),
+              'total_emails': total_emails,
+              'sent': sent_count,
+              'failed': failed_count,
+              'success_rate': sent_count/total_emails*100 if total_emails > 0 else 0
+          }
+
+          with open('email_send_summary.json', 'w') as f:
+              json.dump(summary, f, indent=2)
+
+          print("\n✅ Email sending completed")
+          
+          # Exit with error if any failed
+          sys.exit(0 if failed_count == 0 else 1)
+          SEND_SCRIPT
+
+      - name: Send summary notification
+        if: always() && steps.check_queue.outputs.has_queue == 'true'
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ALERT_EMAIL: ${{ env.ALERT_EMAIL }}
+        run: |
+          echo "Sending summary notification..."
+          
+          # Load summary if exists
+          if [ -f "email_send_summary.json" ]; then
+            python3 << 'NOTIFY_SCRIPT'
+          import os
+          import sys
+          import json
+          import smtplib
+          from email.mime.text import MIMEText
+          from datetime import datetime
+
+          # Load summary
+          with open('email_send_summary.json', 'r') as f:
+              summary = json.load(f)
+
+          # Get configuration
+          smtp_host = os.getenv('SMTP_HOST')
+          smtp_port = int(os.getenv('SMTP_PORT', '587'))
+          smtp_user = os.getenv('SMTP_USER')
+          smtp_pass = os.getenv('SMTP_PASS')
+          alert_email = os.getenv('ALERT_EMAIL')
+
+          if not all([smtp_host, smtp_user, smtp_pass, alert_email]):
+              print("⚠️  Email credentials incomplete, skipping notification")
+              sys.exit(0)
+
+          # Create summary email
+          subject = f"Campaign Emails Sent: {summary['sent']}/{summary['total_emails']} successful"
+          
+          body = f"""Campaign Email Sending Complete
+          =================================
+
+          Workflow Run: ${{ github.run_id }}
+          Timestamp: {summary['timestamp']}
+
+          Results:
+          - Total Emails: {summary['total_emails']}
+          - Successfully Sent: {summary['sent']}
+          - Failed: {summary['failed']}
+          - Success Rate: {summary['success_rate']:.1f}%
+
+          Status: {'✅ SUCCESS' if summary['failed'] == 0 else '⚠️ PARTIAL SUCCESS'}
+
+          View full logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          """
+
+          # Send notification
+          try:
+              server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
+              server.starttls()
+              server.login(smtp_user, smtp_pass)
+              
+              msg = MIMEText(body)
+              msg['Subject'] = subject
+              msg['From'] = smtp_user
+              msg['To'] = alert_email
+              
+              server.send_message(msg)
+              server.quit()
+              
+              print(f"✅ Summary notification sent to {alert_email}")
+          except Exception as e:
+              print(f"⚠️  Failed to send notification: {e}")
+          NOTIFY_SCRIPT
+          else
+            echo "⚠️  No summary file found, skipping notification"
+          fi
+
+      - name: Upload send results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: email-send-results-${{ github.run_id }}
+          path: |
+            email_send_summary.json
+            *.log
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Generate send summary
+        if: always()
+        run: |
+          echo "### 📤 Email Sending Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "email_send_summary.json" ]; then
+            python3 -c "
+          import json
+          with open('email_send_summary.json', 'r') as f:
+              summary = json.load(f)
+          print(f\"**Total Emails:** {summary['total_emails']}\")
+          print(f\"**Successfully Sent:** {summary['sent']}\")
+          print(f\"**Failed:** {summary['failed']}\")
+          print(f\"**Success Rate:** {summary['success_rate']:.1f}%\")
+          " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Status:** No emails were queued for sending" >> $GITHUB_STEP_SUMMARY
+          fi
       - name: Generate comprehensive enhanced campaign report
         run: |
           echo "Generating comprehensive enhanced campaign report..."
