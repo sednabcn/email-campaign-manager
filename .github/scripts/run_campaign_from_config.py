@@ -188,13 +188,11 @@ def build_command(config, template_file, script_path, dry_run=False, debug=False
     
     # Extract required configuration
     contacts_file = config.get('contacts')
-    subject = config.get('subject')
     
     # Extract rate limiting settings
     rate_limiting = config.get('rate_limiting', {})
     delay = rate_limiting.get('delay_between_emails', 1.0)
     batch_size = rate_limiting.get('batch_size', 50)
-    delay_between_batches = rate_limiting.get('delay_between_batches', 5)
     
     # Extract tracking settings
     tracking_config = config.get('tracking', {})
@@ -207,7 +205,6 @@ def build_command(config, template_file, script_path, dry_run=False, debug=False
     
     # Extract other required settings
     alerts_email = config.get('alerts_email', 'alerts@modelphysmat.com')
-    scheduled_dir = config.get('scheduled_dir', 'scheduled-campaigns')
     
     # Extract optional domain/sector filtering
     domain = config.get('domain')
@@ -216,26 +213,20 @@ def build_command(config, template_file, script_path, dry_run=False, debug=False
     # Validate required fields
     if not contacts_file:
         raise ValueError("Missing required field: contacts")
-    # Note: subject validation removed since docx_parser may not accept --subject
     
     # Build base command with REQUIRED arguments
-    # Note: docx_parser.py requires: --contacts, --scheduled, --tracking, --alerts
+    # When using --templates with a specific file, we DON'T use --scheduled
+    # --scheduled is only for domain-based scanning mode
     cmd = [
         'python3', script_path,
         '--contacts', contacts_file,
-        '--scheduled', scheduled_dir,      # REQUIRED
-        '--tracking', tracking_dir,        # REQUIRED
-        '--alerts', alerts_email,          # REQUIRED
+        '--tracking', tracking_dir,
+        '--alerts', alerts_email,
     ]
     
-    # Add template (optional but usually needed)
+    # Add template file (this is the primary mode for JSON campaigns)
     if template_file:
         cmd.extend(['--templates', template_file])
-    
-    # REMOVED: Subject argument (docx_parser.py doesn't support it)
-    # Subject should be embedded in the template file itself
-    # if subject:
-    #     cmd.extend(['--subject', subject])
     
     # Add delay
     cmd.extend(['--delay', str(delay)])
