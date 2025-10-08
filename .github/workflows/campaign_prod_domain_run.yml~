@@ -1197,10 +1197,170 @@ jobs:
           echo "✅ Campaign validation passed"
 
           
- 
+     PEPE
+      - name: Run campaign from JSON configuration
+  id: run-json-campaign
+  continue-on-error: true
+  env:
+    SMTP_HOST: ${{ secrets.SMTP_HOST }}
+    SMTP_PORT: ${{ secrets.SMTP_PORT }}
+    SMTP_USER: ${{ secrets.SMTP_USER }}
+    SMTP_PASS: ${{ secrets.SMTP_PASS }}
+    CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
+  run: |
+    echo "=========================================="
+    echo "  📧 Starting JSON-based Campaign"
+    echo "=========================================="
+    echo ""
+    echo "Configuration: $CONFIG_FILE"
+    echo "Mode: ${{ github.event.inputs.dry_run == 'true' && 'DRY RUN' || 'LIVE' }}"
+    echo "Debug: ${{ github.event.inputs.debug_mode }}"
+    echo "Target Domain: ${{ github.event.inputs.target_domain || 'All' }}"
+    echo ""
+    
+    # Build command
+    CMD="python3 .github/scripts/run_campaign_from_config.py --config $CONFIG_FILE"
+    
+    # Add dry-run flag if specified
+    if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+      CMD="$CMD --dry-run"
+      echo "🧪 DRY RUN MODE - Emails will be saved to outbox/ directory"
+    else
+      echo "📤 LIVE MODE - Emails will be sent"
+    fi
+    
+    # Add debug flag if specified
+    if [ "${{ github.event.inputs.debug_mode }}" == "true" ]; then
+      CMD="$CMD --debug"
+    fi
+    
+    echo ""
+    echo "Command: $CMD"
+    echo ""
+    echo "=========================================="
+    
+    # Execute campaign with proper error handling
+    set +e
+    $CMD 2>&1 | tee campaign_json_execution.log
+    EXIT_CODE=${PIPESTATUS[0]}
+    set -e
+    
+    echo ""
+    echo "=========================================="
+    
+    # Determine status and set outputs properly
+    if [ $EXIT_CODE -eq 0 ]; then
+      echo "  ✅ Campaign Completed Successfully"
+      STATUS="success"
+      
+      # Try to count emails from log
+      EMAILS_SENT=$(grep -c "Sent to\|✓ Sent to" campaign_json_execution.log 2>/dev/null || echo "0")
+    else
+      echo "  ⚠️  Campaign Completed with Issues"
+      echo "  Exit Code: $EXIT_CODE"
+      STATUS="failure"
+      EMAILS_SENT="0"
+    fi
+    
+    echo "=========================================="
+    echo "Setting outputs: status=$STATUS, emails_sent=$EMAILS_SENT"
+    
+    # CRITICAL: Set outputs using proper format with error checking
+    {
+      echo "status=$STATUS"
+      echo "emails_sent=$EMAILS_SENT"
+    } >> "$GITHUB_OUTPUT" || {
+      echo "ERROR: Failed to write to GITHUB_OUTPUT"
+      echo "GITHUB_OUTPUT path: $GITHUB_OUTPUT"
+      ls -la "$GITHUB_OUTPUT" 2>/dev/null || echo "File does not exist"
+    }
+    
+    # Verify outputs were written
+    if [ -f "$GITHUB_OUTPUT" ]; then
+      echo "Output file contents:"
+      cat "$GITHUB_OUTPUT"
+    fi
+    
+    # Don't exit with error code - let continue-on-error handle it
+    if [ $EXIT_CODE -ne 0 ]; then
+      echo "Campaign execution had issues (exit code: $EXIT_CODE)"
+    fi
+
+- name: Verify outputs were set
+  if: always()
+  run: |
+    echo "Verifying step outputs..."
+    echo "Status output: '${{ steps.run-json-campaign.outputs.status }}'"
+    echo "Emails sent output: '${{ steps.run-json-campaign.outputs.emails_sent }}'"
+    
+    if [ -z "${{ steps.run-json-campaign.outputs.status }}" ]; then
+      echo "⚠️ WARNING: status output is empty"
+    else
+      echo "✅ Status output is set"
+    fi
+
+- name: Analyze campaign execution results
+  if: always()
+  run: |
+    echo "Analyzing campaign execution..."
+    python3 .github/scripts/analyze_campaign_logs.py --tracking-dir tracking --log-file campaign_json_execution.log --full-log
+
+- name: Collect output files
+  if: always()
+  run: |
+    echo "Collecting campaign output files..."
+    
+    # List generated files
+    if [ -d "outbox" ]; then
+      echo "Dry-run output files:"
+      ls -lh outbox/ || echo "  No files in outbox/"
+    fi
+    
+    if [ -d "tracking" ]; then
+      echo "Tracking files:"
+      find tracking -type f | head -10 || echo "  No tracking files"
+    fi
+    
+    if [ -f "campaign_json_execution.log" ]; then
+      echo "Execution log size: $(wc -l < campaign_json_execution.log) lines"
+    fi
+
+- name: Upload campaign artifacts
+  uses: actions/upload-artifact@v4
+  if: always()
+  with:
+    name: json-campaign-output-${{ github.run_id }}
+    path: |
+      campaign_json_execution.log
+      outbox/
+      tracking/
+      *.log
+    retention-days: 7
+    if-no-files-found: warn
+
+- name: Generate execution summary
+  if: always()
+  run: |
+    echo "### 📧 JSON-based Campaign Execution" >> $GITHUB_STEP_SUMMARY
+    echo "" >> $GITHUB_STEP_SUMMARY
+    echo "**Configuration:** \`${{ steps.find-configs.outputs.default_config }}\`" >> $GITHUB_STEP_SUMMARY
+    echo "**Mode:** ${{ github.event.inputs.dry_run == 'true' && '🧪 Dry Run' || '📤 Live' }}" >> $GITHUB_STEP_SUMMARY
+    echo "**Status:** ${{ steps.run-json-campaign.outputs.status == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+    echo "**Emails Processed:** ${{ steps.run-json-campaign.outputs.emails_sent || '0' }}" >> $GITHUB_STEP_SUMMARY
+    echo "" >> $GITHUB_STEP_SUMMARY
+    
+    if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+      echo "📋 **Note:** Dry run mode - check artifacts for generated email files" >> $GITHUB_STEP_SUMMARY
+    fi
+    
+    echo "" >> $GITHUB_STEP_SUMMARY
+    echo "**Validation Results:**" >> $GITHUB_STEP_SUMMARY
+    echo "- Contacts Loaded: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
+    echo "- Templates Found: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
+    echo "- Config Files: ${{ steps.find-configs.outputs.config_count }}" >> $GITHUB_STEP_SUMMARY
+
       - name: Run campaign from JSON configuration
         id: run-json-campaign
-        continue-on-error: true
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
@@ -1223,22 +1383,22 @@ jobs:
     
           # Add dry-run flag if specified
           if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
-                CMD="$CMD --dry-run"
-                echo "🧪 DRY RUN MODE - Emails will be saved to outbox/ directory"
+               CMD="$CMD --dry-run"
+               echo "🧪 DRY RUN MODE - Emails will be saved to outbox/ directory"
           else
-                echo "📤 LIVE MODE - Emails will be sent"
+              echo "📤 LIVE MODE - Emails will be sent"
           fi
     
           # Add debug flag if specified
           if [ "${{ github.event.inputs.debug_mode }}" == "true" ]; then
-              CMD="$CMD --debug"
+             CMD="$CMD --debug"
           fi
     
           echo ""
           echo "Command: $CMD"
           echo ""
           echo "=========================================="
-    
+          
           # Execute campaign with proper error handling
           set +e
           $CMD 2>&1 | tee campaign_json_execution.log
@@ -1250,80 +1410,52 @@ jobs:
     
           # Determine status and set outputs properly
           if [ $EXIT_CODE -eq 0 ]; then
-              echo "  ✅ Campaign Completed Successfully"
-              STATUS="success"
+                  echo "  ✅ Campaign Completed Successfully"
+                  STATUS="success"
       
-              # Try to count emails from log
-              EMAILS_SENT=$(grep -c "Sent to\|✓ Sent to" campaign_json_execution.log 2>/dev/null || echo "0")
+                  # Try to count emails from log
+                  EMAILS_SENT=$(grep -c "Sent to\|✓ Sent to" campaign_json_execution.log 2>/dev/null || echo "0")
           else
-              echo "  ⚠️  Campaign Completed with Issues"
-              echo "  Exit Code: $EXIT_CODE"
-              STATUS="failure"
-              EMAILS_SENT="0"
+                 echo "  ⚠️  Campaign Completed with Issues"
+                 echo "  Exit Code: $EXIT_CODE"
+                 STATUS="failure"
+                 EMAILS_SENT="0"
           fi
     
           echo "=========================================="
-          echo "Setting outputs: status=$STATUS, emails_sent=$EMAILS_SENT"
     
-          # CRITICAL: Set outputs using proper format with error checking
-          {
-          echo "status=$STATUS"
-          echo "emails_sent=$EMAILS_SENT"
-          } >> "$GITHUB_OUTPUT" || {
-          echo "ERROR: Failed to write to GITHUB_OUTPUT"
-          echo "GITHUB_OUTPUT path: $GITHUB_OUTPUT"
-          ls -la "$GITHUB_OUTPUT" 2>/dev/null || echo "File does not exist"
-          }
+          # Set outputs using proper format (must be on separate lines)
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "emails_sent=$EMAILS_SENT" >> "$GITHUB_OUTPUT"
     
-          # Verify outputs were written
-          if [ -f "$GITHUB_OUTPUT" ]; then
-               echo "Output file contents:"
-               cat "$GITHUB_OUTPUT"
-          fi
+          # Exit with the actual command exit code
+          exit $EXIT_CODE
     
-          # Don't exit with error code - let continue-on-error handle it
-          if [ $EXIT_CODE -ne 0 ]; then
-             echo "Campaign execution had issues (exit code: $EXIT_CODE)"
-          fi
-
-      - name: Verify outputs were set
+      - name: Analyze campaign execution results
         if: always()
         run: |
-          echo "Verifying step outputs..."
-          echo "Status output: '${{ steps.run-json-campaign.outputs.status }}'"
-          echo "Emails sent output: '${{ steps.run-json-campaign.outputs.emails_sent }}'"
+          echo "Analyzing campaign execution..."
+          python3 .github/scripts/analyze_campaign_logs.py --tracking-dir tracking --log-file campaign_json_execution.log --full-log
     
-          if [ -z "${{ steps.run-json-campaign.outputs.status }}" ]; then
-                 echo "⚠️ WARNING: status output is empty"
-          else
-                 echo "✅ Status output is set"
+      - name: Collect output files
+        if: always()
+        run: |
+          echo "Collecting campaign output files..."
+          
+          # List generated files
+          if [ -d "outbox" ]; then
+            echo "Dry-run output files:"
+            ls -lh outbox/ || echo "  No files in outbox/"
           fi
-
-       - name: Analyze campaign execution results
-         if: always()
-         run: |
-           echo "Analyzing campaign execution..."
-           python3 .github/scripts/analyze_campaign_logs.py --tracking-dir tracking --log-file campaign_json_execution.log --full-log
-
-       - name: Collect output files
-         if: always()
-         run: |
-           echo "Collecting campaign output files..."
-    
-           # List generated files
-           if [ -d "outbox" ]; then
-               echo "Dry-run output files:"
-               ls -lh outbox/ || echo "  No files in outbox/"
-           fi
-    
-           if [ -d "tracking" ]; then
-              echo "Tracking files:"
-              find tracking -type f | head -10 || echo "  No tracking files"
-           fi
-    
-           if [ -f "campaign_json_execution.log" ]; then
-              echo "Execution log size: $(wc -l < campaign_json_execution.log) lines"
-           fi
+          
+          if [ -d "tracking" ]; then
+            echo "Tracking files:"
+            find tracking -type f | head -10 || echo "  No tracking files"
+          fi
+          
+          if [ -f "campaign_json_execution.log" ]; then
+            echo "Execution log size: $(wc -l < campaign_json_execution.log) lines"
+          fi
 
       - name: Upload campaign artifacts
         uses: actions/upload-artifact@v4
@@ -1335,8 +1467,8 @@ jobs:
             outbox/
             tracking/
             *.log
-            retention-days: 7
-            if-no-files-found: warn
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Generate execution summary
         if: always()
@@ -1348,16 +1480,20 @@ jobs:
           echo "**Status:** ${{ steps.run-json-campaign.outputs.status == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
           echo "**Emails Processed:** ${{ steps.run-json-campaign.outputs.emails_sent || '0' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-    
+          
           if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
-             echo "📋 **Note:** Dry run mode - check artifacts for generated email files" >> $GITHUB_STEP_SUMMARY
+            echo "📋 **Note:** Dry run mode - check artifacts for generated email files" >> $GITHUB_STEP_SUMMARY
           fi
-    
+          
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Validation Results:**" >> $GITHUB_STEP_SUMMARY
           echo "- Contacts Loaded: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
           echo "- Templates Found: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Config Files: ${{ steps.find-configs.outputs.config_count }}" >> $GITHUB_STEP_SUMMARY                           
+          echo "- Config Files: ${{ steps.find-configs.outputs.config_count }}" >> $GITHUB_STEP_SUMMARY
+
+  PEPE
+
+                           
   trigger-send:
     needs: [enhanced-campaign-execution, json-config-campaign]
     runs-on: ubuntu-latest
