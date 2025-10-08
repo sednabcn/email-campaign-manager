@@ -55,7 +55,7 @@ def save_email_to_queue(batch_dir, email_index, to_email, subject, body, from_na
         'body': body,
         'from_name': from_name,
         'queued_at': datetime.now().isoformat(),
-        'ready_to_send': True  # 
+        'ready_to_send': True
     }
     
     email_file = batch_dir / f"email_{email_index}.json"
@@ -296,7 +296,6 @@ try:
                     
                     else:
                         # ACTUAL SEND MODE: Use parent class method
-                        # This would be handled by BaseEmailSender's actual send logic
                         processed_recipient = {
                             **recipient,
                             'personalized_subject': personalized_subject,
@@ -392,7 +391,7 @@ except ImportError:
             
             return result
         
-        def send_campaign(self, campaign_name, subjects, content, recipients, from_name="Campaign System", 
+        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", 
                          tracking_id=None, contact_mapping=None):
             print(f"\n=== CAMPAIGN: {campaign_name} ===")
             if tracking_id:
@@ -584,7 +583,7 @@ def load_json_campaign(campaign_path):
         # Format 1: Simple content format with subject/content
         if 'subject' in campaign_data and 'content' in campaign_data:
             return {
-                'subject': None,  # Subject will be extracted from content or generated
+                'subject': None,
                 'content': campaign_data['content'],
                 'from_name': campaign_data.get('from_name', 'Campaign System'),
                 'content_type': campaign_data.get('content_type', 'html'),
@@ -663,11 +662,42 @@ def extract_subject_from_content(content):
         return None
 
 
-def scan_domain_campaigns(templates_dir):
-    """Scan for campaigns in domain-based directory structure"""
+def scan_domain_campaigns(templates_dir, specific_file=None):
+    """Scan for campaigns in domain-based directory structure or process a specific file"""
     templates_path = Path(templates_dir)
     domain_campaigns = {}
     
+    # Handle specific file mode
+    if specific_file:
+        specific_path = Path(specific_file)
+        
+        # Check if file exists
+        if not specific_path.exists():
+            print(f"ERROR: Specified template file not found: {specific_file}")
+            return domain_campaigns
+        
+        # Validate file extension
+        if specific_path.suffix.lower() not in ['.docx', '.txt', '.html', '.md', '.json']:
+            print(f"ERROR: Unsupported file format: {specific_path.suffix}")
+            return domain_campaigns
+        
+        # Determine domain from path structure
+        try:
+            # Try to extract domain from path (e.g., campaign-templates/education/template.docx)
+            relative_to_templates = specific_path.relative_to(templates_path)
+            if len(relative_to_templates.parts) > 1:
+                domain_name = relative_to_templates.parts[0]
+            else:
+                domain_name = 'default'
+        except ValueError:
+            # File is not inside templates_dir, use 'default' domain
+            domain_name = 'default'
+        
+        domain_campaigns[domain_name] = [specific_path]
+        print(f"Processing specific template file: {specific_file} (domain: {domain_name})")
+        return domain_campaigns
+    
+    # Original directory scanning logic
     if not templates_path.exists():
         print(f"Templates directory not found: {templates_dir}")
         return domain_campaigns
@@ -728,7 +758,6 @@ def send_summary_alert(emailer, campaigns_count, sent_count, failed_count, campa
     try:
         total_emails = sent_count + failed_count
         success_rate = (sent_count / max(1, total_emails)) * 100
-        
         subject = f"Campaign Summary: {campaigns_count} campaigns, {total_emails} emails"
         
         body = f"""
@@ -768,8 +797,8 @@ Campaign Details:
 # ============================================================================
 
 def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dry_run=False, 
-                  queue_emails=False, **kwargs):
-    """Main campaign execution function with queue support"""
+                  queue_emails=False, specific_template=None, **kwargs):
+    """Main campaign execution function with queue support and specific file handling"""
     try:
         print(f"Starting domain-aware campaign system")
         print(f"GitHub Actions detected: {os.getenv('GITHUB_ACTIONS') is not None}")
@@ -777,6 +806,10 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         print(f"Dry run mode: {dry_run}")
         print(f"Contacts: {contacts_root}")
         print(f"Templates (domain-based): {scheduled_root}")
+        
+        if specific_template:
+            print(f"Specific template file: {specific_template}")
+        
         print(f"Tracking: {tracking_root}")
         print(f"Alerts: {alerts_email}")
         
@@ -806,7 +839,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         if queue_emails:
             print("Initializing email queue mode")
             emailer = EmailSender(
-                smtp_host=None,  # Not needed in queue mode
+                smtp_host=None,
                 smtp_port=None,
                 smtp_user=None,
                 smtp_password=None,
@@ -835,8 +868,8 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                 dry_run=dry_run
             )
         
-        # Scan for domain-based campaigns
-        domain_campaigns = scan_domain_campaigns(scheduled_root)
+        # Scan for domain-based campaigns or specific file
+        domain_campaigns = scan_domain_campaigns(scheduled_root, specific_file=specific_template)
         
         if not domain_campaigns:
             print(f"ERROR: No campaigns found in {scheduled_root}")
@@ -844,6 +877,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             print("Structures supported:")
             print("  1. Domain-based: {scheduled_root}/{domain}/*.docx")
             print("  2. Flat: {scheduled_root}/*.docx")
+            print("  3. Specific file: --template-file path/to/file.docx")
             return
         
         # Initialize tracking
@@ -859,6 +893,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             f.write("Domain-Aware Campaign Log\n")
             f.write(f"GitHub Actions mode: {os.getenv('GITHUB_ACTIONS') is not None}\n")
             f.write(f"Queue mode: {queue_emails}\n")
+            f.write(f"Specific template: {specific_template if specific_template else 'None'}\n")
             f.write(f"Total contacts loaded: {len(all_contacts)}\n")
             f.write(f"Domains found: {len(domain_campaigns)}\n")
             f.write(f"Timestamp: {datetime.now().isoformat()}\n\n")
@@ -971,7 +1006,8 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                         'queued': campaign_result.get('queued', 0),
                         'failed': campaign_result['failed'],
                         'dry_run': dry_run,
-                        'queue_mode': queue_emails
+                        'queue_mode': queue_emails,
+                        'specific_template': specific_template if specific_template else None
                     }
                     
                     # Add config metadata if available
@@ -1004,14 +1040,12 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         
         # Send summary or create queue summary
         if queue_emails and emailer.queued_count > 0:
-            # Create GitHub Actions summary files
             create_github_actions_summary(
                 emailer.queue_batch_dir,
                 emailer.queued_count,
                 campaign_results
             )
             
-            # Create summary email to be sent later
             create_campaign_summary_email(
                 alerts_email,
                 campaigns_processed,
@@ -1049,6 +1083,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             f.write(f"Failed: {total_failures}\n")
             f.write(f"Tracking system: DOMAIN-BASED\n")
             f.write(f"Queue mode: {queue_emails}\n")
+            f.write(f"Specific template: {specific_template if specific_template else 'None'}\n")
             f.write(f"Completed: {datetime.now().isoformat()}\n")
         
         print(f"\n{'='*70}")
@@ -1084,7 +1119,7 @@ if __name__ == "__main__":
     parser.add_argument("--tracking", required=True, help="Tracking directory path")
     parser.add_argument("--alerts", required=True, help="Alerts email address")
     parser.add_argument("--feedback", help="Feedback email address")
-    parser.add_argument("--templates", help="Templates directory path (alias for --scheduled)")
+    parser.add_argument("--template-file", help="Specific template file to process (overrides domain scanning)")
     parser.add_argument("--domain", help="Process only specific domain")
     parser.add_argument("--filter-domain", help="Filter campaigns by domain pattern")
     parser.add_argument("--dry-run", action="store_true", help="Print personalized emails instead of sending")
@@ -1105,7 +1140,7 @@ if __name__ == "__main__":
         IS_REMOTE = True
         print("Forced remote-only mode enabled")
     
-    scheduled_path = args.templates if args.templates else args.scheduled
+    scheduled_path = args.scheduled
     
     print(f"Arguments parsed successfully:")
     print(f"  --contacts: {args.contacts}")
@@ -1113,10 +1148,14 @@ if __name__ == "__main__":
     print(f"  --tracking: {args.tracking}")
     print(f"  --alerts: {args.alerts}")
     print(f"  --feedback: {args.feedback}")
+    print(f"  --template-file: {args.template_file}")
     print(f"  --domain: {args.domain}")
     print(f"  --dry-run: {args.dry_run}")
     print(f"  --queue-emails: {args.queue_emails}")
     print(f"  --debug: {args.debug}")
+    
+    if args.template_file:
+        print(f"Using specific template file: {args.template_file}")
     
     print("Calling domain-aware campaign_main...")
     campaign_main(
@@ -1126,6 +1165,7 @@ if __name__ == "__main__":
         alerts_email=args.alerts,
         dry_run=args.dry_run,
         queue_emails=args.queue_emails,
+        specific_template=args.template_file,
         feedback_email=args.feedback,
         target_domain=args.domain,
         campaign_filter=args.filter_domain,

@@ -171,90 +171,54 @@ def find_email_script():
     
     return None
 
-
 def build_command(config, template_file, script_path, dry_run=False, debug=False):
     """
     Build the command to execute the email script (docx_parser.py)
     
-    Args:
-        config: Configuration dictionary from JSON
-        template_file: Path to template file
-        script_path: Path to docx_parser.py script
-        dry_run: Whether to run in dry-run mode
-        debug: Whether to enable debug mode
-        
-    Returns:
-        list: Command arguments as list
+    Supports two modes:
+    1. Specific template file: Uses --template-file argument
+    2. Domain scanning: Uses --scheduled + --filter-domain
     """
+    # Get base directories from config
+    templates_dir = config.get("templates_directory", "campaign-templates")
+    contacts_dir = config.get("contacts_directory", "contacts")
+    tracking_dir = config.get("tracking_directory", "tracking")
+    alerts_email = config.get("alerts_email", config.get("from_email", "admin@example.com"))
     
-    # Extract required configuration
-    contacts_file = config.get('contacts')
-    
-    # Extract rate limiting settings
-    rate_limiting = config.get('rate_limiting', {})
-    delay = rate_limiting.get('delay_between_emails', 1.0)
-    batch_size = rate_limiting.get('batch_size', 50)
-    
-    # Extract tracking settings
-    tracking_config = config.get('tracking', {})
-    tracking_dir = tracking_config.get('directory', 'tracking')
-    
-    # Extract feedback settings
-    feedback_config = config.get('feedback', {})
-    feedback_email = feedback_config.get('email')
-    auto_inject = feedback_config.get('auto_inject', True)
-    
-    # Extract other required settings
-    alerts_email = config.get('alerts_email', 'alerts@modelphysmat.com')
-    scheduled_dir = config.get('scheduled_dir', 'scheduled-campaigns')
-    
-    # Extract optional domain/sector filtering
-    domain = config.get('domain')
-    sector = config.get('sector')
-    
-    # Validate required fields
-    if not contacts_file:
-        raise ValueError("Missing required field: contacts")
-    
-    # Build base command with REQUIRED arguments in specific order
-    # Order matters! Keep --scheduled, --contacts, --tracking, --alerts together
     cmd = [
-        'python3', script_path,
-        '--scheduled', scheduled_dir,
-        '--contacts', contacts_file,
-        '--tracking', tracking_dir,
-        '--alerts', alerts_email,
+        "python", script_path,
+        "--contacts", contacts_dir,
+        "--scheduled", templates_dir,
+        "--tracking", tracking_dir,
+        "--alerts", alerts_email
     ]
     
-    # Add template file if specified
-    # Note: When using --templates, the --scheduled dir is still required but not used
+    # Mode 1: Specific template file provided
     if template_file:
-        cmd.extend(['--templates', template_file])
+        print(f"Using specific template file: {template_file}")
+        cmd.extend(["--template-file", template_file])
     
-    # Add delay
-    cmd.extend(['--delay', str(delay)])
+    # Mode 2: Domain scanning with sector filter
+    elif "sector" in config:
+        print(f"Using domain filter: {config['sector']}")
+        cmd.extend(["--filter-domain", config["sector"]])
     
-    # Add optional feedback email
-    if feedback_email and auto_inject:
-        cmd.extend(['--feedback', feedback_email])
-    
-    # Add batch settings
-    if batch_size:
-        cmd.extend(['--batch-size', str(batch_size)])
-    
-    # Add domain/sector filtering
-    if domain:
-        cmd.extend(['--domain', domain])
-    
-    if sector:
-        cmd.extend(['--filter-domain', sector])
-    
-    # Add mode flags
+    # Dry run mode
     if dry_run:
-        cmd.append('--dry-run')
+        cmd.append("--dry-run")
     
+    # Debug mode
     if debug:
-        cmd.append('--debug')
+        cmd.append("--debug")
+    
+    # Optional: feedback email
+    if "feedback_email" in config or ("feedback" in config and "email" in config["feedback"]):
+        feedback_email = config.get("feedback_email") or config["feedback"]["email"]
+        cmd.extend(["--feedback", feedback_email])
+    
+    # Queue emails mode (for GitHub Actions)
+    if config.get("queue_emails", False):
+        cmd.append("--queue-emails")
     
     return cmd
 
