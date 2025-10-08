@@ -647,7 +647,7 @@ jobs:
           echo "**Campaign Templates:** ${{ steps.domain_analysis.outputs.campaigns }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-enhanced-campaign-execution:
+  enhanced-campaign-execution:
     needs: enhanced-validation-and-prepare
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -1020,7 +1020,7 @@ enhanced-campaign-execution:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
           
-json-config-campaign:
+  json-config-campaign:
     needs: enhanced-validation-and-prepare
     runs-on: ubuntu-latest
     timeout-minutes: 60
