@@ -172,7 +172,19 @@ def find_email_script():
     return None
 
 def build_command(config, template_file, script_path, dry_run=False, debug=False):
-    """Build the command to execute the email script"""
+    """
+    Build the command to execute the email script (docx_parser.py)
+    
+    Args:
+        config: Configuration dictionary from JSON
+        template_file: Path to template file
+        script_path: Path to docx_parser.py script
+        dry_run: Whether to run in dry-run mode
+        debug: Whether to enable debug mode
+        
+    Returns:
+        list: Command arguments as list
+    """
     
     # Extract required configuration
     contacts_file = config.get('contacts')
@@ -193,29 +205,41 @@ def build_command(config, template_file, script_path, dry_run=False, debug=False
     feedback_email = feedback_config.get('email')
     auto_inject = feedback_config.get('auto_inject', True)
     
-    # Extract other settings
+    # Extract other required settings
     alerts_email = config.get('alerts_email', 'alerts@modelphysmat.com')
+    scheduled_dir = config.get('scheduled_dir', 'scheduled-campaigns')
+    
+    # Extract optional domain/sector filtering
     domain = config.get('domain')
     sector = config.get('sector')
     
-    # Build base command
+    # Validate required fields
+    if not contacts_file:
+        raise ValueError("Missing required field: contacts")
+    if not subject:
+        raise ValueError("Missing required field: subject")
+    
+    # Build base command with REQUIRED arguments
+    # Note: docx_parser.py requires: --contacts, --scheduled, --tracking, --alerts
     cmd = [
         'python3', script_path,
         '--contacts', contacts_file,
-        '--templates', template_file,
-        '--subject', subject,
-        '--delay', str(delay)
+        '--scheduled', scheduled_dir,      # REQUIRED
+        '--tracking', tracking_dir,        # REQUIRED
+        '--alerts', alerts_email,          # REQUIRED
     ]
     
-    # Add optional tracking
-    if tracking_dir:
-        cmd.extend(['--tracking', tracking_dir])
+    # Add template (optional but usually needed)
+    if template_file:
+        cmd.extend(['--templates', template_file])
     
-    # Add alerts email
-    if alerts_email:
-        cmd.extend(['--alerts', alerts_email])
+    # Add subject
+    cmd.extend(['--subject', subject])
     
-    # Add feedback email if enabled
+    # Add delay
+    cmd.extend(['--delay', str(delay)])
+    
+    # Add optional feedback email
     if feedback_email and auto_inject:
         cmd.extend(['--feedback', feedback_email])
     
