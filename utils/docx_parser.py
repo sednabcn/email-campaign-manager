@@ -392,7 +392,7 @@ except ImportError:
             
             return result
         
-        def send_campaign(self, campaign_name, subject, content, recipients, from_name="Campaign System", 
+        def send_campaign(self, campaign_name, subjects, content, recipients, from_name="Campaign System", 
                          tracking_id=None, contact_mapping=None):
             print(f"\n=== CAMPAIGN: {campaign_name} ===")
             if tracking_id:
@@ -584,7 +584,7 @@ def load_json_campaign(campaign_path):
         # Format 1: Simple content format with subject/content
         if 'subject' in campaign_data and 'content' in campaign_data:
             return {
-                'subject': campaign_data['subject'],
+                'subject': None,  # Subject will be extracted from content or generated
                 'content': campaign_data['content'],
                 'from_name': campaign_data.get('from_name', 'Campaign System'),
                 'content_type': campaign_data.get('content_type', 'html'),
