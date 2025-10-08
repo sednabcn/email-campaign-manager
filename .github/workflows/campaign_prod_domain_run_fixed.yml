@@ -1009,816 +1009,700 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
   json-config-campaign:
-  needs: enhanced-validation-and-prepare
-  runs-on: ubuntu-latest
-  timeout-minutes: 60
-  if: needs.enhanced-validation-and-prepare.outputs.validation_status == '0'
-  outputs:
+    needs: enhanced-validation-and-prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: needs.enhanced-validation-and-prepare.outputs.validation_status == '0'
+    outputs:
     execution_status: ${{ steps.run-json-campaign.outputs.status }}
     emails_sent: ${{ steps.run-json-campaign.outputs.emails_sent }}
-  
-  steps:
+        steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Setup Python environment
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        cache: 'pip'
-
-    - name: Install dependencies
-      run: |
-        echo "Installing Python dependencies..."
-        python -m pip install --upgrade pip setuptools wheel
-        pip install python-docx>=0.8.11 pandas>=2.0.0 requests>=2.31.0
-        
+    uses: actions/checkout@v4
+        - name: Setup Python environment
+    uses: actions/setup-python@v4
+    with:
+    python-version: ${{ env.PYTHON_VERSION }}
+    cache: 'pip'
+        - name: Install dependencies
+    run: |
+    echo "Installing Python dependencies..."
+    python -m pip install --upgrade pip setuptools wheel
+    pip install python-docx>=0.8.11 pandas>=2.0.0 requests>=2.31.0
         if [ -f requirements.txt ]; then
-          pip install -r requirements.txt
-        fi
-        
+    pip install -r requirements.txt
+    fi
         echo "✅ Dependencies installed"
-
-    - name: Verify required scripts exist
-      run: |
-        echo "Verifying campaign system scripts..."
-        
+        - name: Verify required scripts exist
+    run: |
+    echo "Verifying campaign system scripts..."
         MISSING=()
-        
         # Check for run_campaign_from_config.py
-        if [ ! -f ".github/scripts/run_campaign_from_config.py" ]; then
-          echo "❌ run_campaign_from_config.py not found"
-          MISSING+=("run_campaign_from_config.py")
-        else
-          echo "✅ run_campaign_from_config.py found"
-        fi
-        
+    if [ ! -f ".github/scripts/run_campaign_from_config.py" ]; then
+    echo "❌ run_campaign_from_config.py not found"
+    MISSING+=("run_campaign_from_config.py")
+    else
+    echo "✅ run_campaign_from_config.py found"
+    fi
         # Check for email processing scripts
-        EMAIL_SCRIPT_FOUND=false
-        for script in "utils/docx_parser.py" "send_personalized_emails.py" ".github/scripts/send_personalized_emails.py" "docx_parser.py"; do
-          if [ -f "$script" ]; then
-            echo "✅ Email script found: $script"
-            EMAIL_SCRIPT_FOUND=true
-            break
-          fi
-        done
-        
+    EMAIL_SCRIPT_FOUND=false
+    for script in "utils/docx_parser.py" "send_personalized_emails.py" ".github/scripts/send_personalized_emails.py" "docx_parser.py"; do
+    if [ -f "$script" ]; then
+    echo "✅ Email script found: $script"
+    EMAIL_SCRIPT_FOUND=true
+    break
+    fi
+    done
         if [ "$EMAIL_SCRIPT_FOUND" = false ]; then
-          echo "❌ No email processing script found"
-          MISSING+=("docx_parser.py or send_personalized_emails.py")
-        fi
-        
+    echo "❌ No email processing script found"
+    MISSING+=("docx_parser.py or send_personalized_emails.py")
+    fi
         if [ ${#MISSING[@]} -gt 0 ]; then
-          echo ""
-          echo "❌ Missing required scripts: ${MISSING[*]}"
-          echo "Please ensure all required scripts are in the repository"
-          exit 1
-        fi
-        
+    echo ""
+    echo "❌ Missing required scripts: ${MISSING[*]}"
+    echo "Please ensure all required scripts are in the repository"
+    exit 1
+    fi
         echo "✅ All required scripts verified"
-
-    - name: Find JSON configuration files
-      id: find-configs
-      run: |
-        echo "Searching for campaign configuration files..."
-        
+        - name: Find JSON configuration files
+    id: find-configs
+    run: |
+    echo "Searching for campaign configuration files..."
         # Search for JSON configs in scheduled-campaigns directory
-        if [ -d "scheduled-campaigns" ]; then
-          CONFIG_FILES=$(find scheduled-campaigns -name "*.json" -type f | grep -i campaign || true)
-        else
-          CONFIG_FILES=""
-        fi
-        
+    if [ -d "scheduled-campaigns" ]; then
+    CONFIG_FILES=$(find scheduled-campaigns -name "*.json" -type f | grep -i campaign || true)
+    else
+    CONFIG_FILES=""
+    fi
         # Count configs
-        if [ -n "$CONFIG_FILES" ]; then
-          CONFIG_COUNT=$(echo "$CONFIG_FILES" | wc -l)
-          echo "✅ Found $CONFIG_COUNT configuration file(s)"
-          echo "$CONFIG_FILES" | while read config; do
-            echo "  - $config"
-          done
-          
-          # Use first config as default
-          DEFAULT_CONFIG=$(echo "$CONFIG_FILES" | head -1)
-          echo "default_config=$DEFAULT_CONFIG" >> $GITHUB_OUTPUT
-          echo "config_count=$CONFIG_COUNT" >> $GITHUB_OUTPUT
-        else
-          echo "⚠️  No JSON configuration files found in scheduled-campaigns/"
-          echo "config_count=0" >> $GITHUB_OUTPUT
-          
-          # Try to find any campaign JSON
-          FALLBACK_CONFIG=$(find . -name "*campaign*.json" -type f | head -1)
-          if [ -n "$FALLBACK_CONFIG" ]; then
-            echo "✅ Found fallback config: $FALLBACK_CONFIG"
-            echo "default_config=$FALLBACK_CONFIG" >> $GITHUB_OUTPUT
-            echo "config_count=1" >> $GITHUB_OUTPUT
-          else
-            echo "❌ No configuration files found"
-            exit 1
-          fi
-        fi
-
-    - name: Display configuration summary
-      env:
-        CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
-      run: |
-        echo "Configuration File: $CONFIG_FILE"
-        echo ""
-        python3 .github/scripts/display_config_summary.py "$CONFIG_FILE"
-
-    - name: Setup SMTP credentials
-      env:
-        SMTP_HOST: ${{ secrets.SMTP_HOST }}
-        SMTP_PORT: ${{ secrets.SMTP_PORT }}
-        SMTP_USER: ${{ secrets.SMTP_USER }}
-        SMTP_PASS: ${{ secrets.SMTP_PASS }}
-      run: |
-        echo "Setting up SMTP credentials..."
-        
+    if [ -n "$CONFIG_FILES" ]; then
+    CONFIG_COUNT=$(echo "$CONFIG_FILES" | wc -l)
+    echo "✅ Found $CONFIG_COUNT configuration file(s)"
+    echo "$CONFIG_FILES" | while read config; do
+    echo "  - $config"
+    done
+        # Use first config as default
+    DEFAULT_CONFIG=$(echo "$CONFIG_FILES" | head -1)
+    echo "default_config=$DEFAULT_CONFIG" >> $GITHUB_OUTPUT
+    echo "config_count=$CONFIG_COUNT" >> $GITHUB_OUTPUT
+    else
+    echo "⚠️  No JSON configuration files found in scheduled-campaigns/"
+    echo "config_count=0" >> $GITHUB_OUTPUT
+        # Try to find any campaign JSON
+    FALLBACK_CONFIG=$(find . -name "*campaign*.json" -type f | head -1)
+    if [ -n "$FALLBACK_CONFIG" ]; then
+    echo "✅ Found fallback config: $FALLBACK_CONFIG"
+    echo "default_config=$FALLBACK_CONFIG" >> $GITHUB_OUTPUT
+    echo "config_count=1" >> $GITHUB_OUTPUT
+    else
+    echo "❌ No configuration files found"
+    exit 1
+    fi
+    fi
+        - name: Display configuration summary
+    env:
+    CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
+    run: |
+    echo "Configuration File: $CONFIG_FILE"
+    echo ""
+    python3 .github/scripts/display_config_summary.py "$CONFIG_FILE"
+        - name: Setup SMTP credentials
+    env:
+    SMTP_HOST: ${{ secrets.SMTP_HOST }}
+    SMTP_PORT: ${{ secrets.SMTP_PORT }}
+    SMTP_USER: ${{ secrets.SMTP_USER }}
+    SMTP_PASS: ${{ secrets.SMTP_PASS }}
+    run: |
+    echo "Setting up SMTP credentials..."
         # Validate credentials are available
-        if [ -z "$SMTP_HOST" ]; then
-          echo "⚠️  SMTP_HOST not set in secrets"
-        else
-          echo "✅ SMTP_HOST configured"
-        fi
-        
+    if [ -z "$SMTP_HOST" ]; then
+    echo "⚠️  SMTP_HOST not set in secrets"
+    else
+    echo "✅ SMTP_HOST configured"
+    fi
         if [ -z "$SMTP_PORT" ]; then
-          echo "⚠️  SMTP_PORT not set in secrets"
-        else
-          echo "✅ SMTP_PORT configured"
-        fi
-        
+    echo "⚠️  SMTP_PORT not set in secrets"
+    else
+    echo "✅ SMTP_PORT configured"
+    fi
         if [ -z "$SMTP_USER" ]; then
-          echo "⚠️  SMTP_USER not set in secrets"
-        else
-          echo "✅ SMTP_USER configured"
-        fi
-        
+    echo "⚠️  SMTP_USER not set in secrets"
+    else
+    echo "✅ SMTP_USER configured"
+    fi
         if [ -z "$SMTP_PASS" ]; then
-          echo "⚠️  SMTP_PASS not set in secrets"
-        else
-          echo "✅ SMTP_PASS configured (hidden)"
-        fi
-        
+    echo "⚠️  SMTP_PASS not set in secrets"
+    else
+    echo "✅ SMTP_PASS configured (hidden)"
+    fi
         # Check if we have minimum required config
-        if [ -z "$SMTP_HOST" ] || [ -z "$SMTP_USER" ] || [ -z "$SMTP_PASS" ]; then
-          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
-            echo ""
-            echo "⚠️  SMTP credentials incomplete, but continuing in dry-run mode"
-          else
-            echo ""
-            echo "❌ SMTP credentials incomplete for live mode"
-            echo "Please configure secrets: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS"
-            exit 1
-          fi
-        fi
-
-    - name: Update config with latest contact file
-      env:
-        CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
-      run: |
-        echo "Checking for latest contact file..."
-        python3 .github/scripts/update_config_contacts.py "$CONFIG_FILE" || echo "⚠️ Could not auto-update contacts"
-
-    - name: Validate campaign configuration
-      env:
-        CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
-      run: |
-        echo "Validating campaign configuration..."
-        
+    if [ -z "$SMTP_HOST" ] || [ -z "$SMTP_USER" ] || [ -z "$SMTP_PASS" ]; then
+    if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+    echo ""
+    echo "⚠️  SMTP credentials incomplete, but continuing in dry-run mode"
+    else
+    echo ""
+    echo "❌ SMTP credentials incomplete for live mode"
+    echo "Please configure secrets: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS"
+    exit 1
+    fi
+    fi
+        - name: Update config with latest contact file
+    env:
+    CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
+    run: |
+    echo "Checking for latest contact file..."
+    python3 .github/scripts/update_config_contacts.py "$CONFIG_FILE" || echo "⚠️ Could not auto-update contacts"
+        - name: Validate campaign configuration
+    env:
+    CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
+    run: |
+    echo "Validating campaign configuration..."
         # Use flags appropriate for CI/CD environment
-        python3 .github/scripts/validate_campaign.py "$CONFIG_FILE" --allow-env-vars --skip-contacts-check
-        
+    python3 .github/scripts/validate_campaign.py "$CONFIG_FILE" --allow-env-vars --skip-contacts-check
         if [ $? -ne 0 ]; then
-          echo "❌ Campaign validation failed"
-          exit 1
-        fi
-        
+    echo "❌ Campaign validation failed"
+    exit 1
+    fi
         echo "✅ Campaign validation passed"
-
-    - name: Run campaign from JSON configuration
-      id: run-json-campaign
-      continue-on-error: true
-      env:
-        SMTP_HOST: ${{ secrets.SMTP_HOST }}
-        SMTP_PORT: ${{ secrets.SMTP_PORT }}
-        SMTP_USER: ${{ secrets.SMTP_USER }}
-        SMTP_PASS: ${{ secrets.SMTP_PASS }}
-        CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
-      run: |
-        echo "=========================================="
-        echo "  📧 Starting JSON-based Campaign"
-        echo "=========================================="
-        echo ""
-        echo "Configuration: $CONFIG_FILE"
-        echo "Mode: ${{ github.event.inputs.dry_run == 'true' && 'DRY RUN' || 'LIVE' }}"
-        echo "Debug: ${{ github.event.inputs.debug_mode }}"
-        echo "Target Domain: ${{ github.event.inputs.target_domain || 'All' }}"
-        echo ""
-        
+        - name: Run campaign from JSON configuration
+    id: run-json-campaign
+    continue-on-error: true
+    env:
+    SMTP_HOST: ${{ secrets.SMTP_HOST }}
+    SMTP_PORT: ${{ secrets.SMTP_PORT }}
+    SMTP_USER: ${{ secrets.SMTP_USER }}
+    SMTP_PASS: ${{ secrets.SMTP_PASS }}
+    CONFIG_FILE: ${{ steps.find-configs.outputs.default_config }}
+    run: |
+    echo "=========================================="
+    echo "  📧 Starting JSON-based Campaign"
+    echo "=========================================="
+    echo ""
+    echo "Configuration: $CONFIG_FILE"
+    echo "Mode: ${{ github.event.inputs.dry_run == 'true' && 'DRY RUN' || 'LIVE' }}"
+    echo "Debug: ${{ github.event.inputs.debug_mode }}"
+    echo "Target Domain: ${{ github.event.inputs.target_domain || 'All' }}"
+    echo ""
         # Build command
-        CMD="python3 .github/scripts/run_campaign_from_config.py --config $CONFIG_FILE"
-        
+    CMD="python3 .github/scripts/run_campaign_from_config.py --config $CONFIG_FILE"
         # Add dry-run flag if specified
-        if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
-          CMD="$CMD --dry-run"
-          echo "🧪 DRY RUN MODE - Emails will be saved to outbox/ directory"
-        else
-          echo "📤 LIVE MODE - Emails will be sent"
-        fi
-        
+    if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+    CMD="$CMD --dry-run"
+    echo "🧪 DRY RUN MODE - Emails will be saved to outbox/ directory"
+    else
+    echo "📤 LIVE MODE - Emails will be sent"
+    fi
         # Add debug flag if specified
-        if [ "${{ github.event.inputs.debug_mode }}" == "true" ]; then
-          CMD="$CMD --debug"
-        fi
-        
+    if [ "${{ github.event.inputs.debug_mode }}" == "true" ]; then
+    CMD="$CMD --debug"
+    fi
         echo ""
-        echo "Command: $CMD"
-        echo ""
-        echo "=========================================="
-        
+    echo "Command: $CMD"
+    echo ""
+    echo "=========================================="
         # Execute campaign with proper error handling
-        set +e
-        $CMD 2>&1 | tee campaign_json_execution.log
-        EXIT_CODE=${PIPESTATUS[0]}
-        set -e
-        
+    set +e
+    $CMD 2>&1 | tee campaign_json_execution.log
+    EXIT_CODE=${PIPESTATUS[0]}
+    set -e
         echo ""
-        echo "=========================================="
-        
+    echo "=========================================="
         # Determine status and set outputs properly
-        if [ $EXIT_CODE -eq 0 ]; then
-          echo "  ✅ Campaign Completed Successfully"
-          STATUS="success"
-          
-          # Try to count emails from log
-          EMAILS_SENT=$(grep -c "Sent to\|✓ Sent to" campaign_json_execution.log 2>/dev/null || echo "0")
-        else
-          echo "  ⚠️  Campaign Completed with Issues"
-          echo "  Exit Code: $EXIT_CODE"
-          STATUS="failure"
-          EMAILS_SENT="0"
-        fi
-        
+    if [ $EXIT_CODE -eq 0 ]; then
+    echo "  ✅ Campaign Completed Successfully"
+    STATUS="success"
+        # Try to count emails from log
+    EMAILS_SENT=$(grep -c "Sent to\|✓ Sent to" campaign_json_execution.log 2>/dev/null || echo "0")
+    else
+    echo "  ⚠️  Campaign Completed with Issues"
+    echo "  Exit Code: $EXIT_CODE"
+    STATUS="failure"
+    EMAILS_SENT="0"
+    fi
         echo "=========================================="
-        echo "Setting outputs: status=$STATUS, emails_sent=$EMAILS_SENT"
-        
+    echo "Setting outputs: status=$STATUS, emails_sent=$EMAILS_SENT"
         # CRITICAL: Set outputs using proper format with error checking
-        {
-          echo "status=$STATUS"
-          echo "emails_sent=$EMAILS_SENT"
-        } >> "$GITHUB_OUTPUT" || {
-          echo "ERROR: Failed to write to GITHUB_OUTPUT"
-          echo "GITHUB_OUTPUT path: $GITHUB_OUTPUT"
-          ls -la "$GITHUB_OUTPUT" 2>/dev/null || echo "File does not exist"
-        }
-        
+    {
+    echo "status=$STATUS"
+    echo "emails_sent=$EMAILS_SENT"
+    } >> "$GITHUB_OUTPUT" || {
+    echo "ERROR: Failed to write to GITHUB_OUTPUT"
+    echo "GITHUB_OUTPUT path: $GITHUB_OUTPUT"
+    ls -la "$GITHUB_OUTPUT" 2>/dev/null || echo "File does not exist"
+    }
         # Verify outputs were written
-        if [ -f "$GITHUB_OUTPUT" ]; then
-          echo "Output file contents:"
-          cat "$GITHUB_OUTPUT"
-        fi
-        
+    if [ -f "$GITHUB_OUTPUT" ]; then
+    echo "Output file contents:"
+    cat "$GITHUB_OUTPUT"
+    fi
         # Don't exit with error code - let continue-on-error handle it
-        if [ $EXIT_CODE -ne 0 ]; then
-          echo "Campaign execution had issues (exit code: $EXIT_CODE)"
-        fi
-
-    - name: Verify outputs were set
-      if: always()
-      run: |
-        echo "Verifying step outputs..."
-        echo "Status output: '${{ steps.run-json-campaign.outputs.status }}'"
-        echo "Emails sent output: '${{ steps.run-json-campaign.outputs.emails_sent }}'"
-        
+    if [ $EXIT_CODE -ne 0 ]; then
+    echo "Campaign execution had issues (exit code: $EXIT_CODE)"
+    fi
+        - name: Verify outputs were set
+    if: always()
+    run: |
+    echo "Verifying step outputs..."
+    echo "Status output: '${{ steps.run-json-campaign.outputs.status }}'"
+    echo "Emails sent output: '${{ steps.run-json-campaign.outputs.emails_sent }}'"
         if [ -z "${{ steps.run-json-campaign.outputs.status }}" ]; then
-          echo "⚠️ WARNING: status output is empty"
-        else
-          echo "✅ Status output is set"
-        fi
-
-    - name: Analyze campaign execution results
-      if: always()
-      run: |
-        echo "Analyzing campaign execution..."
-        python3 .github/scripts/analyze_campaign_logs.py --tracking-dir tracking --log-file campaign_json_execution.log --full-log
-
-    - name: Collect output files
-      if: always()
-      run: |
-        echo "Collecting campaign output files..."
-        
+    echo "⚠️ WARNING: status output is empty"
+    else
+    echo "✅ Status output is set"
+    fi
+        - name: Analyze campaign execution results
+    if: always()
+    run: |
+    echo "Analyzing campaign execution..."
+    python3 .github/scripts/analyze_campaign_logs.py --tracking-dir tracking --log-file campaign_json_execution.log --full-log
+        - name: Collect output files
+    if: always()
+    run: |
+    echo "Collecting campaign output files..."
         # List generated files
-        if [ -d "outbox" ]; then
-          echo "Dry-run output files:"
-          ls -lh outbox/ || echo "  No files in outbox/"
-        fi
-        
+    if [ -d "outbox" ]; then
+    echo "Dry-run output files:"
+    ls -lh outbox/ || echo "  No files in outbox/"
+    fi
         if [ -d "tracking" ]; then
-          echo "Tracking files:"
-          find tracking -type f | head -10 || echo "  No tracking files"
-        fi
-        
+    echo "Tracking files:"
+    find tracking -type f | head -10 || echo "  No tracking files"
+    fi
         if [ -f "campaign_json_execution.log" ]; then
-          echo "Execution log size: $(wc -l < campaign_json_execution.log) lines"
-        fi
-
-    - name: Upload campaign artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: json-campaign-output-${{ github.run_id }}
-        path: |
-          campaign_json_execution.log
-          outbox/
-          tracking/
-          *.log
-        retention-days: 7
-        if-no-files-found: warn
-
-    - name: Generate execution summary
-      if: always()
-      run: |
-        echo "### 📧 JSON-based Campaign Execution" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Configuration:** \`${{ steps.find-configs.outputs.default_config }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "**Mode:** ${{ github.event.inputs.dry_run == 'true' && '🧪 Dry Run' || '📤 Live' }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Status:** ${{ steps.run-json-campaign.outputs.status == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Emails Processed:** ${{ steps.run-json-campaign.outputs.emails_sent || '0' }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
+    echo "Execution log size: $(wc -l < campaign_json_execution.log) lines"
+    fi
+        - name: Upload campaign artifacts
+    uses: actions/upload-artifact@v4
+    if: always()
+    with:
+    name: json-campaign-output-${{ github.run_id }}
+    path: |
+    campaign_json_execution.log
+    outbox/
+    tracking/
+    *.log
+    retention-days: 7
+    if-no-files-found: warn
+        - name: Generate execution summary
+    if: always()
+    run: |
+    echo "### 📧 JSON-based Campaign Execution" >> $GITHUB_STEP_SUMMARY
+    echo "" >> $GITHUB_STEP_SUMMARY
+    echo "**Configuration:** \`${{ steps.find-configs.outputs.default_config }}\`" >> $GITHUB_STEP_SUMMARY
+    echo "**Mode:** ${{ github.event.inputs.dry_run == 'true' && '🧪 Dry Run' || '📤 Live' }}" >> $GITHUB_STEP_SUMMARY
+    echo "**Status:** ${{ steps.run-json-campaign.outputs.status == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+    echo "**Emails Processed:** ${{ steps.run-json-campaign.outputs.emails_sent || '0' }}" >> $GITHUB_STEP_SUMMARY
+    echo "" >> $GITHUB_STEP_SUMMARY
         if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
-          echo "📋 **Note:** Dry run mode - check artifacts for generated email files" >> $GITHUB_STEP_SUMMARY
-        fi
-        
+    echo "📋 **Note:** Dry run mode - check artifacts for generated email files" >> $GITHUB_STEP_SUMMARY
+    fi
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Validation Results:**" >> $GITHUB_STEP_SUMMARY
-        echo "- Contacts Loaded: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Templates Found: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Config Files: ${{ steps.find-configs.outputs.config_count }}" >> $GITHUB_STEP_SUMMARY
-        
-    - name: Generate comprehensive enhanced campaign report
-      run: |
-          echo "Generating comprehensive enhanced campaign report..."
-          
-          python -c """
-          import json
-          import os
-          from datetime import datetime
-          from pathlib import Path
-
-          # Load enhanced execution data
-          try:
-            with open('tracking/execution_start.json', 'r') as f:
-              start_data = json.load(f)
-          except:
-            start_data = {'workflow_run_id': '${{ github.run_id }}'}
-
-          try:
-            with open('contact_analysis.json', 'r') as f:
-              contact_data = json.load(f)
-          except:
-            contact_data = {'total_contacts': 0}
-
-          try:
-            with open('domain_analysis.json', 'r') as f:
-              domain_data = json.load(f)
-          except:
-            domain_data = {'template_count': 0}
-
-          # Load enhanced reply analysis
-          reply_data = {'total_replies': 0, 'bounces': 0, 'genuine_feedback': 0, 'enhanced_mode': False}
-          reply_file = Path('tracking/reply_tracking/enhanced_reply_analysis.json')
-          if reply_file.exists():
-            try:
-              with open(reply_file, 'r') as f:
-                reply_data = json.load(f)
-            except:
-              pass
-
-          # Enhanced execution metrics
-          execution_status = os.environ.get('EXECUTION_STATUS', 'unknown')
-          mode_text = os.environ.get('MODE_TEXT', 'Unknown Mode')
-          success_indicators = os.environ.get('SUCCESS_INDICATORS', '0')
-          log_file = os.environ.get('LOG_FILE', 'campaign_execution.log')
-
-          # Generate enhanced detailed report
-          report = f'''# Enhanced Email Campaign Execution Report
-
-          ## Executive Summary
-          - **Workflow Run ID:** ${{ github.run_id }}
-          - **Execution Status:** {'SUCCESS' if execution_status == '0' else 'ISSUES' if execution_status == '1' else 'UNKNOWN'}
-          - **Mode:** {mode_text}
-          - **Success Indicators:** {success_indicators}/5
-          - **Execution Time:** {start_data.get('execution_start', 'unknown')}
-          - **Target Domain:** {start_data.get('target_domain') or 'All domains'}
-
-          ## Enhanced Data Analysis
-          - **Real Data Sources:** ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}
-          - **Contact Files Found:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}
-          - **Total Contacts Loaded:** {contact_data.get('total_contacts', 0)}
-          - **Contact Sources:** {len(contact_data.get('sources_breakdown', {}))}
-          - **Unique Email Domains:** {len(contact_data.get('domain_breakdown', {}))}
-          - **Data Loader Used:** {contact_data.get('loaded_with', 'unknown')}
-
-          ## Enhanced Template Analysis  
-          - **Total Templates:** {domain_data.get('template_count', 0)}
-          - **Active Domains:** {domain_data.get('domain_count', 0)}
-          - **Scheduled Campaigns:** {domain_data.get('scheduled_campaigns', 0)}
-          - **Template Variables Found:** {len(domain_data.get('template_variables_found', {}))}
-          - **Variable Examples:** {list(domain_data.get('template_variables_found', {}).values())[:3] if domain_data.get('template_variables_found') else 'None'}
-
-          ## Enhanced Feedback and Tracking Analysis
-          - **Feedback System:** {'ENABLED' if start_data.get('feedback_injection') == 'enabled' else 'DISABLED'}
-          - **Real-time Tracking:** {start_data.get('real_time_tracking', 'false').upper()}
-          - **Total Replies Processed:** {reply_data.get('total_replies', 0)}
-          - **Bounce Rate:** {reply_data.get('bounce_rate', 0):.1f}%
-          - **Genuine Feedback Rate:** {reply_data.get('feedback_rate', 0):.1f}%
-          - **Enhanced Reply Analysis:** {'ENABLED' if reply_data.get('enhanced_mode') else 'BASIC'}
-
-          ## Enhanced System Integration
-          - **Main Processor:** utils/docx_parser.py (Enhanced Mode)
-          - **Data Loading:** {contact_data.get('loaded_with', 'Professional data_loader.py')}
-          - **Template Engine:** Variable substitution with {{{{name}}}}, {{{{email}}}}, etc.
-          - **Feedback Injection:** email_feedback_injector.py
-          - **Reply Tracking:** reply_tracker.py with enhanced analysis
-          - **DOCX Processing:** docx_feedback_processor.py
-
-          ## Enhanced Configuration
-          - **Batch Size:** {start_data.get('batch_size', 50)}
-          - **Debug Mode:** {start_data.get('debug_mode', 'false').upper()}
-          - **Force Validation:** ${{ github.event.inputs.force_validation }}
-          - **Contact Source Filter:** {contact_data.get('contact_source_filter', 'all')}
-
-          ## Enhanced Files Generated
-          - **Primary Log:** {log_file}
-          - **Contact Analysis:** contact_analysis.json  
-          - **Domain Analysis:** domain_analysis.json
-          - **Execution Metadata:** tracking/execution_start.json
-          - **Reply Analysis:** tracking/reply_tracking/enhanced_reply_analysis.json
-          - **Comprehensive Tracking:** tracking/ directory structure
-
-          ## Enhanced Performance Metrics
-          '''
-
-          # Add log-based metrics if available
-          if os.path.exists(log_file):
-            with open(log_file, 'r') as f:
-              log_content = f.read()
-            
-            log_lines = len(log_content.split('\\n'))
-            error_count = log_content.count('ERROR') + log_content.count('CRITICAL')
-            warning_count = log_content.count('WARNING') + log_content.count('WARN')
-            
-            report += f'''
-          - **Log Lines Generated:** {log_lines:,}
-          - **Errors:** {error_count}
-          - **Warnings:** {warning_count}
-          - **Processing Efficiency:** {(int(success_indicators)/5*100):.0f}%
-          '''
-          else:
-            report += '''
-          - **Log Status:** Not Available
-          - **Processing Status:** Check execution logs
-          '''
-
-          report += f'''
-          
-          ## Enhanced Status Assessment
-          **Overall System Status:** {'SUCCESS - All systems operational with enhanced features' if execution_status == '0' and int(success_indicators) >= 3 else 'PARTIAL SUCCESS - Core functionality working with some enhancements' if int(success_indicators) >= 2 else 'ISSUES DETECTED - Manual review recommended'}
-
-          **Integration Quality:** ENHANCED with comprehensive validation, multi-source data loading, template processing, feedback injection, and real-time tracking.
-
-          **Production Readiness:** {'READY - System validated with real data sources and enhanced features' if '${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}' == 'true' else 'TEST MODE - Using sample data, ready for real data integration'}
-
-          ---
-          *Enhanced Campaign System Report generated at {datetime.now().isoformat()}*  
-          *Workflow: Enhanced Production Email Campaign System*
-          '''
-
-          # Save enhanced detailed report
-          os.makedirs('reports', exist_ok=True)
-          with open('reports/enhanced_campaign_report.md', 'w') as f:
-            f.write(report)
-
-          # Create enhanced summary for GitHub
-          summary = f'''## Enhanced Campaign Execution Summary
-
-          **Status:** {'SUCCESS' if execution_status == '0' else 'ISSUES' if execution_status == '1' else 'UNKNOWN'}  
-          **Mode:** {mode_text}  
-          **Success Score:** {success_indicators}/5  
-          **Contacts:** {contact_data.get('total_contacts', 0)}  
-          **Templates:** {domain_data.get('template_count', 0)}  
-          **Replies:** {reply_data.get('total_replies', 0)} (Feedback: {reply_data.get('feedback_rate', 0):.1f}%)  
-
-          **Enhanced Features:** Template processing, feedback injection, reply tracking, multi-source data loading
-          **Real Data:** ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}
-          '''
-
-          with open('reports/enhanced_summary.md', 'w') as f:
-            f.write(summary)
-
-          print('Enhanced comprehensive reports generated successfully')
-          print(f'Success indicators: {success_indicators}/5')
-          print(f'Execution status: {execution_status}')
-          print(f'Mode: {mode_text}')
-          """
-
-    - name: Create enhanced GitHub issue notification
-      if: always()
-      env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-          echo "Creating enhanced GitHub issue notification..."
-          
-          python -c """
-          import sys
-          import os
-          import requests
-          import json
-
-          github_token = os.environ.get('GITHUB_TOKEN')
-          if not github_token:
-            print('No GitHub token available - skipping issue creation')
-            sys.exit(0)
-
-          repo = '${{ github.repository }}'
-          execution_status = os.environ.get('EXECUTION_STATUS', 'unknown')
-          success_indicators = os.environ.get('SUCCESS_INDICATORS', '0')
-          mode_text = os.environ.get('MODE_TEXT', 'Unknown')
-          
-          # Enhanced status determination
-          if execution_status == '0' and int(success_indicators) >= 4:
-            status_emoji = '🎉 COMPLETE SUCCESS'
-            priority = 'success'
-          elif execution_status == '0' and int(success_indicators) >= 2:
-            status_emoji = '✅ SUCCESS'  
-            priority = 'success'
-          elif int(success_indicators) >= 2:
-            status_emoji = '⚠️ PARTIAL SUCCESS'
-            priority = 'warning'
-          else:
-            status_emoji = '❌ ISSUES DETECTED'
-            priority = 'error'
-          
-          title = f'Enhanced Campaign Report - {status_emoji} - Run ${{ github.run_id }}'
-          
-          body = f'''# Enhanced Email Campaign Execution Report
-
-          ## 🎯 Executive Summary
-          **Workflow Run ID:** ${{ github.run_id }}  
-          **Final Status:** {status_emoji}  
-          **Success Score:** {success_indicators}/5  
-          **Execution Mode:** {mode_text}  
-          **Real Data Sources:** ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}  
-          **Priority:** {priority.upper()}
-
-          ## 📊 Enhanced Metrics
-          **Contact Data:**
-          - Files Found: ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}
-          - Contacts Loaded: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}
-          - Real Data Used: ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}
-
-          **Campaign Data:**
-          - Templates Available: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}
-          - Target Domain: ${{ github.event.inputs.target_domain || 'All domains' }}
-          - Batch Size: ${{ github.event.inputs.batch_size || 50 }}
-
-          **Enhanced Features:**
-          - ✅ Template Variable Processing ({{{{name}}}}, {{{{email}}}}, etc.)
-          - ✅ Multi-source Data Loading (CSV, Excel, Google Sheets)
-          - ✅ Feedback Injection System
-          - ✅ Real-time Reply Tracking
-          - ✅ Comprehensive Validation
-          - ✅ Enhanced Error Handling
-
-          ## 🔧 System Integration Status
-          **Core Components:**
-          - utils/docx_parser.py: ENHANCED MODE
-          - Professional data_loader.py: INTEGRATED
-          - email_feedback_injector.py: ACTIVE
-          - reply_tracker.py: ENHANCED ANALYSIS
-          - docx_feedback_processor.py: ACTIVE
-
-          **Configuration:**
-          - Real-time Tracking: ${{ github.event.inputs.enable_real_time_tracking }}
-          - Debug Mode: ${{ github.event.inputs.debug_mode }}
-          - Feedback Injection: ${{ github.event.inputs.skip_feedback_injection != 'true' && 'ENABLED' || 'DISABLED' }}
-
-          ## 📋 Detailed Analysis
-          View comprehensive results in GitHub Actions artifacts for run ${{ github.run_id }}.
-
-          **Key Improvements:**
-          - Enhanced validation with systematic file detection
-          - Multi-source contact data integration (CSV, Excel, Google Sheets)
-          - Template variable processing with {{name}}, {{email}}, {{organization}}
-          - Comprehensive feedback and reply tracking systems
-          - Production-grade error handling and recovery
-          - Real-time metrics and performance monitoring
-
-          ## 🚀 Next Steps
-          ''' + ('✅ System ready for production scaling\\n✅ Real data integration successful\\n📈 Consider expanding to additional domains' if '${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}' == 'true' else '📋 Add real contact data to contacts/ directory\\n📊 System tested and validated with sample data\\n🔄 Ready for production data integration') + f'''
-
-          ---
-          *Enhanced Campaign System - Production Ready*  
-          *Generated: $(date)*
-          '''
-
-          try:
-            headers = {
-            'Authorization': f'token {github_token}',
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'Enhanced-Campaign-Workflow'
-            }
-    
-            data = {
-            'title': title,
-            'body': body,
-            'labels': ['enhanced-campaign', 'production', priority, 'automated']
-            }
-    
-            response = requests.post(
-            f'https://api.github.com/repos/{repo}/issues',
-            headers=headers,
-            data=json.dumps(data),
-            timeout=30
-            )
-    
-            if response.status_code == 201:
-              issue_data = response.json()
-              print(f'Created enhanced issue #{issue_data[\"number\"]}: {title}')
-              print(f'Issue URL: {issue_data[\"html_url\"]}')
-            else:
-              print(f'Failed to create issue: {response.status_code}')
-              print(f'Response: {response.text[:500]}')
-        
-          except Exception as e:
-            print(f'Error creating enhanced GitHub issue: {e}') """
-
-    
-        - name: Upload comprehensive enhanced artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: enhanced-production-results-0-${{ github.run_id }}
-        path: |
-          *.log
-          tracking/
-          reports/
-          contact_analysis.json
-          domain_analysis.json
-          utils/
-          contacts/
-          scheduled-campaigns/
-          campaign-templates/
-        retention-days: 30
-
-    - name: Update enhanced GitHub Step Summary
-      if: always()
-      run: |
-        echo "## Enhanced Email Campaign Execution Report" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
+    echo "**Validation Results:**" >> $GITHUB_STEP_SUMMARY
+    echo "- Contacts Loaded: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
+    echo "- Templates Found: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
+    echo "- Config Files: ${{ steps.find-configs.outputs.config_count }}" >> $GITHUB_STEP_SUMMARY
+        - name: Generate comprehensive enhanced campaign report
+    run: |
+    echo "Generating comprehensive enhanced campaign report..."
+        python -c """
+    import json
+    import os
+    from datetime import datetime
+    from pathlib import Path
+        # Load enhanced execution data
+    try:
+    with open('tracking/execution_start.json', 'r') as f:
+    start_data = json.load(f)
+    except:
+    start_data = {'workflow_run_id': '${{ github.run_id }}'}
+        try:
+    with open('contact_analysis.json', 'r') as f:
+    contact_data = json.load(f)
+    except:
+    contact_data = {'total_contacts': 0}
+        try:
+    with open('domain_analysis.json', 'r') as f:
+    domain_data = json.load(f)
+    except:
+    domain_data = {'template_count': 0}
+        # Load enhanced reply analysis
+    reply_data = {'total_replies': 0, 'bounces': 0, 'genuine_feedback': 0, 'enhanced_mode': False}
+    reply_file = Path('tracking/reply_tracking/enhanced_reply_analysis.json')
+    if reply_file.exists():
+    try:
+    with open(reply_file, 'r') as f:
+    reply_data = json.load(f)
+    except:
+    pass
+        # Enhanced execution metrics
+    execution_status = os.environ.get('EXECUTION_STATUS', 'unknown')
+    mode_text = os.environ.get('MODE_TEXT', 'Unknown Mode')
+    success_indicators = os.environ.get('SUCCESS_INDICATORS', '0')
+    log_file = os.environ.get('LOG_FILE', 'campaign_execution.log')
+        # Generate enhanced detailed report
+    report = f'''# Enhanced Email Campaign Execution Report
+        ## Executive Summary
+    - **Workflow Run ID:** ${{ github.run_id }}
+    - **Execution Status:** {'SUCCESS' if execution_status == '0' else 'ISSUES' if execution_status == '1' else 'UNKNOWN'}
+    - **Mode:** {mode_text}
+    - **Success Indicators:** {success_indicators}/5
+    - **Execution Time:** {start_data.get('execution_start', 'unknown')}
+    - **Target Domain:** {start_data.get('target_domain') or 'All domains'}
+        ## Enhanced Data Analysis
+    - **Real Data Sources:** ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}
+    - **Contact Files Found:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}
+    - **Total Contacts Loaded:** {contact_data.get('total_contacts', 0)}
+    - **Contact Sources:** {len(contact_data.get('sources_breakdown', {}))}
+    - **Unique Email Domains:** {len(contact_data.get('domain_breakdown', {}))}
+    - **Data Loader Used:** {contact_data.get('loaded_with', 'unknown')}
+        ## Enhanced Template Analysis  
+    - **Total Templates:** {domain_data.get('template_count', 0)}
+    - **Active Domains:** {domain_data.get('domain_count', 0)}
+    - **Scheduled Campaigns:** {domain_data.get('scheduled_campaigns', 0)}
+    - **Template Variables Found:** {len(domain_data.get('template_variables_found', {}))}
+    - **Variable Examples:** {list(domain_data.get('template_variables_found', {}).values())[:3] if domain_data.get('template_variables_found') else 'None'}
+        ## Enhanced Feedback and Tracking Analysis
+    - **Feedback System:** {'ENABLED' if start_data.get('feedback_injection') == 'enabled' else 'DISABLED'}
+    - **Real-time Tracking:** {start_data.get('real_time_tracking', 'false').upper()}
+    - **Total Replies Processed:** {reply_data.get('total_replies', 0)}
+    - **Bounce Rate:** {reply_data.get('bounce_rate', 0):.1f}%
+    - **Genuine Feedback Rate:** {reply_data.get('feedback_rate', 0):.1f}%
+    - **Enhanced Reply Analysis:** {'ENABLED' if reply_data.get('enhanced_mode') else 'BASIC'}
+        ## Enhanced System Integration
+    - **Main Processor:** utils/docx_parser.py (Enhanced Mode)
+    - **Data Loading:** {contact_data.get('loaded_with', 'Professional data_loader.py')}
+    - **Template Engine:** Variable substitution with {{{{name}}}}, {{{{email}}}}, etc.
+    - **Feedback Injection:** email_feedback_injector.py
+    - **Reply Tracking:** reply_tracker.py with enhanced analysis
+    - **DOCX Processing:** docx_feedback_processor.py
+        ## Enhanced Configuration
+    - **Batch Size:** {start_data.get('batch_size', 50)}
+    - **Debug Mode:** {start_data.get('debug_mode', 'false').upper()}
+    - **Force Validation:** ${{ github.event.inputs.force_validation }}
+    - **Contact Source Filter:** {contact_data.get('contact_source_filter', 'all')}
+        ## Enhanced Files Generated
+    - **Primary Log:** {log_file}
+    - **Contact Analysis:** contact_analysis.json  
+    - **Domain Analysis:** domain_analysis.json
+    - **Execution Metadata:** tracking/execution_start.json
+    - **Reply Analysis:** tracking/reply_tracking/enhanced_reply_analysis.json
+    - **Comprehensive Tracking:** tracking/ directory structure
+        ## Enhanced Performance Metrics
+    '''
+        # Add log-based metrics if available
+    if os.path.exists(log_file):
+    with open(log_file, 'r') as f:
+    log_content = f.read()
+        log_lines = len(log_content.split('\\n'))
+    error_count = log_content.count('ERROR') + log_content.count('CRITICAL')
+    warning_count = log_content.count('WARNING') + log_content.count('WARN')
+        report += f'''
+    - **Log Lines Generated:** {log_lines:,}
+    - **Errors:** {error_count}
+    - **Warnings:** {warning_count}
+    - **Processing Efficiency:** {(int(success_indicators)/5*100):.0f}%
+    '''
+    else:
+    report += '''
+    - **Log Status:** Not Available
+    - **Processing Status:** Check execution logs
+    '''
+        report += f'''
+        ## Enhanced Status Assessment
+    **Overall System Status:** {'SUCCESS - All systems operational with enhanced features' if execution_status == '0' and int(success_indicators) >= 3 else 'PARTIAL SUCCESS - Core functionality working with some enhancements' if int(success_indicators) >= 2 else 'ISSUES DETECTED - Manual review recommended'}
+        **Integration Quality:** ENHANCED with comprehensive validation, multi-source data loading, template processing, feedback injection, and real-time tracking.
+        **Production Readiness:** {'READY - System validated with real data sources and enhanced features' if '${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}' == 'true' else 'TEST MODE - Using sample data, ready for real data integration'}
+        ---
+    *Enhanced Campaign System Report generated at {datetime.now().isoformat()}*  
+    *Workflow: Enhanced Production Email Campaign System*
+    '''
+        # Save enhanced detailed report
+    os.makedirs('reports', exist_ok=True)
+    with open('reports/enhanced_campaign_report.md', 'w') as f:
+    f.write(report)
+        # Create enhanced summary for GitHub
+    summary = f'''## Enhanced Campaign Execution Summary
+        **Status:** {'SUCCESS' if execution_status == '0' else 'ISSUES' if execution_status == '1' else 'UNKNOWN'}  
+    **Mode:** {mode_text}  
+    **Success Score:** {success_indicators}/5  
+    **Contacts:** {contact_data.get('total_contacts', 0)}  
+    **Templates:** {domain_data.get('template_count', 0)}  
+    **Replies:** {reply_data.get('total_replies', 0)} (Feedback: {reply_data.get('feedback_rate', 0):.1f}%)  
+        **Enhanced Features:** Template processing, feedback injection, reply tracking, multi-source data loading
+    **Real Data:** ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}
+    '''
+        with open('reports/enhanced_summary.md', 'w') as f:
+    f.write(summary)
+        print('Enhanced comprehensive reports generated successfully')
+    print(f'Success indicators: {success_indicators}/5')
+    print(f'Execution status: {execution_status}')
+    print(f'Mode: {mode_text}')
+    """
+        - name: Create enhanced GitHub issue notification
+    if: always()
+    env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+    echo "Creating enhanced GitHub issue notification..."
+        python -c """
+    import sys
+    import os
+    import requests
+    import json
+        github_token = os.environ.get('GITHUB_TOKEN')
+    if not github_token:
+    print('No GitHub token available - skipping issue creation')
+    sys.exit(0)
+        repo = '${{ github.repository }}'
+    execution_status = os.environ.get('EXECUTION_STATUS', 'unknown')
+    success_indicators = os.environ.get('SUCCESS_INDICATORS', '0')
+    mode_text = os.environ.get('MODE_TEXT', 'Unknown')
+        # Enhanced status determination
+    if execution_status == '0' and int(success_indicators) >= 4:
+    status_emoji = '🎉 COMPLETE SUCCESS'
+    priority = 'success'
+    elif execution_status == '0' and int(success_indicators) >= 2:
+    status_emoji = '✅ SUCCESS'  
+    priority = 'success'
+    elif int(success_indicators) >= 2:
+    status_emoji = '⚠️ PARTIAL SUCCESS'
+    priority = 'warning'
+    else:
+    status_emoji = '❌ ISSUES DETECTED'
+    priority = 'error'
+        title = f'Enhanced Campaign Report - {status_emoji} - Run ${{ github.run_id }}'
+        body = f'''# Enhanced Email Campaign Execution Report
+        ## 🎯 Executive Summary
+    **Workflow Run ID:** ${{ github.run_id }}  
+    **Final Status:** {status_emoji}  
+    **Success Score:** {success_indicators}/5  
+    **Execution Mode:** {mode_text}  
+    **Real Data Sources:** ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}  
+    **Priority:** {priority.upper()}
+        ## 📊 Enhanced Metrics
+    **Contact Data:**
+    - Files Found: ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}
+    - Contacts Loaded: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}
+    - Real Data Used: ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}
+        **Campaign Data:**
+    - Templates Available: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}
+    - Target Domain: ${{ github.event.inputs.target_domain || 'All domains' }}
+    - Batch Size: ${{ github.event.inputs.batch_size || 50 }}
+        **Enhanced Features:**
+    - ✅ Template Variable Processing ({{{{name}}}}, {{{{email}}}}, etc.)
+    - ✅ Multi-source Data Loading (CSV, Excel, Google Sheets)
+    - ✅ Feedback Injection System
+    - ✅ Real-time Reply Tracking
+    - ✅ Comprehensive Validation
+    - ✅ Enhanced Error Handling
+        ## 🔧 System Integration Status
+    **Core Components:**
+    - utils/docx_parser.py: ENHANCED MODE
+    - Professional data_loader.py: INTEGRATED
+    - email_feedback_injector.py: ACTIVE
+    - reply_tracker.py: ENHANCED ANALYSIS
+    - docx_feedback_processor.py: ACTIVE
+        **Configuration:**
+    - Real-time Tracking: ${{ github.event.inputs.enable_real_time_tracking }}
+    - Debug Mode: ${{ github.event.inputs.debug_mode }}
+    - Feedback Injection: ${{ github.event.inputs.skip_feedback_injection != 'true' && 'ENABLED' || 'DISABLED' }}
+        ## 📋 Detailed Analysis
+    View comprehensive results in GitHub Actions artifacts for run ${{ github.run_id }}.
+        **Key Improvements:**
+    - Enhanced validation with systematic file detection
+    - Multi-source contact data integration (CSV, Excel, Google Sheets)
+    - Template variable processing with {{name}}, {{email}}, {{organization}}
+    - Comprehensive feedback and reply tracking systems
+    - Production-grade error handling and recovery
+    - Real-time metrics and performance monitoring
+        ## 🚀 Next Steps
+    ''' + ('✅ System ready for production scaling\\n✅ Real data integration successful\\n📈 Consider expanding to additional domains' if '${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}' == 'true' else '📋 Add real contact data to contacts/ directory\\n📊 System tested and validated with sample data\\n🔄 Ready for production data integration') + f'''
+        ---
+    *Enhanced Campaign System - Production Ready*  
+    *Generated: $(date)*
+    '''
+        try:
+    headers = {
+    'Authorization': f'token {github_token}',
+    'Accept': 'application/vnd.github.v3+json',
+    'User-Agent': 'Enhanced-Campaign-Workflow'
+    }
+        data = {
+    'title': title,
+    'body': body,
+    'labels': ['enhanced-campaign', 'production', priority, 'automated']
+    }
+        response = requests.post(
+    f'https://api.github.com/repos/{repo}/issues',
+    headers=headers,
+    data=json.dumps(data),
+    timeout=30
+    )
+        if response.status_code == 201:
+    issue_data = response.json()
+    print(f'Created enhanced issue #{issue_data[\"number\"]}: {title}')
+    print(f'Issue URL: {issue_data[\"html_url\"]}')
+    else:
+    print(f'Failed to create issue: {response.status_code}')
+    print(f'Response: {response.text[:500]}')
+        except Exception as e:
+    print(f'Error creating enhanced GitHub issue: {e}') """
+            - name: Upload comprehensive enhanced artifacts
+    uses: actions/upload-artifact@v4
+    if: always()
+    with:
+    name: enhanced-production-results-0-${{ github.run_id }}
+    path: |
+    *.log
+    tracking/
+    reports/
+    contact_analysis.json
+    domain_analysis.json
+    utils/
+    contacts/
+    scheduled-campaigns/
+    campaign-templates/
+    retention-days: 30
+        - name: Update enhanced GitHub Step Summary
+    if: always()
+    run: |
+    echo "## Enhanced Email Campaign Execution Report" >> $GITHUB_STEP_SUMMARY
+    echo "" >> $GITHUB_STEP_SUMMARY
         if [ -f "reports/enhanced_summary.md" ]; then
-          cat reports/enhanced_summary.md >> $GITHUB_STEP_SUMMARY
-        else
-          echo "**Status:** ${EXECUTION_STATUS:-unknown}" >> $GITHUB_STEP_SUMMARY
-          echo "**Mode:** ${MODE_TEXT:-Unknown}" >> $GITHUB_STEP_SUMMARY
-          echo "**Success Score:** ${SUCCESS_INDICATORS:-0}/5" >> $GITHUB_STEP_SUMMARY
-          echo "**Contacts:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Templates:** ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
-        fi
-
+    cat reports/enhanced_summary.md >> $GITHUB_STEP_SUMMARY
+    else
+    echo "**Status:** ${EXECUTION_STATUS:-unknown}" >> $GITHUB_STEP_SUMMARY
+    echo "**Mode:** ${MODE_TEXT:-Unknown}" >> $GITHUB_STEP_SUMMARY
+    echo "**Success Score:** ${SUCCESS_INDICATORS:-0}/5" >> $GITHUB_STEP_SUMMARY
+    echo "**Contacts:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}" >> $GITHUB_STEP_SUMMARY
+    echo "**Templates:** ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
+    fi
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Enhanced System Features" >> $GITHUB_STEP_SUMMARY
-        echo "- **Template Processing:** Variable substitution active" >> $GITHUB_STEP_SUMMARY
-        echo "- **Multi-source Data:** CSV, Excel, Google Sheets supported" >> $GITHUB_STEP_SUMMARY
-        echo "- **Feedback System:** Injection and tracking integrated" >> $GITHUB_STEP_SUMMARY
-        echo "- **Real-time Analysis:** Reply processing and metrics" >> $GITHUB_STEP_SUMMARY
-        echo "- **Production Features:** Comprehensive validation and error handling" >> $GITHUB_STEP_SUMMARY
-        echo "- **Summary Generation:** ${SUMMARY_METHOD:-integrated} method used" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-    - name: Enhanced final execution validation and report
-      if: always()
-      run: |
-        echo "============================================="
-        echo "   ENHANCED CAMPAIGN EXECUTION COMPLETED    "
-        echo "============================================="
-        echo ""
-        echo "ENHANCED SYSTEM STATUS"
-        echo "Main Processor: utils/docx_parser.py (Enhanced Mode)"
-        echo "Data Integration: Multi-source with professional data_loader.py"
-        echo "Template Engine: Variable substitution active"
-        echo "Feedback System: Injection and tracking integrated"
-        echo "Reply Analysis: Real-time processing with enhanced metrics"
-        echo "Validation: Comprehensive pre-execution checks"
-        echo ""
-        echo "ENHANCED EXECUTION RESULTS"
-        echo "Execution Status: $([ \"${EXECUTION_STATUS:-1}\" -eq 0 ] && echo 'SUCCESS' || echo 'ISSUES DETECTED')"
-        echo "Success Indicators: ${SUCCESS_INDICATORS:-0}/5"
-        echo "Mode: ${MODE_TEXT:-Unknown}"
-        echo "Real Data Sources: ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}"
-        echo "Contact Files: ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
-        echo "Contacts Processed: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}"
-        echo "Templates Available: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}"
-        echo "Target Domain: ${{ github.event.inputs.target_domain || 'All domains' }}"
-        echo "Feedback Injection: ${{ github.event.inputs.skip_feedback_injection != 'true' && 'ENABLED' || 'DISABLED' }}"
-        echo "Real-time Tracking: ${{ github.event.inputs.enable_real_time_tracking }}"
-        echo "Debug Mode: ${{ github.event.inputs.debug_mode }}"
-        echo ""
-        echo "ENHANCED FEATURES VALIDATED"
-        echo "- Template Variable Processing: {{name}}, {{email}}, {{organization}}, etc."
-        echo "- Multi-source Contact Loading: CSV, Excel, Google Sheets, JSON"
-        echo "- Professional Data Loader Integration: Fallback system available"
-        echo "- Feedback Injection System: email_feedback_injector.py"
-        echo "- Real-time Reply Tracking: reply_tracker.py with enhanced analysis"
-        echo "- DOCX Template Processing: docx_feedback_processor.py"
-        echo "- Comprehensive Error Handling: Enhanced validation and recovery"
-        echo "- Production-grade Logging: Detailed execution tracking"
-        echo ""
-        echo "ENHANCED ARTIFACTS GENERATED"
-        echo "- ${LOG_FILE:-campaign_execution.log} (detailed execution log)"
-        echo "- reports/enhanced_campaign_report.md (comprehensive analysis)"
-        echo "- tracking/execution_start.json (execution metadata)"
-        echo "- contact_analysis.json (enhanced contact statistics)"
-        echo "- domain_analysis.json (template analysis with variables)"
-        echo "- tracking/reply_tracking/ (enhanced reply analysis)"
-        echo "- tracking/ (comprehensive feedback and metrics)"
-        echo ""
-        echo "ENHANCED NOTIFICATIONS"
-        echo "- GitHub issue created with comprehensive report"
-        echo "- Enhanced step summary with success metrics"
-        echo "- Comprehensive artifacts uploaded for 30-day retention"
-        echo ""
-        echo "SYSTEM INTEGRATION ASSESSMENT"
-
+    echo "### Enhanced System Features" >> $GITHUB_STEP_SUMMARY
+    echo "- **Template Processing:** Variable substitution active" >> $GITHUB_STEP_SUMMARY
+    echo "- **Multi-source Data:** CSV, Excel, Google Sheets supported" >> $GITHUB_STEP_SUMMARY
+    echo "- **Feedback System:** Injection and tracking integrated" >> $GITHUB_STEP_SUMMARY
+    echo "- **Real-time Analysis:** Reply processing and metrics" >> $GITHUB_STEP_SUMMARY
+    echo "- **Production Features:** Comprehensive validation and error handling" >> $GITHUB_STEP_SUMMARY
+    echo "- **Summary Generation:** ${SUMMARY_METHOD:-integrated} method used" >> $GITHUB_STEP_SUMMARY
+    echo "" >> $GITHUB_STEP_SUMMARY
+        - name: Enhanced final execution validation and report
+    if: always()
+    run: |
+    echo "============================================="
+    echo "   ENHANCED CAMPAIGN EXECUTION COMPLETED    "
+    echo "============================================="
+    echo ""
+    echo "ENHANCED SYSTEM STATUS"
+    echo "Main Processor: utils/docx_parser.py (Enhanced Mode)"
+    echo "Data Integration: Multi-source with professional data_loader.py"
+    echo "Template Engine: Variable substitution active"
+    echo "Feedback System: Injection and tracking integrated"
+    echo "Reply Analysis: Real-time processing with enhanced metrics"
+    echo "Validation: Comprehensive pre-execution checks"
+    echo ""
+    echo "ENHANCED EXECUTION RESULTS"
+    echo "Execution Status: $([ \"${EXECUTION_STATUS:-1}\" -eq 0 ] && echo 'SUCCESS' || echo 'ISSUES DETECTED')"
+    echo "Success Indicators: ${SUCCESS_INDICATORS:-0}/5"
+    echo "Mode: ${MODE_TEXT:-Unknown}"
+    echo "Real Data Sources: ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}"
+    echo "Contact Files: ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
+    echo "Contacts Processed: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}"
+    echo "Templates Available: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}"
+    echo "Target Domain: ${{ github.event.inputs.target_domain || 'All domains' }}"
+    echo "Feedback Injection: ${{ github.event.inputs.skip_feedback_injection != 'true' && 'ENABLED' || 'DISABLED' }}"
+    echo "Real-time Tracking: ${{ github.event.inputs.enable_real_time_tracking }}"
+    echo "Debug Mode: ${{ github.event.inputs.debug_mode }}"
+    echo ""
+    echo "ENHANCED FEATURES VALIDATED"
+    echo "- Template Variable Processing: {{name}}, {{email}}, {{organization}}, etc."
+    echo "- Multi-source Contact Loading: CSV, Excel, Google Sheets, JSON"
+    echo "- Professional Data Loader Integration: Fallback system available"
+    echo "- Feedback Injection System: email_feedback_injector.py"
+    echo "- Real-time Reply Tracking: reply_tracker.py with enhanced analysis"
+    echo "- DOCX Template Processing: docx_feedback_processor.py"
+    echo "- Comprehensive Error Handling: Enhanced validation and recovery"
+    echo "- Production-grade Logging: Detailed execution tracking"
+    echo ""
+    echo "ENHANCED ARTIFACTS GENERATED"
+    echo "- ${LOG_FILE:-campaign_execution.log} (detailed execution log)"
+    echo "- reports/enhanced_campaign_report.md (comprehensive analysis)"
+    echo "- tracking/execution_start.json (execution metadata)"
+    echo "- contact_analysis.json (enhanced contact statistics)"
+    echo "- domain_analysis.json (template analysis with variables)"
+    echo "- tracking/reply_tracking/ (enhanced reply analysis)"
+    echo "- tracking/ (comprehensive feedback and metrics)"
+    echo ""
+    echo "ENHANCED NOTIFICATIONS"
+    echo "- GitHub issue created with comprehensive report"
+    echo "- Enhanced step summary with success metrics"
+    echo "- Comprehensive artifacts uploaded for 30-day retention"
+    echo ""
+    echo "SYSTEM INTEGRATION ASSESSMENT"
         # Enhanced final status determination
-        final_status="UNKNOWN"
-        if [ "${EXECUTION_STATUS:-1}" -eq 0 ] && [ "${SUCCESS_INDICATORS:-0}" -ge 4 ]; then
-          final_status="COMPLETE_SUCCESS"
-          echo "STATUS: COMPLETE SUCCESS"
-          echo "All enhanced systems operational with full feature integration"
-        elif [ "${EXECUTION_STATUS:-1}" -eq 0 ] && [ "${SUCCESS_INDICATORS:-0}" -ge 2 ]; then
-          final_status="SUCCESS"
-          echo "STATUS: SUCCESS"
-          echo "Core enhanced functionality working with comprehensive features"
-        elif [ "${SUCCESS_INDICATORS:-0}" -ge 2 ]; then
-          final_status="PARTIAL_SUCCESS"
-          echo "STATUS: PARTIAL SUCCESS"
-          echo "Enhanced systems partially operational - review recommended"
-        else
-          final_status="ISSUES_DETECTED"
-          echo "STATUS: ISSUES DETECTED"
-          echo "Enhanced system validation required - check execution logs"
-        fi
-
+    final_status="UNKNOWN"
+    if [ "${EXECUTION_STATUS:-1}" -eq 0 ] && [ "${SUCCESS_INDICATORS:-0}" -ge 4 ]; then
+    final_status="COMPLETE_SUCCESS"
+    echo "STATUS: COMPLETE SUCCESS"
+    echo "All enhanced systems operational with full feature integration"
+    elif [ "${EXECUTION_STATUS:-1}" -eq 0 ] && [ "${SUCCESS_INDICATORS:-0}" -ge 2 ]; then
+    final_status="SUCCESS"
+    echo "STATUS: SUCCESS"
+    echo "Core enhanced functionality working with comprehensive features"
+    elif [ "${SUCCESS_INDICATORS:-0}" -ge 2 ]; then
+    final_status="PARTIAL_SUCCESS"
+    echo "STATUS: PARTIAL SUCCESS"
+    echo "Enhanced systems partially operational - review recommended"
+    else
+    final_status="ISSUES_DETECTED"
+    echo "STATUS: ISSUES DETECTED"
+    echo "Enhanced system validation required - check execution logs"
+    fi
         echo ""
-        echo "ENHANCED ARCHITECTURE BENEFITS"
-        echo "- Dry-run workflow's validation approach integrated into production"
-        echo "- Production workflow's advanced features preserved and enhanced"
-        echo "- Best practices from both workflows combined"
-        echo "- Comprehensive error handling and recovery mechanisms"
-        echo "- Multi-source data integration with professional-grade processing"
-        echo "- Template processing with full variable substitution"
-        echo "- Real-time feedback and reply analysis"
-        echo "- Production-ready with enhanced validation and monitoring"
-        echo ""
-
+    echo "ENHANCED ARCHITECTURE BENEFITS"
+    echo "- Dry-run workflow's validation approach integrated into production"
+    echo "- Production workflow's advanced features preserved and enhanced"
+    echo "- Best practices from both workflows combined"
+    echo "- Comprehensive error handling and recovery mechanisms"
+    echo "- Multi-source data integration with professional-grade processing"
+    echo "- Template processing with full variable substitution"
+    echo "- Real-time feedback and reply analysis"
+    echo "- Production-ready with enhanced validation and monitoring"
+    echo ""
         if [ "${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}" == "true" ]; then
-          echo "PRODUCTION READINESS: CONFIRMED"
-          echo "Real contact data sources detected and successfully integrated"
-          echo "Google Sheets, CSV, and Excel files processed"
-          echo "System ready for immediate production deployment"
-        else
-          echo "PRODUCTION READINESS: TEST MODE"
-          echo "Sample data validated successfully - system architecture confirmed"
-          echo "Add real contact data files to contacts/ directory for production use"
-          echo "System ready for real data integration"
-        fi
-
+    echo "PRODUCTION READINESS: CONFIRMED"
+    echo "Real contact data sources detected and successfully integrated"
+    echo "Google Sheets, CSV, and Excel files processed"
+    echo "System ready for immediate production deployment"
+    else
+    echo "PRODUCTION READINESS: TEST MODE"
+    echo "Sample data validated successfully - system architecture confirmed"
+    echo "Add real contact data files to contacts/ directory for production use"
+    echo "System ready for real data integration"
+    fi
         echo ""
-        echo "ENHANCED WORKFLOW SUCCESS"
-        echo "This enhanced production workflow successfully combines:"
-        echo "- Dry-run workflow's systematic validation and error handling"
-        echo "- Production workflow's advanced feedback and tracking features"
-        echo "- Enhanced template processing and variable substitution"
-        echo "- Comprehensive multi-source data integration"
-        echo "- Production-grade reliability and monitoring"
-        echo ""
-
+    echo "ENHANCED WORKFLOW SUCCESS"
+    echo "This enhanced production workflow successfully combines:"
+    echo "- Dry-run workflow's systematic validation and error handling"
+    echo "- Production workflow's advanced feedback and tracking features"
+    echo "- Enhanced template processing and variable substitution"
+    echo "- Comprehensive multi-source data integration"
+    echo "- Production-grade reliability and monitoring"
+    echo ""
         # Set final exit status based on enhanced analysis
-        case "$final_status" in
-          "COMPLETE_SUCCESS"|"SUCCESS")
-            echo "ENHANCED CAMPAIGN EXECUTION: SUCCESSFUL COMPLETION"
-            exit 0
-            ;;
-          "PARTIAL_SUCCESS")
-            echo "ENHANCED CAMPAIGN EXECUTION: COMPLETED WITH RECOMMENDATIONS"
-            exit 0
-            ;;
-          *)
-            echo "ENHANCED CAMPAIGN EXECUTION: COMPLETED WITH ISSUES"
-            echo "Check execution logs and validation reports for details"
-            exit 1
-            ;;
-        esac
+    case "$final_status" in
+    "COMPLETE_SUCCESS"|"SUCCESS")
+    echo "ENHANCED CAMPAIGN EXECUTION: SUCCESSFUL COMPLETION"
+    exit 0
+    ;;
+    "PARTIAL_SUCCESS")
+    echo "ENHANCED CAMPAIGN EXECUTION: COMPLETED WITH RECOMMENDATIONS"
+    exit 0
+    ;;
+    *)
+    echo "ENHANCED CAMPAIGN EXECUTION: COMPLETED WITH ISSUES"
+    echo "Check execution logs and validation reports for details"
+    exit 1
+    ;;
+    esac
