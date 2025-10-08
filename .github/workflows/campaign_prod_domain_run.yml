@@ -1330,7 +1330,6 @@ jobs:
     with:
       contacts: ${{ needs.campaign-run.outputs.contacts_file }}
       template: ${{ needs.campaign-run.outputs.template_file }}
-      subject: "Collaboration Opportunity"
       dry_run: false
       delay: "1.5"
 

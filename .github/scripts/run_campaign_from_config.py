@@ -216,8 +216,7 @@ def build_command(config, template_file, script_path, dry_run=False, debug=False
     # Validate required fields
     if not contacts_file:
         raise ValueError("Missing required field: contacts")
-    if not subject:
-        raise ValueError("Missing required field: subject")
+    # Note: subject validation removed since docx_parser may not accept --subject
     
     # Build base command with REQUIRED arguments
     # Note: docx_parser.py requires: --contacts, --scheduled, --tracking, --alerts
@@ -233,8 +232,10 @@ def build_command(config, template_file, script_path, dry_run=False, debug=False
     if template_file:
         cmd.extend(['--templates', template_file])
     
-    # Add subject
-    cmd.extend(['--subject', subject])
+    # REMOVED: Subject argument (docx_parser.py doesn't support it)
+    # Subject should be embedded in the template file itself
+    # if subject:
+    #     cmd.extend(['--subject', subject])
     
     # Add delay
     cmd.extend(['--delay', str(delay)])
