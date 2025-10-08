@@ -1356,8 +1356,8 @@ jobs:
         echo "- Templates Found: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}" >> $GITHUB_STEP_SUMMARY
         echo "- Config Files: ${{ steps.find-configs.outputs.config_count }}" >> $GITHUB_STEP_SUMMARY
         
-    - name: Generate comprehensive enhanced campaign report
-      run: |
+      - name: Generate comprehensive enhanced campaign report
+        run: |
           echo "Generating comprehensive enhanced campaign report..."
           
           python -c """
@@ -1523,11 +1523,11 @@ jobs:
           print(f'Mode: {mode_text}')
           """
 
-    - name: Create enhanced GitHub issue notification
-      if: always()
-      env:
+      - name: Create enhanced GitHub issue notification
+        if: always()
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
+        run: |
           echo "Creating enhanced GitHub issue notification..."
           
           python -c """
@@ -1654,12 +1654,12 @@ jobs:
           except Exception as e:
             print(f'Error creating enhanced GitHub issue: {e}') """
 
-    - name: Upload comprehensive enhanced artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
+      - name: Upload comprehensive enhanced artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
           name: enhanced-production-results-0-${{ github.run_id }}
-      path: |
+          path: |
             *.log
             tracking/
             reports/
@@ -1671,9 +1671,9 @@ jobs:
             campaign-templates/
           retention-days: 30
 
-    - name: Update enhanced GitHub Step Summary
-      if: always()
-      run: |
+      - name: Update enhanced GitHub Step Summary
+        if: always()
+        run: |
           echo "## Enhanced Email Campaign Execution Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
@@ -1698,9 +1698,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           
-    - name: Enhanced final execution validation and report
-      if: always()
-      run: |
+      - name: Enhanced final execution validation and report
+        if: always()
+        run: |
           echo "============================================="
           echo "   ENHANCED CAMPAIGN EXECUTION COMPLETED    "
           echo "============================================="
