@@ -143,6 +143,7 @@ jobs:
               }
               
               // Process deletions by workflow
+              
               for (const [workflowId, runs] of Object.entries(deletesByWorkflow)) {
                 const workflowName = runs[0].workflow_name;
                 console.log(`\n🗑️  Deleting ${runs.length} runs from: ${workflowName}`);
@@ -185,50 +186,54 @@ jobs:
               
               totalKept = runsToKeep.length;
               
-              console.log('\n=================================');
-              console.log('🎉 Cleanup completed!');
-              console.log('📊 Total summary:');
-              console.log(`  • Workflows processed: ${workflowCount}`);
-              console.log(`  • Total runs processed: ${totalProcessed}`);
-              console.log(`  • Runs kept: ${totalKept}`);
-              console.log(`  • Runs deleted: ${totalDeleted}`);
-              console.log(`  • Success rate: ${totalProcessed > 0 ? Math.round((totalDeleted + totalKept) / totalProcessed * 100) : 0}%`);
+            } catch (error) {
+              console.error('❌ Fatal error during cleanup:', error.message);
+              throw error;
+            }
+            
+            console.log('\n=================================');
+            console.log('🎉 Cleanup completed!');
+            console.log('📊 Total summary:');
+            console.log(`  • Workflows processed: ${workflowCount}`);
+            console.log(`  • Total runs processed: ${totalProcessed}`);
+            console.log(`  • Runs kept: ${totalKept}`);
+            console.log(`  • Runs deleted: ${totalDeleted}`);
+            console.log(`  • Success rate: ${totalProcessed > 0 ? Math.round((totalDeleted + totalKept) / totalProcessed * 100) : 0}%`);
+            
+            // Create issue with summary if significant cleanup happened
+            if (totalDeleted > 10) {
+              const issueBody = [
+                '## Workflow Cleanup Results',
+                '',
+                `**Date:** ${new Date().toISOString()}`,
+                `**Repository:** ${owner}/${repo}`,
+                '',
+                '### Summary',
+                `- **Workflows processed:** ${workflowCount}`,
+                `- **Total runs processed:** ${totalProcessed}`,
+                `- **Runs kept:** ${totalKept}`,
+                `- **Runs deleted:** ${totalDeleted}`,
+                '',
+                '### Policy Applied',
+                `- STRICT limit: Max ${MAX_TOTAL_RUNS} runs total across ALL workflows`,
+                `- Per-workflow limit: Max ${KEEP_RECENT_RUNS} runs per workflow`,
+                `- Priority: Runs from last ${KEEP_DAYS} days get preference`,
+                `- Processed up to ${MAX_PAGES} pages per workflow`,
+                '',
+                '### Status',
+                '✅ Cleanup completed successfully'
+              ].join('\n');
+             await github.rest.issues.create({
+                owner,
+                repo,
+                title: `🧹 Workflow Cleanup Summary - ${new Date().toISOString().split('T')[0]}`,
+                body: issueBody,
+                labels: ['maintenance', 'automated']
+              });
               
-              // Create issue with summary if significant cleanup happened
-              if (totalDeleted > 10) {
-                const issueBody = [
-                  '## Workflow Cleanup Results',
-                  '',
-                  `**Date:** ${new Date().toISOString()}`,
-                  `**Repository:** ${owner}/${repo}`,
-                  '',
-                  '### Summary',
-                  `- **Workflows processed:** ${workflowCount}`,
-                  `- **Total runs processed:** ${totalProcessed}`,
-                  `- **Runs kept:** ${totalKept}`,
-                  `- **Runs deleted:** ${totalDeleted}`,
-                  '',
-                  '### Policy Applied',
-                  `- STRICT limit: Max ${MAX_TOTAL_RUNS} runs total across ALL workflows`,
-                  `- Per-workflow limit: Max ${KEEP_RECENT_RUNS} runs per workflow`,
-                  `- Priority: Runs from last ${KEEP_DAYS} days get preference`,
-                  `- Processed up to ${MAX_PAGES} pages per workflow`,
-                  '',
-                  '### Status',
-                  '✅ Cleanup completed successfully'
-                ].join('\n');
-                
-                await github.rest.issues.create({
-                  owner,
-                  repo,
-                  title: `🧹 Workflow Cleanup Summary - ${new Date().toISOString().split('T')[0]}`,
-                  body: issueBody,
-                  labels: ['maintenance', 'automated']
-                });
-                
-                console.log('📝 Created summary issue');
-              }
-              
+              console.log('📝 Created summary issue');
+            }
+            
             } catch (error) {
               console.error('❌ Fatal error during cleanup:', error.message);
               console.error('Stack trace:', error.stack);

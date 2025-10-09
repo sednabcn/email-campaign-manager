@@ -5,30 +5,30 @@ on:
     branches: ["dev", "main", "master"]
 
   workflow_dispatch:
-    inputs:
-      contacts:
-        description: 'Contacts CSV path (relative)'
-        required: true
-        default: 'contacts/edu_adults_contacts_20251004_121252.csv'
-      template:
-        description: 'Template DOCX path (relative)'
-        required: true
-        default: 'campaign-templates/education/outreach.docx'
-      mode:
-        description: 'Execution mode'
-        required: true
-        default: 'schedule_now'
-      dry_run:
-        description: 'Run in dry-run mode (no emails sent)'
-        required: false
-        default: false
-        type: boolean
-      target_domain:
-        description: 'Target domain for campaigns'
-        required: false
-        default: ''
-        type: choice
-        options:
+  inputs:
+    contacts:
+      description: 'Contacts CSV path (relative)'
+      required: true
+      default: 'contacts/edu_adults_contacts_20251004_121252.csv'
+    template:
+      description: 'Template DOCX path (relative)'
+      required: true
+      default: 'campaign-templates/education/outreach.docx'
+    mode:
+      description: 'Execution mode'
+      required: true
+      default: 'schedule_now'
+    dry_run:
+      description: 'Run in dry-run mode (no emails sent)'
+      required: false
+      default: false
+      type: boolean
+    target_domain:
+      description: 'Target domain for campaigns'
+      required: false
+      default: ''
+      type: choice
+      options:
         - ''
         - 'education'
         - 'finance'
@@ -36,31 +36,31 @@ on:
         - 'industry'
         - 'technology'
         - 'government'
-      campaign_filter:
-        description: 'Filter specific campaigns'
-        required: false
-        default: ''
-        type: string
-      contact_source:
-        description: 'Specific contact source to use'
-        required: false
-        default: ''
-        type: string
-      debug_mode:
-        description: 'Enable debug logging'
-        required: false
-        default: false
-        type: boolean
-      batch_size:
-        description: 'Email batch size for processing'
-        required: false
-        default: '50'
-        type: string
-      delay_between_batches:
-        description: 'Delay between batches (seconds)'
-        required: false
-        default: '5'
-        type: string    
+    campaign_filter:
+      description: 'Filter specific campaigns'
+      required: false
+      default: ''
+      type: string
+    contact_source:
+      description: 'Specific contact source to use'
+      required: false
+      default: ''
+      type: string
+    debug_mode:
+      description: 'Enable debug logging'
+      required: false
+      default: false
+      type: boolean
+    batch_size:
+      description: 'Email batch size for processing'
+      required: false
+      default: '50'
+      type: string
+    delay_between_batches:
+      description: 'Delay between batches (seconds)'
+      required: false
+      default: '5'
+      type: string    
    
   schedule:
     - cron: "0 9 * * 1-5"   # Weekdays at 9 AM UTC
