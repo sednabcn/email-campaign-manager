@@ -6,6 +6,18 @@ on:
   
   workflow_dispatch:
     inputs:
+      contacts:
+        description: 'Contacts CSV path (relative)'
+        required: true
+        default: 'contacts/edu_adults_contacts_20251004_121252.csv'
+      template:
+        description: 'Template DOCX path (relative)'
+        required: true
+        default: 'campaign-templates/education/outreach.docx'
+      mode:
+        description: 'Execution mode'
+        required: true
+        default: 'schedule_now'
       dry_run:
         description: 'Run in dry-run mode (no emails sent)'
         required: false
