@@ -853,7 +853,7 @@ jobs:
           fi
 
 
-       - name: Repair Corrupted DOCX Files (Optional)
+      - name: Repair Corrupted DOCX Files (Optional)
         if: failure()
         run: |
           echo "🔧 Attempting to identify and report corrupted files..."
