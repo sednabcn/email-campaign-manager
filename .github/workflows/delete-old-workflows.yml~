@@ -237,14 +237,3 @@ jobs:
                     `- Failed runs deleted: ${failedDeleted}`,
                     `- Old runs deleted: ${oldDeleted}`,
                     `- Runs kept: ${totalKept}`,
-                    '',
-                    '⚠️ Please check the workflow logs for more details.'
-                  ].join('\n'),
-                  labels: ['maintenance', 'automated', 'error']
-                });
-              } catch (issueError) {
-                console.error('❌ Could not create error issue:', issueError.message);
-              }
-              
-              throw error;
-            }
