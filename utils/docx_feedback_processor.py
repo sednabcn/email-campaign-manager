@@ -293,5 +293,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()Processed Successfully:** {len(self.processed_files)} files
-- **
+    main()
+   

@@ -735,58 +735,57 @@ jobs:
           echo "**Emails Queued:** ${{ steps.execution.outputs.emails_queued }}" >> $GITHUB_STEP_SUMMARY
           echo "**Batch Directory:** ${{ steps.execution.outputs.batch_directory }}" >> $GITHUB_STEP_SUMMARY
           echo "**Mode:** ${{ github.event.inputs.dry_run == 'true' && 'Dry Run' || 'Queue' }}" >> $GITHUB_STEP_SUMMARY
-    
+
+
       - name: Enhanced feedback system setup
         if: github.event.inputs.skip_feedback_injection != 'true'
         run: |
           echo "Setting up enhanced feedback and tracking systems..."
-          
+    
           # Create comprehensive tracking structure
           mkdir -p tracking/{feedback_responses,domain_stats,execution_logs,batch_reports,reply_tracking}
-          
+    
           # Initialize enhanced tracking metadata
           cat > tracking/execution_start.json << 'EOF'
           {
-            "workflow_run_id": "${{ github.run_id }}",
-            "execution_start": "$(date -Iseconds)",
-            "mode": "${{ github.event.inputs.dry_run == 'true' && 'dry-run' || 'live' }}",
-            "target_domain": "${{ github.event.inputs.target_domain }}",
-            "batch_size": "${{ github.event.inputs.batch_size || 50 }}",
-            "real_time_tracking": "${{ github.event.inputs.enable_real_time_tracking }}",
-            "debug_mode": "${{ github.event.inputs.debug_mode }}",
-            "feedback_injection": "${{ github.event.inputs.skip_feedback_injection != 'true' && 'enabled' || 'disabled' }}",
-            "real_data_sources": "${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}",
-            "contact_files_count": "${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
+          "workflow_run_id": "${{ github.run_id }}",
+          "execution_start": "$(date -Iseconds)",
+          "mode": "${{ github.event.inputs.dry_run == 'true' && 'dry-run' || 'live' }}",
+          "target_domain": "${{ github.event.inputs.target_domain }}",
+          "batch_size": "${{ github.event.inputs.batch_size || 50 }}",
+          "real_time_tracking": "${{ github.event.inputs.enable_real_time_tracking }}",
+          "debug_mode": "${{ github.event.inputs.debug_mode }}",
+          "feedback_injection": "${{ github.event.inputs.skip_feedback_injection != 'true' && 'enabled' || 'disabled' }}",
+          "real_data_sources": "${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}",
+          "contact_files_count": "${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
           }
           EOF
-          
+    
           # Enhanced feedback injection setup
           if [ -f "utils/email_feedback_injector.py" ]; then
-            echo "Setting up enhanced feedback injection..."
-            python utils/email_feedback_injector.py \
-              --campaigns-dir scheduled-campaigns \
-              --feedback-email "$FEEDBACK_EMAIL" \
-              --setup-tracking \
-              --injection-type footer_signature \
-              --batch-mode || echo "Feedback injector completed with warnings"
+                  echo "Setting up enhanced feedback injection..."
+                  python utils/email_feedback_injector.py \
+                  --campaigns-dir scheduled-campaigns \
+                  --feedback-email "$FEEDBACK_EMAIL" \
+                  --setup-tracking \
+                  --injection-type footer_signature || echo "Feedback injector completed with warnings"
           else
-            echo "email_feedback_injector.py not found - creating tracking setup"
-            echo "Feedback system will be handled by main processor"
+                  echo "email_feedback_injector.py not found - creating tracking setup"
+                  echo "Feedback system will be handled by main processor"
           fi
-          
+    
           # Enhanced DOCX processing
           if [ -f "utils/docx_feedback_processor.py" ]; then
-            echo "Processing DOCX templates with enhanced feedback integration..."
-            python utils/docx_feedback_processor.py \
-              --templates-dir campaign-templates \
-              --feedback-email "$FEEDBACK_EMAIL" \
-              --create-backups \
-              --create-report \
-              --enhanced-mode || echo "DOCX processor completed with warnings"
+             echo "Processing DOCX templates with enhanced feedback integration..."
+             python utils/docx_feedback_processor.py \
+             --templates-dir campaign-templates \
+             --feedback-email "$FEEDBACK_EMAIL" \
+             --create-backups \
+             --create-report || echo "DOCX processor completed with warnings"
           else
             echo "docx_feedback_processor.py not found - DOCX processing will be handled by main processor"
           fi
-
+    
       - name: Enhanced campaign execution - QUEUE MODE
         id: execution
         env:
