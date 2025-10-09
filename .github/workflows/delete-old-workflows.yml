@@ -24,9 +24,10 @@ jobs:
             const repo = context.repo.repo;
             
             // Configuration - AGGRESSIVE cleanup of old and failed runs
-            const KEEP_RECENT_RUNS = 5;   // Keep only 5 most recent successful runs per workflow
-            const KEEP_DAYS = 2;          // Delete everything older than 7 days
+            const KEEP_RECENT_RUNS = 3;   // Keep only 3 most recent successful runs per workflow
+            const KEEP_DAYS = 2;          // Delete everything older than 2 days
             const MAX_PAGES = 50;         // Process more pages to catch all runs
+            const DELETE_OLD_EVEN_IF_SUCCESSFUL = true; // Delete old runs even if successful
             
             console.log('🧹 Starting AGGRESSIVE workflow cleanup...');
             console.log(`Policy: Delete ALL failed runs and old runs (older than ${KEEP_DAYS} days)`);
@@ -89,29 +90,37 @@ jobs:
                 
                 totalProcessed += allRuns.length;
                 
-                // Separate successful runs from others
-                const successfulRuns = allRuns
-                  .filter(run => run.conclusion === 'success')
-                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                // Separate runs by age and status
+                const runsToKeep = [];
+                const runsToDelete = [];
                 
-                const failedOrOldRuns = allRuns.filter(run => {
+                for (const run of allRuns) {
                   const runDate = new Date(run.created_at);
                   const isOld = runDate < cutoffDate;
                   const isFailed = run.conclusion !== 'success';
-                  return isFailed || isOld;
-                });
+                  
+                  // DELETE if: failed OR old (even if successful)
+                  if (isFailed || isOld) {
+                    runsToDelete.push(run);
+                  } else {
+                    runsToKeep.push(run);
+                  }
+                }
                 
-                // Keep only recent successful runs
-                const runsToKeep = successfulRuns.slice(0, KEEP_RECENT_RUNS);
-                const oldSuccessfulRuns = successfulRuns.slice(KEEP_RECENT_RUNS);
+                // Sort runs to keep by date (newest first)
+                runsToKeep.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 
-                // Combine all runs to delete
-                const runsToDelete = [...failedOrOldRuns, ...oldSuccessfulRuns];
+                // If we have more than KEEP_RECENT_RUNS, delete the extras
+                if (runsToKeep.length > KEEP_RECENT_RUNS) {
+                  const excessRuns = runsToKeep.slice(KEEP_RECENT_RUNS);
+                  runsToDelete.push(...excessRuns);
+                  runsToKeep.splice(KEEP_RECENT_RUNS);
+                }
                 
                 console.log(`  📊 Analysis for ${workflow.name}:`);
                 console.log(`    • Total runs: ${allRuns.length}`);
-                console.log(`    • Keeping: ${runsToKeep.length} recent successful runs`);
-                console.log(`    • Deleting: ${runsToDelete.length} runs`);
+                console.log(`    • Failed/Old runs to delete: ${runsToDelete.length}`);
+                console.log(`    • Recent successful runs to keep: ${runsToKeep.length}`);
                 
                 // Delete runs in batches
                 if (runsToDelete.length > 0) {
@@ -248,3 +257,4 @@ jobs:
               
               throw error;
             }
+ 
