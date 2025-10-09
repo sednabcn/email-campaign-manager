@@ -1561,8 +1561,12 @@ jobs:
             echo "  ✅ Campaign Completed Successfully"
             STATUS="success"
             
-            # Try to count emails from log
-            EMAILS_SENT=$(grep -c "Sent to\|✅ Sent to" campaign_json_execution.log 2>/dev/null || echo "0")
+            # Try to count emails from log (redirect stderr to avoid extra output)
+            EMAILS_SENT=$(grep -c "Sent to\|✅ Sent to" campaign_json_execution.log 2>/dev/null || true)
+            # Ensure it's a valid number
+            if [ -z "$EMAILS_SENT" ]; then
+              EMAILS_SENT="0"
+            fi
           else
             echo "  ⚠️ Campaign Completed with Issues"
             echo "  Exit Code: $EXIT_CODE"
@@ -1573,17 +1577,14 @@ jobs:
           echo "=========================================="
           echo "Setting outputs: status=$STATUS, emails_sent=$EMAILS_SENT"
           
-          # CRITICAL: Set outputs using proper format with quotes
-          cat >> "$GITHUB_OUTPUT" << EOF
-          status=$STATUS
-          emails_sent=$EMAILS_SENT
-          EOF
+          # CRITICAL: Set outputs using proper format - no extra output after this
+          {
+            echo "status=$STATUS"
+            echo "emails_sent=$EMAILS_SENT"
+          } >> "$GITHUB_OUTPUT"
           
-          # Verify outputs were written
-          if [ -f "$GITHUB_OUTPUT" ]; then
-            echo "Output file contents:"
-            tail -5 "$GITHUB_OUTPUT"
-          fi
+          # Verify outputs were written (but don't print extra lines)
+          echo "Outputs written to GITHUB_OUTPUT"
           
           # Exit with 0 since we have continue-on-error
           exit 0
