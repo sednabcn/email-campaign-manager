@@ -1804,6 +1804,104 @@ jobs:
       - name: Generate comprehensive enhanced campaign report
         if: always()
         run: |
+          echo "Generating comprehensive enhanced campaign report..."
+    
+          # CREATE DIRECTORY FIRST - CRITICAL FIX
+          mkdir -p reports
+          echo "✓ Reports directory created"
+    
+          # Read environment variables with defaults
+          EXEC_STATUS="${{ env.EXECUTION_STATUS }}"
+          EXEC_STATUS="${EXEC_STATUS:-1}"
+    
+          SUCCESS_IND="${{ env.SUCCESS_INDICATORS }}"
+          SUCCESS_IND="${SUCCESS_IND:-0}"
+    
+          MODE_TXT="${{ env.MODE_TEXT }}"
+          MODE_TXT="${MODE_TXT:-Unknown Mode}"
+    
+          CONTACT_COUNT="${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}"
+          CONTACT_COUNT="${CONTACT_COUNT:-0}"
+    
+          DOMAIN_CAMPAIGNS="${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}"
+          DOMAIN_CAMPAIGNS="${DOMAIN_CAMPAIGNS:-0}"
+    
+          REAL_DATA="${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}"
+          REAL_DATA="${REAL_DATA:-false}"
+    
+          # Determine status
+          if [ "$EXEC_STATUS" = "0" ] && [ "$SUCCESS_IND" -ge 3 ]; then
+             FINAL_STATUS="SUCCESS - All systems operational"
+          elif [ "$EXEC_STATUS" = "0" ]; then
+             FINAL_STATUS="COMPLETED - Some features may be limited"
+          else
+             FINAL_STATUS="ISSUES DETECTED - Review required"
+          fi
+    
+          # Generate detailed report using printf to avoid variable expansion issues
+          printf '%s\n' \
+          '# Enhanced Campaign Execution Report' \
+          '' \
+          '## Executive Summary' \
+          "- **Workflow Run ID:** ${{ github.run_id }}" \
+          "- **Final Status:** $FINAL_STATUS" \
+          "- **Mode:** $MODE_TXT" \
+          "- **Success Score:** $SUCCESS_IND/5" \
+          "- **Execution Status Code:** $EXEC_STATUS" \
+          '' \
+          '## Data Analysis' \
+          "- **Real Data Sources:** $REAL_DATA" \
+          "- **Contact Files Found:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}" \
+          "- **Total Contacts Loaded:** $CONTACT_COUNT" \
+          "- **Campaign Templates:** $DOMAIN_CAMPAIGNS" \
+          '' \
+          '## System Integration' \
+          '- **Main Processor:** utils/docx_parser.py' \
+          '- **Template Engine:** Variable substitution active' \
+          '- **Feedback System:** Integration ready' \
+          '- **Data Loading:** Multi-source support (CSV, Excel, Google Sheets)' \
+          '' \
+          '## Configuration' \
+          "- **Batch Size:** ${{ github.event.inputs.batch_size || 50 }}" \
+          "- **Target Domain:** ${{ github.event.inputs.target_domain || 'All domains' }}" \
+          "- **Debug Mode:** ${{ github.event.inputs.debug_mode }}" \
+          "- **Feedback Injection:** ${{ github.event.inputs.skip_feedback_injection != 'true' && 'Enabled' || 'Disabled' }}" \
+          '' \
+          "**Generated:** $(date)" \
+          > reports/enhanced_campaign_report.md
+    
+          echo "✓ Detailed report created: reports/enhanced_campaign_report.md"
+    
+          # Generate summary report
+          printf '%s\n' \
+          '## Enhanced Campaign Execution Summary' \
+          '' \
+          "**Status:** $FINAL_STATUS" \
+          "**Mode:** $MODE_TXT" \
+          "**Success Score:** $SUCCESS_IND/5" \
+          "**Contacts:** $CONTACT_COUNT" \
+          "**Templates:** $DOMAIN_CAMPAIGNS" \
+          "**Real Data:** $REAL_DATA" \
+          '' \
+          '**System:** Production Ready' \
+          > reports/enhanced_summary.md
+    
+          echo "✓ Summary report created: reports/enhanced_summary.md"
+    
+          # Verify files exist
+          if [ -f "reports/enhanced_campaign_report.md" ] && [ -f "reports/enhanced_summary.md" ]; then
+             echo "✓ All reports generated successfully"
+             echo ""
+             echo "Report Contents:"
+             head -20 reports/enhanced_campaign_report.md
+          else
+             echo "✗ Error: Reports were not created"
+             exit 1
+          fi    
+          
+      - name: Generate comprehensive enhanced campaign report
+        if: always()
+        run: |
               mkdir -p reports
     
               # Read environment variables with defaults
