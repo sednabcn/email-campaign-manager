@@ -14,6 +14,7 @@ jobs:
       issues: write
       actions: write
       contents: read
+      packages: delete
     steps:
       - name: Delete All Old and Failed Workflow Runs
         uses: actions/github-script@v7
@@ -99,10 +100,17 @@ jobs:
                   const isOld = runDate < cutoffDate;
                   const isFailed = run.conclusion !== 'success';
                   
-                  // DELETE if: failed OR old (even if successful)
-                  if (isFailed || isOld) {
+                  // FIXED: Clear priority order for deletion
+                  if (isFailed) {
+                    // Always delete failed runs
                     runsToDelete.push(run);
+                    failedDeleted++;
+                  } else if (isOld && DELETE_OLD_EVEN_IF_SUCCESSFUL) {
+                    // Delete old runs even if successful
+                    runsToDelete.push(run);
+                    oldDeleted++;
                   } else {
+                    // Keep recent successful runs
                     runsToKeep.push(run);
                   }
                 }
@@ -113,7 +121,10 @@ jobs:
                 // If we have more than KEEP_RECENT_RUNS, delete the extras
                 if (runsToKeep.length > KEEP_RECENT_RUNS) {
                   const excessRuns = runsToKeep.slice(KEEP_RECENT_RUNS);
-                  runsToDelete.push(...excessRuns);
+                  for (const run of excessRuns) {
+                    runsToDelete.push(run);
+                    oldDeleted++;
+                  }
                   runsToKeep.splice(KEEP_RECENT_RUNS);
                 }
                 
@@ -138,14 +149,6 @@ jobs:
                           repo,
                           run_id: run.id
                         });
-                        
-                        // Track deletion reasons
-                        const runDate = new Date(run.created_at);
-                        if (run.conclusion !== 'success') {
-                          failedDeleted++;
-                        } else if (runDate < cutoffDate) {
-                          oldDeleted++;
-                        }
                         
                         return true;
                       } catch (error) {
@@ -257,4 +260,3 @@ jobs:
               
               throw error;
             }
- 

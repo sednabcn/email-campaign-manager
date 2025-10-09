@@ -14,7 +14,6 @@ jobs:
       issues: write
       actions: write
       contents: read
-      packages: delete
     steps:
       - name: Delete All Old and Failed Workflow Runs
         uses: actions/github-script@v7
