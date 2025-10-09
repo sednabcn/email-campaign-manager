@@ -3,89 +3,65 @@ name: Enhanced Production Email Campaign System
 on:
   push:
     branches: ["dev", "main", "master"]
-  
+
   workflow_dispatch:
-    inputs:
-      contacts:
-        description: 'Contacts CSV path (relative)'
-        required: true
-        default: 'contacts/edu_adults_contacts_20251004_121252.csv'
-      template:
-        description: 'Template DOCX path (relative)'
-        required: true
-        default: 'campaign-templates/education/outreach.docx'
-      mode:
-        description: 'Execution mode'
-        required: true
-        default: 'schedule_now'
-      dry_run:
-        description: 'Run in dry-run mode (no emails sent)'
-        required: false
-        default: 'false'
-        type: boolean
-      
-      target_domain:
-        description: 'Target domain for campaigns'
-        required: false
-        default: ''
-        type: choice
-        options:
-          - ''
-          - 'education'
-          - 'finance'
-          - 'healthcare'
-          - 'industry'
-          - 'technology'
-          - 'government'
-      
-      campaign_filter:
-        description: 'Filter specific campaigns'
-        required: false
-        default: ''
-        type: string
-      
-      contact_source:
-        description: 'Specific contact source to use'
-        required: false
-        default: ''
-        type: string
-      
-      force_validation:
-        description: 'Force full data validation'
-        required: false
-        default: true
-        type: boolean
-      
-      enable_real_time_tracking:
-        description: 'Enable real-time email tracking'
-        required: false
-        default: true
-        type: boolean
-      
-      skip_feedback_injection:
-        description: 'Skip feedback email integration'
-        required: false
-        default: 'false'
-        type: boolean
-      
-      debug_mode:
-        description: 'Enable debug logging'
-        required: false
-        default: false
-        type: boolean
-      
-      batch_size:
-        description: 'Email batch size for processing'
-        required: false
-        default: '50'
-        type: string
-      
-      delay_between_batches:
-        description: 'Delay between batches (seconds)'
-        required: false
-        default: '5'
-        type: string
-  
+  inputs:
+    contacts:
+      description: 'Contacts CSV path (relative)'
+      required: true
+      default: 'contacts/edu_adults_contacts_20251004_121252.csv'
+    template:
+      description: 'Template DOCX path (relative)'
+      required: true
+      default: 'campaign-templates/education/outreach.docx'
+    mode:
+      description: 'Execution mode'
+      required: true
+      default: 'schedule_now'
+    dry_run:
+      description: 'Run in dry-run mode (no emails sent)'
+      required: false
+      default: false
+      type: boolean
+    target_domain:
+      description: 'Target domain for campaigns'
+      required: false
+      default: ''
+      type: choice
+      options:
+        - ''
+        - 'education'
+        - 'finance'
+        - 'healthcare'
+        - 'industry'
+        - 'technology'
+        - 'government'
+    campaign_filter:
+      description: 'Filter specific campaigns'
+      required: false
+      default: ''
+      type: string
+    contact_source:
+      description: 'Specific contact source to use'
+      required: false
+      default: ''
+      type: string
+    debug_mode:
+      description: 'Enable debug logging'
+      required: false
+      default: false
+      type: boolean
+    batch_size:
+      description: 'Email batch size for processing'
+      required: false
+      default: '50'
+      type: string
+    delay_between_batches:
+      description: 'Delay between batches (seconds)'
+      required: false
+      default: '5'
+      type: string    
+   
   schedule:
     - cron: "0 9 * * 1-5"   # Weekdays at 9 AM UTC
 

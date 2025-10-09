@@ -223,49 +223,51 @@ jobs:
                 '### Status',
                 '✅ Cleanup completed successfully'
               ].join('\n');
-              
-              await github.rest.issues.create({
+             await github.rest.issues.create({
                 owner,
                 repo,
                 title: `🧹 Workflow Cleanup Summary - ${new Date().toISOString().split('T')[0]}`,
                 body: issueBody,
                 labels: ['maintenance', 'automated']
               });
-            }
-         } catch (error) {
-            console.error('❌ Fatal error during cleanup:', error.message);
-            console.error('Stack trace:', error.stack);
-            
-            // Still try to create an error issue
-            try {
-              await github.rest.issues.create({
-                owner,
-                repo,
-                title: `❌ Workflow Cleanup Failed - ${new Date().toISOString().split('T')[0]}`,
-                body: [
-                  '## Workflow Cleanup Error',
-                  '',
-                  `**Date:** ${new Date().toISOString()}`,
-                  `**Repository:** ${owner}/${repo}`,
-                  '',
-                  '### Error Details',
-                  '```',
-                  error.message,
-                  '```',
-                  '',
-                  '### Statistics Before Failure',
-                  `- Workflows processed: ${workflowCount}`,
-                  `- Runs processed: ${totalProcessed}`,
-                  `- Runs deleted: ${totalDeleted}`,
-                  `- Runs kept: ${totalKept}`,
-                  '',
-                  '⚠️ Please check the workflow logs for more details.'
-                ].join('\n'),
-                labels: ['maintenance', 'automated', 'error']
-              });
-            } catch (issueError) {
-              console.error('❌ Could not create error issue:', issueError.message);
+              
+              console.log('📝 Created summary issue');
             }
             
-            throw error;
-          }
+            } catch (error) {
+              console.error('❌ Fatal error during cleanup:', error.message);
+              console.error('Stack trace:', error.stack);
+              
+              // Still try to create an error issue
+              try {
+                await github.rest.issues.create({
+                  owner,
+                  repo,
+                  title: `❌ Workflow Cleanup Failed - ${new Date().toISOString().split('T')[0]}`,
+                  body: [
+                    '## Workflow Cleanup Error',
+                    '',
+                    `**Date:** ${new Date().toISOString()}`,
+                    `**Repository:** ${owner}/${repo}`,
+                    '',
+                    '### Error Details',
+                    '```',
+                    error.message,
+                    '```',
+                    '',
+                    '### Statistics Before Failure',
+                    `- Workflows processed: ${workflowCount}`,
+                    `- Runs processed: ${totalProcessed}`,
+                    `- Runs deleted: ${totalDeleted}`,
+                    `- Runs kept: ${totalKept}`,
+                    '',
+                    '⚠️ Please check the workflow logs for more details.'
+                  ].join('\n'),
+                  labels: ['maintenance', 'automated', 'error']
+                });
+              } catch (issueError) {
+                console.error('❌ Could not create error issue:', issueError.message);
+              }
+              
+              throw error;
+            }
