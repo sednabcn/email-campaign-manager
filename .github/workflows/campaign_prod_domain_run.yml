@@ -1136,9 +1136,20 @@ jobs:
           # Exit with script's status code
           exit $EXECUTION_STATUS
 
+      - name: Ensure reports directory exists
+        if: always()
+        run: |
+          echo "Creating reports directory..."
+          mkdir -p reports
+          echo "✅ Reports directory ready"
+
       - name: Enhanced final execution validation and report
         if: always()
         run: |
+
+          # CRITICAL: Ensure reports directory exists FIRST
+          mkdir -p reports
+          
           echo "============================================="
           echo "   ENHANCED CAMPAIGN EXECUTION COMPLETED    "
           echo "============================================="
@@ -2010,75 +2021,6 @@ jobs:
              echo "✗ Error: Reports were not created"
              exit 1
           fi    
-          
-      - name: Generate comprehensive enhanced campaign report
-        if: always()
-        run: |
-              mkdir -p reports
-    
-              # Read environment variables with defaults
-              EXEC_STATUS="${{ env.EXECUTION_STATUS }}"
-              EXEC_STATUS="${EXEC_STATUS:-1}"
-              
-              SUCCESS_IND="${{ env.SUCCESS_INDICATORS }}"
-              SUCCESS_IND="${SUCCESS_IND:-0}"
-    
-              MODE_TXT="${{ env.MODE_TEXT }}"
-              MODE_TXT="${MODE_TXT:-Unknown Mode}"
-    
-              # Determine status
-              if [ "$EXEC_STATUS" = "0" ] && [ "$SUCCESS_IND" -ge 3 ]; then
-                 FINAL_STATUS="SUCCESS - All systems operational"
-              elif [ "$EXEC_STATUS" = "0" ]; then
-                 FINAL_STATUS="COMPLETED - Some features may be limited"
-              else
-                 FINAL_STATUS="ISSUES DETECTED - Review required"
-              fi
-    
-              cat > reports/enhanced_campaign_report.md << 'EOF'
-              # Enhanced Campaign Execution Report
-
-              ## Executive Summary
-              - **Workflow Run ID:** ${{ github.run_id }}
-              - **Final Status:** $FINAL_STATUS
-              - **Mode:** $MODE_TXT
-              - **Success Score:** $SUCCESS_IND/5
-              - **Execution Status Code:** $EXEC_STATUS
-
-              ## Data Analysis
-              - **Real Data Sources:** ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}
-              - **Contact Files Found:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}
-              - **Total Contacts Loaded:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}
-              - **Campaign Templates:** ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}
-
-              ## System Integration
-              - **Main Processor:** utils/docx_parser.py
-              - **Template Engine:** Variable substitution active
-              - **Feedback System:** Integration ready
-              - **Data Loading:** Multi-source support (CSV, Excel, Google Sheets)
-
-              ## Configuration
-              - **Batch Size:** ${{ github.event.inputs.batch_size || 50 }}
-              - **Target Domain:** ${{ github.event.inputs.target_domain || 'All domains' }}
-              - **Debug Mode:** ${{ github.event.inputs.debug_mode }}
-              - **Feedback Injection:** ${{ github.event.inputs.skip_feedback_injection != 'true' && 'Enabled' || 'Disabled' }}
-              
-              ---
-              Generated: $(date)
-              EOF
-
-              cat > reports/enhanced_summary.md << 'EOF'
-              ## Enhanced Campaign Execution Summary
-
-              **Status:** $FINAL_STATUS
-              **Mode:** $MODE_TXT
-              **Success Score:** $SUCCESS_IND/5
-              **Contacts:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}
-              **Templates:** ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}
-              **Real Data:** ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}
-
-              **System:** Production Ready
-              EOF
           
       - name: Create enhanced GitHub issue notification
         if: always()
