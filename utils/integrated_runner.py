@@ -11,7 +11,10 @@ import argparse
 import subprocess
 from pathlib import Path
 from datetime import datetime
+from compliance_wrapper import MinimalCompliance
 
+# Initialize compliance
+compliance = MinimalCompliance(max_daily=50, max_per_domain=5, min_delay=30)
 
 def run_command(cmd, description="", timeout=300):
     """Run a command and capture output with proper error handling"""
@@ -121,6 +124,16 @@ def load_contacts_unified(contacts_dir):
     unique_contacts = {}
     for contact in contacts:
         email = contact.get('email', '').lower().strip()
+
+         # ADD THIS - Check compliance
+    can_send, reason = compliance.can_send(email)
+    if not can_send:
+        print(f"⏭️  Skipping {email}: {reason}")
+        if reason.startswith('wait_'):
+            time.sleep(int(reason.split('_')[1]))
+            continue
+        continue
+    
         if email and email not in unique_contacts:
             unique_contacts[email] = contact
         elif email:

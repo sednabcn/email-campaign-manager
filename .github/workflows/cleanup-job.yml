@@ -1,6 +1,10 @@
+
 name: Security Cleanup
 
 on:
+  push:
+    branches: ["dev", "main", "master"]
+
   workflow_call:
 
 jobs:

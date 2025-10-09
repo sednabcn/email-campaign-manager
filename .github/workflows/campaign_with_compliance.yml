@@ -1,0 +1,139 @@
+name: Campaign with Compliance
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: 'Domain to process'
+        required: true
+        type: choice
+        options:
+          - education
+          - healthcare
+          - finance
+      dry_run:
+        description: 'Dry run mode'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  campaign_with_compliance:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    
+    # COMPLIANCE STEP 1: Load suppression list
+    - name: Load suppression list
+      run: |
+        echo "📋 Current suppression list:"
+        if [ -f contacts/suppression_list.json ]; then
+          cat contacts/suppression_list.json
+        else
+          echo "No suppression list found - creating empty one"
+          mkdir -p contacts
+          echo '{"suppressed_emails": [], "last_updated": "'$(date -Iseconds)'", "count": 0}' > contacts/suppression_list.json
+        fi
+    
+    # COMPLIANCE STEP 2: Check reply emails for unsubscribe requests
+    - name: Check for unsubscribe requests
+      env:
+        IMAP_SERVER: ${{ secrets.IMAP_SERVER }}
+        SMTP_USER: ${{ secrets.SMTP_USER }}
+        SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      run: |
+        echo "📧 Checking for unsubscribe requests..."
+        python utils/reply_handler.py --days 7 || echo "⚠️  Reply checking skipped (IMAP not configured)"
+    
+    # COMPLIANCE STEP 3: Show compliance stats
+    - name: Show compliance stats
+      run: |
+        echo "📊 Compliance Statistics:"
+        python3 << 'EOF'
+        from compliance_wrapper import MinimalCompliance
+        compliance = MinimalCompliance()
+        stats = compliance.get_stats()
+        for key, value in stats.items():
+            print(f"   {key}: {value}")
+        EOF
+    
+    # MAIN CAMPAIGN STEP
+    - name: Run campaign with compliance
+      env:
+        SMTP_HOST: ${{ secrets.SMTP_HOST }}
+        SMTP_PORT: ${{ secrets.SMTP_PORT }}
+        SMTP_USER: ${{ secrets.SMTP_USER }}
+        SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      run: |
+        echo "🚀 Running campaign for domain: ${{ inputs.domain }}"
+        
+        python utils/integrated_runner.py \
+          --contacts contacts \
+          --scheduled campaign-templates/${{ inputs.domain }} \
+          --tracking tracking \
+          --alerts ${{ secrets.ALERTS_EMAIL }} \
+          ${{ inputs.dry_run && '--dry-run' || '' }}
+    
+    # COMPLIANCE STEP 4: Post-campaign compliance report
+    - name: Compliance report
+      if: always()
+      run: |
+        echo "📊 Post-Campaign Compliance Report"
+        echo "=================================="
+        
+        # Show updated stats
+        python3 << 'EOF'
+        from compliance_wrapper import MinimalCompliance
+        compliance = MinimalCompliance()
+        stats = compliance.get_stats()
+        
+        print("\nCompliance Status:")
+        print(f"  Suppressed emails: {stats['suppressed_count']}")
+        print(f"  Sent today: {stats['sent_today']}/{stats['daily_limit']}")
+        print(f"  Remaining today: {stats['remaining_today']}")
+        print(f"  Domains contacted: {stats['domains_contacted']}")
+        
+        # Check for violations
+        if stats['sent_today'] > stats['daily_limit']:
+            print("\n⚠️  WARNING: Daily limit exceeded!")
+        
+        if stats['remaining_today'] < 10:
+            print(f"\n⚠️  WARNING: Only {stats['remaining_today']} sends remaining today")
+        EOF
+        
+        # Show rate limit file
+        if [ -f tracking/rate_limits.json ]; then
+          echo -e "\nRate Limits Detail:"
+          cat tracking/rate_limits.json | python -m json.tool
+        fi
+    
+    # COMPLIANCE STEP 5: Save artifacts
+    - name: Upload compliance logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: compliance-logs-${{ inputs.domain }}-${{ github.run_number }}
+        path: |
+          contacts/suppression_list.json
+          contacts/suppression_log.jsonl
+          contacts/reply_log.jsonl
+          tracking/rate_limits.json
+        retention-days: 90
+    
+    # COMPLIANCE STEP 6: Alert if issues
+    - name: Compliance alert
+      if: failure()
+      run: |
+        echo "🚨 COMPLIANCE ALERT: Campaign may have failed compliance checks"
+        echo "Check the logs and suppression list"
