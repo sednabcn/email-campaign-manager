@@ -923,8 +923,6 @@ jobs:
           else
               MODE_TEXT="QUEUE (Create Email Files)"
           fi
-
-          echo "MODE_TEXT=$MODE_TEXT" >> $GITHUB_ENV
           
           # Export to GITHUB_ENV immediately
           echo "MODE_TEXT=$MODE_TEXT" >> $GITHUB_ENV
@@ -1111,11 +1109,13 @@ jobs:
           # Write outputs - CRITICAL: Do this before writing to GITHUB_ENV
           echo "emails_queued=$EMAILS_QUEUED" >> "$GITHUB_OUTPUT"
           echo "batch_directory=$BATCH_DIR" >> "$GITHUB_OUTPUT"
-          
+
+           
           # NOW write to GITHUB_ENV for use in subsequent steps
           echo "EXECUTION_STATUS=$EXECUTION_STATUS" >> $GITHUB_ENV
           echo "SUCCESS_INDICATORS=$SUCCESS_INDICATORS" >> $GITHUB_ENV
           echo "LOG_FILE=$LOG_FILE" >> $GITHUB_ENV
+         
           
           echo ""
           echo "Environment variables set:"
@@ -1128,11 +1128,6 @@ jobs:
           echo "  emails_queued=$EMAILS_QUEUED"
           echo "  batch_directory=$BATCH_DIR"
           echo ""
-          # Make variables available to subsequent steps
-          echo "EXECUTION_STATUS=$EXECUTION_STATUS" >> $GITHUB_ENV
-          echo "SUCCESS_INDICATORS=$SUCCESS_INDICATORS" >> $GITHUB_ENV
-          echo "MODE_TEXT=$MODE_TEXT" >> $GITHUB_ENV
-          echo "LOG_FILE=$LOG_FILE" >> $GITHUB_ENV
           # Exit with script's status code
           exit $EXECUTION_STATUS
 
@@ -1146,120 +1141,59 @@ jobs:
       - name: Enhanced final execution validation and report
         if: always()
         run: |
-
-          # CRITICAL: Ensure reports directory exists FIRST
-          mkdir -p reports
-          
           echo "============================================="
           echo "   ENHANCED CAMPAIGN EXECUTION COMPLETED    "
           echo "============================================="
           echo ""
-          echo "ENHANCED SYSTEM STATUS"
-          echo "Main Processor: utils/docx_parser.py (Enhanced Mode)"
-          echo "Data Integration: Multi-source with professional data_loader.py"
-          echo "Template Engine: Variable substitution active"
-          echo "Feedback System: Injection and tracking integrated"
-          echo "Reply Analysis: Real-time processing with enhanced metrics"
-          echo "Validation: Comprehensive pre-execution checks"
+    
+          # Read execution status
+          EXEC_STATUS="${{ env.EXECUTION_STATUS }}"
+          EXEC_STATUS="${EXEC_STATUS:-1}"
+          
+          SUCC_IND="${{ env.SUCCESS_INDICATORS }}"
+          SUCC_IND="${SUCC_IND:-0}"
+    
+          echo "Execution Status Code: $EXEC_STATUS"
+          echo "Success Indicators: $SUCC_IND/5"
           echo ""
-          echo "ENHANCED EXECUTION RESULTS"
-          
-          # Read from GITHUB_ENV - these were set in previous step
-          EXEC_STATUS="${EXECUTION_STATUS:-1}"
-          SUCC_IND="${SUCCESS_INDICATORS:-0}"
-          MODE="${MODE_TEXT:-Unknown Mode}"
-          
-          echo "Execution Status: $([ "$EXEC_STATUS" -eq "0" ] && echo 'SUCCESS' || echo 'ISSUES DETECTED')"
-          echo "Success Indicators: ${SUCC_IND}/5"
-          echo "Mode: ${MODE}"
+    
+          # Print summary information
           echo "Real Data Sources: ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}"
           echo "Contact Files: ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
           echo "Contacts Processed: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}"
           echo "Templates Available: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}"
-          echo "Target Domain: ${{ github.event.inputs.target_domain || 'All domains' }}"
-          echo "Feedback Injection: ${{ github.event.inputs.skip_feedback_injection != 'true' && 'ENABLED' || 'DISABLED' }}"
-          echo "Real-time Tracking: ${{ github.event.inputs.enable_real_time_tracking }}"
-          echo "Debug Mode: ${{ github.event.inputs.debug_mode }}"
-          echo ""
-          echo "ENHANCED FEATURES VALIDATED"
-          echo "- Template Variable Processing: {{name}}, {{email}}, {{organization}}, etc."
-          echo "- Multi-source Contact Loading: CSV, Excel, Google Sheets, JSON"
-          echo "- Professional Data Loader Integration: Fallback system available"
-          echo "- Feedback Injection System: email_feedback_injector.py"
-          echo "- Real-time Reply Tracking: reply_tracker.py with enhanced analysis"
-          echo "- DOCX Template Processing: docx_feedback_processor.py"
-          echo "- Comprehensive Error Handling: Enhanced validation and recovery"
-          echo "- Production-grade Logging: Detailed execution tracking"
-          echo ""
-          echo "ENHANCED ARTIFACTS GENERATED"
-          echo "- ${LOG_FILE:-campaign_execution.log} (detailed execution log)"
-          echo "- reports/enhanced_campaign_report.md (comprehensive analysis)"
-          echo "- tracking/execution_start.json (execution metadata)"
-          echo "- contact_analysis.json (enhanced contact statistics)"
-          echo "- domain_analysis.json (template analysis with variables)"
-          echo "- tracking/reply_tracking/ (enhanced reply analysis)"
-          echo "- tracking/ (comprehensive feedback and metrics)"
           echo ""
           
-          # Generate summary with proper values
-          cat > reports/enhanced_summary.md << EOF
-          ## Enhanced Campaign Execution Summary
-
-          **Status:** $([ "$EXEC_STATUS" -eq "0" ] && echo 'SUCCESS ✅' || echo 'ISSUES ⚠️')  
-          **Mode:** ${MODE}  
-          **Success Score:** ${SUCC_IND}/5  
-          **Contacts:** ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}  
-          **Templates:** ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}  
-          **Replies:** 0 (Feedback: 0.0%)  
-
-          **Enhanced Features:** Template processing, feedback injection, reply tracking, multi-source data loading  
-          **Real Data:** ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}  
-          **Execution Status Code:** ${EXEC_STATUS}  
-          **Success Indicators:** ${SUCC_IND}/5
-          EOF
-          
-          echo "SYSTEM INTEGRATION ASSESSMENT"
-          
-          # Enhanced final status determination
-          if [ "$EXEC_STATUS" -eq "0" ] && [ "$SUCC_IND" -ge "4" ]; then
-            echo "STATUS: COMPLETE SUCCESS ✅"
-            echo "All enhanced systems operational with full feature integration"
-            FINAL_EXIT=0
-          elif [ "$EXEC_STATUS" -eq "0" ] && [ "$SUCC_IND" -ge "2" ]; then
-            echo "STATUS: SUCCESS ✅"
-            echo "Core enhanced functionality working with comprehensive features"
-            FINAL_EXIT=0
+          # Determine final status and exit appropriately
+          if [ "$EXEC_STATUS" = "0" ] && [ "$SUCC_IND" -ge "4" ]; then
+             echo "✅ STATUS: COMPLETE SUCCESS"
+             echo "All systems operational with full feature integration"
+             exit 0
+          elif [ "$EXEC_STATUS" = "0" ] && [ "$SUCC_IND" -ge "2" ]; then
+             echo "✅ STATUS: SUCCESS"
+             echo "Core functionality working with comprehensive features"
+             exit 0
           elif [ "$SUCC_IND" -ge "2" ]; then
-            echo "STATUS: PARTIAL SUCCESS ⚠️"
-            echo "Enhanced systems partially operational - review recommended"
-            FINAL_EXIT=0
+             echo "⚠️ STATUS: PARTIAL SUCCESS"
+             echo "Systems partially operational - review recommended"
+             exit 0
           else
-            echo "STATUS: ISSUES DETECTED ❌"
-            echo "Enhanced system validation required - check execution logs"
-            FINAL_EXIT=1
+             echo "❌ STATUS: FAILED"
+             echo "Critical issues detected - review execution logs"
+             exit 1
           fi
-          
-          echo ""
-          echo "ENHANCED ARCHITECTURE BENEFITS"
-          echo "- Dry-run workflow's validation approach integrated into production"
-          echo "- Production workflow's advanced features preserved and enhanced"
-          echo "- Best practices from both workflows combined"
-          echo "- Comprehensive error handling and recovery mechanisms"
-          echo ""
-          
-          # Exit with appropriate code
-          exit $FINAL_EXIT
-      
+    
       - name: Upload queued emails
         if: steps.execution.outputs.emails_queued == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: queued-emails-${{ github.run_id }}
           path: |
-            ${{ steps.execution.outputs.batch_directory }}
+            ${{ steps.execution.outputs.batch_directory }}/
             github_actions_email_summary.json
             tracking/
           retention-days: 7
+          if-no-files-found: error    
           
       - name: Check for queued emails and set outputs
         id: queue_check
@@ -2196,161 +2130,4 @@ jobs:
           echo "- **Production Features:** Comprehensive validation and error handling" >> $GITHUB_STEP_SUMMARY
           echo "- **Summary Generation:** ${SUMMARY_METHOD:-integrated} method used" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-      - name: Enhanced final execution validation and report
-        if: always()
-        run: |
-          echo "============================================="
-          echo "   ENHANCED CAMPAIGN EXECUTION COMPLETED    "
-          echo "============================================="
-          echo ""
-          echo "ENHANCED SYSTEM STATUS"
-          echo "Main Processor: utils/docx_parser.py (Enhanced Mode)"
-          echo "Data Integration: Multi-source with professional data_loader.py"
-          echo "Template Engine: Variable substitution active"
-          echo "Feedback System: Injection and tracking integrated"
-          echo "Reply Analysis: Real-time processing with enhanced metrics"
-          echo "Validation: Comprehensive pre-execution checks"
-          echo ""
-          echo "ENHANCED EXECUTION RESULTS"
-          
-          # Clean and validate variables - remove quotes and set defaults
-          # Read environment variables with proper defaults
-          EXEC_STATUS="${{ env.EXECUTION_STATUS }}"
-          EXEC_STATUS="${EXEC_STATUS:-1}"
-
-          SUCC_IND="${{ env.SUCCESS_INDICATORS }}"
-          SUCC_IND="${SUCC_IND:-0}"
-
-          MODE_TXT="${{ env.MODE_TEXT }}"
-          MODE_TXT="${MODE_TXT:-Unknown Mode}"
-
-          echo "Execution Status: $([ "$EXEC_STATUS" = "0" ] && echo 'SUCCESS' || echo 'ISSUES DETECTED')"
-          echo "Success Indicators: $SUCC_IND/5"
-          echo "Mode: $MODE_TXT"
-
-          # Safe comparison for final status
-          if [ "$EXEC_STATUS" = "0" ] && [ "$SUCC_IND" -ge 4 ]; then
-                final_status="COMPLETE_SUCCESS"
-                echo "STATUS: COMPLETE SUCCESS"
-          elif [ "$EXEC_STATUS" = "0" ] && [ "$SUCC_IND" -ge 2 ]; then
-                final_status="SUCCESS"
-                echo "STATUS: SUCCESS"
-          else
-                final_status="ISSUES_DETECTED"
-                echo "STATUS: COMPLETED WITH ISSUES"
-          fi
-          
-          echo "Execution Status: $([ "$EXEC_STATUS_CLEAN" -eq 0 ] 2>/dev/null && echo 'SUCCESS' || echo 'ISSUES DETECTED')"
-          echo "Success Indicators: ${SUCC_IND_CLEAN}/5"
-          echo "Mode: ${MODE_TEXT:-Unknown}"
-          echo "Real Data Sources: ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}"
-          echo "Contact Files: ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
-          echo "Contacts Processed: ${{ needs.enhanced-validation-and-prepare.outputs.contact_count }}"
-          echo "Templates Available: ${{ needs.enhanced-validation-and-prepare.outputs.domain_campaigns }}"
-          echo "Target Domain: ${{ github.event.inputs.target_domain || 'All domains' }}"
-          echo "Feedback Injection: ${{ github.event.inputs.skip_feedback_injection != 'true' && 'ENABLED' || 'DISABLED' }}"
-          echo "Real-time Tracking: ${{ github.event.inputs.enable_real_time_tracking }}"
-          echo "Debug Mode: ${{ github.event.inputs.debug_mode }}"
-          echo ""
-          echo "ENHANCED FEATURES VALIDATED"
-          echo "- Template Variable Processing: {{name}}, {{email}}, {{organization}}, etc."
-          echo "- Multi-source Contact Loading: CSV, Excel, Google Sheets, JSON"
-          echo "- Professional Data Loader Integration: Fallback system available"
-          echo "- Feedback Injection System: email_feedback_injector.py"
-          echo "- Real-time Reply Tracking: reply_tracker.py with enhanced analysis"
-          echo "- DOCX Template Processing: docx_feedback_processor.py"
-          echo "- Comprehensive Error Handling: Enhanced validation and recovery"
-          echo "- Production-grade Logging: Detailed execution tracking"
-          echo ""
-          echo "ENHANCED ARTIFACTS GENERATED"
-          echo "- ${LOG_FILE:-campaign_execution.log} (detailed execution log)"
-          echo "- reports/enhanced_campaign_report.md (comprehensive analysis)"
-          echo "- tracking/execution_start.json (execution metadata)"
-          echo "- contact_analysis.json (enhanced contact statistics)"
-          echo "- domain_analysis.json (template analysis with variables)"
-          echo "- tracking/reply_tracking/ (enhanced reply analysis)"
-          echo "- tracking/ (comprehensive feedback and metrics)"
-          echo ""
-          echo "ENHANCED NOTIFICATIONS"
-          echo "- GitHub issue created with comprehensive report"
-          echo "- Enhanced step summary with success metrics"
-          echo "- Comprehensive artifacts uploaded for 30-day retention"
-          echo ""
-          echo "SYSTEM INTEGRATION ASSESSMENT"
-          
-          # Enhanced final status determination with safe integer comparison
-          final_status="UNKNOWN"
-          if [ "$EXEC_STATUS_CLEAN" -eq 0 ] 2>/dev/null && [ "$SUCC_IND_CLEAN" -ge 4 ] 2>/dev/null; then
-            final_status="COMPLETE_SUCCESS"
-            echo "STATUS: COMPLETE SUCCESS"
-            echo "All enhanced systems operational with full feature integration"
-          elif [ "$EXEC_STATUS_CLEAN" -eq 0 ] 2>/dev/null && [ "$SUCC_IND_CLEAN" -ge 2 ] 2>/dev/null; then
-            final_status="SUCCESS"
-            echo "STATUS: SUCCESS"
-            echo "Core enhanced functionality working with comprehensive features"
-          elif [ "$SUCC_IND_CLEAN" -ge 2 ] 2>/dev/null; then
-            final_status="PARTIAL_SUCCESS"
-            echo "STATUS: PARTIAL SUCCESS"
-            echo "Enhanced systems partially operational - review recommended"
-          else
-            final_status="ISSUES_DETECTED"
-            echo "STATUS: ISSUES DETECTED"
-            echo "Enhanced system validation required - check execution logs"
-          fi
-          
-          echo ""
-          echo "ENHANCED ARCHITECTURE BENEFITS"
-          echo "- Dry-run workflow's validation approach integrated into production"
-          echo "- Production workflow's advanced features preserved and enhanced"
-          echo "- Best practices from both workflows combined"
-          echo "- Comprehensive error handling and recovery mechanisms"
-          echo "- Multi-source data integration with professional-grade processing"
-          echo "- Template processing with full variable substitution"
-          echo "- Real-time feedback and reply analysis"
-          echo "- Production-ready with enhanced validation and monitoring"
-          echo ""
-          
-          REAL_DATA="${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}"
-          if [ "$REAL_DATA" == "true" ]; then
-            echo "PRODUCTION READINESS: CONFIRMED"
-            echo "Real contact data sources detected and successfully integrated"
-            echo "Google Sheets, CSV, and Excel files processed"
-            echo "System ready for immediate production deployment"
-          else
-            echo "PRODUCTION READINESS: TEST MODE"
-            echo "Sample data validated successfully - system architecture confirmed"
-            echo "Add real contact data files to contacts/ directory for production use"
-            echo "System ready for real data integration"
-          fi
-          
-          echo ""
-          echo "ENHANCED WORKFLOW SUCCESS"
-          echo "This enhanced production workflow successfully combines:"
-          echo "- Dry-run workflow's systematic validation and error handling"
-          echo "- Production workflow's advanced feedback and tracking features"
-          echo "- Enhanced template processing and variable substitution"
-          echo "- Comprehensive multi-source data integration"
-          echo "- Production-grade reliability and monitoring"
-          echo ""
-          
-          # Set final exit status based on enhanced analysis
-          case "$final_status" in
-            "COMPLETE_SUCCESS"|"SUCCESS")
-              echo "ENHANCED CAMPAIGN EXECUTION: SUCCESSFUL COMPLETION"
-              exit 0
-              ;;
-            "PARTIAL_SUCCESS")
-              echo "ENHANCED CAMPAIGN EXECUTION: COMPLETED WITH RECOMMENDATIONS"
-              echo "Note: Partial success is acceptable - core functionality validated"
-              exit 0
-              ;;
-            *)
-              echo "ENHANCED CAMPAIGN EXECUTION: COMPLETED WITH ISSUES"
-              echo "Check execution logs and validation reports for details"
-              echo "Note: Issues may be expected in test mode or with missing optional features"
-              # Exit 0 to not fail the workflow - issues are informational
-              exit 0
-              ;;
-          esac
       
