@@ -25,7 +25,7 @@ jobs:
             
             // Configuration - AGGRESSIVE cleanup of old and failed runs
             const KEEP_RECENT_RUNS = 5;   // Keep only 5 most recent successful runs per workflow
-            const KEEP_DAYS = 7;          // Delete everything older than 7 days
+            const KEEP_DAYS = 2;          // Delete everything older than 7 days
             const MAX_PAGES = 50;         // Process more pages to catch all runs
             
             console.log('🧹 Starting AGGRESSIVE workflow cleanup...');
