@@ -871,12 +871,12 @@ jobs:
              fi
           done
         
-         echo ""
-         echo "💡 Recommendations:"
-         echo "  1. Check the files listed above"
-         echo "  2. Regenerate any empty or corrupted DOCX files"
-         echo "  3. Ensure files are valid Microsoft Word documents"
-         echo "  4. Consider using the DOCX validator script for detailed diagnostics"
+          echo ""
+          echo "💡 Recommendations:"
+          echo "  1. Check the files listed above"
+          echo "  2. Regenerate any empty or corrupted DOCX files"
+          echo "  3. Ensure files are valid Microsoft Word documents"
+          echo "  4. Consider using the DOCX validator script for detailed diagnostics"
         
       - name: Enhanced campaign execution - QUEUE MODE
         id: execution
