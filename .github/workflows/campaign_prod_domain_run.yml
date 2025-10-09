@@ -812,7 +812,28 @@ jobs:
               echo "  4. Check file permissions"
               exit 1
           fi
-    
+
+      - name: Auto-fix corrupted DOCX files
+        run: |
+          echo "🔧 Checking and fixing corrupted DOCX files..."
+          
+          pip install python-docx
+          
+          # Create the fix script
+          cat > utils/fix_corrupted_docx.py << 'EOF'
+          # (paste the Python script content here)
+          EOF
+          
+          # Run the fix
+          python utils/fix_corrupted_docx.py campaign-templates/
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ All DOCX files are now valid"
+          else
+            echo "❌ Some files could not be fixed"
+            exit 1
+          fi
+          
       - name: Validate DOCX Files (Bash Alternative)
         if: runner.os == 'Linux'
         run: |
