@@ -785,7 +785,99 @@ jobs:
           else
             echo "docx_feedback_processor.py not found - DOCX processing will be handled by main processor"
           fi
+
+      - name: Validate DOCX Files
+        run: |
+          echo "🔍 Validating DOCX files before campaign execution..."
+        
+          # Check if python-docx is installed
+          python3 -c "import docx" 2>/dev/null || {
+            echo "Installing python-docx..."
+            pip install python-docx
+            }
+        
+          # Run validation script
+          python3 utils/docx_validator.py campaign-templates/ --verbose
+        
+          VALIDATION_EXIT=$?
+        
+          if [ $VALIDATION_EXIT -eq 0 ]; then
+              echo "✅ All DOCX files validated successfully"
+          else
+              echo "❌ DOCX validation failed - check logs above"
+              echo "💡 Common fixes:"
+              echo "  1. Ensure DOCX files are not corrupted"
+              echo "  2. Try opening files locally in Word/LibreOffice"
+              echo "  3. Regenerate any empty or invalid files"
+              echo "  4. Check file permissions"
+              exit 1
+          fi
     
+      - name: Validate DOCX Files (Bash Alternative)
+        if: runner.os == 'Linux'
+        run: |
+          echo "🔍 Quick DOCX validation using unzip..."
+        
+          INVALID_COUNT=0
+        
+          for file in $(find campaign-templates -name "*.docx"); do
+            echo "Checking: $file"
+          
+            # Check if file exists and is not empty
+            if [ ! -s "$file" ]; then
+              echo "  ❌ File is empty or does not exist"
+              INVALID_COUNT=$((INVALID_COUNT + 1))
+              continue
+            fi
+          
+            # Check if file is a valid ZIP (DOCX files are ZIP archives)
+            if ! unzip -tq "$file" > /dev/null 2>&1; then
+               echo "  ❌ Not a valid DOCX (ZIP) file"
+               INVALID_COUNT=$((INVALID_COUNT + 1))
+            
+               # Show file info for debugging
+               ls -lh "$file"
+               file "$file"
+            else
+               echo "  ✅ Valid"
+            fi
+          done
+        
+          echo ""
+          if [ $INVALID_COUNT -gt 0 ]; then
+             echo "❌ Found $INVALID_COUNT invalid DOCX file(s)"
+             echo "Please fix or regenerate invalid files before running campaigns"
+             exit 1
+          else
+              echo "✅ All DOCX files are valid ZIP archives"
+          fi
+    
+      - name: Repair Corrupted DOCX Files (Optional)
+        if: failure()
+        run: |
+          echo "🔧 Attempting to identify and report corrupted files..."
+        
+          for file in $(find campaign-templates -name "*.docx"); do
+             if [ -f "$file" ]; then
+                 SIZE=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file")
+            
+                 if [ "$SIZE" -eq 0 ]; then
+                    echo "⚠️  Empty file: $file"
+                    echo "  Action required: Delete or regenerate this file"
+                 elif ! unzip -tq "$file" > /dev/null 2>&1; then
+                    echo "⚠️  Corrupted file: $file"
+                    echo "  Action required: Regenerate from source or restore from backup"
+                 fi
+             fi
+          done
+        
+         echo ""
+         echo "💡 Recommendations:"
+         echo "  1. Check the files listed above"
+         echo "  2. Regenerate any empty or corrupted DOCX files"
+         echo "  3. Ensure files are valid Microsoft Word documents"
+         echo "  4. Consider using the DOCX validator script for detailed diagnostics"
+        
       - name: Enhanced campaign execution - QUEUE MODE
         id: execution
         env:

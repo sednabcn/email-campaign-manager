@@ -524,32 +524,110 @@ def generate_tracking_id(domain, campaign_name, template_name):
     return tracking_id
 
 
+"""
+Replace the load_campaign_content function in your docx_parser.py with this enhanced version
+"""
+
+import zipfile
+from pathlib import Path
+from docx import Document
+
+def is_valid_docx(filepath):
+    """Check if file is a valid DOCX (ZIP-based) file"""
+    try:
+        if not zipfile.is_zipfile(filepath):
+            return False, "Not a valid ZIP archive"
+        
+        # Check for required DOCX structure
+        with zipfile.ZipFile(filepath, 'r') as zip_file:
+            required_files = ['word/document.xml', '[Content_Types].xml']
+            file_list = zip_file.namelist()
+            
+            for required_file in required_files:
+                if required_file not in file_list:
+                    return False, f"Missing required file: {required_file}"
+        
+        return True, None
+    except zipfile.BadZipFile:
+        return False, "Corrupted ZIP archive"
+    except Exception as e:
+        return False, f"Validation error: {str(e)}"
+
+
 def load_campaign_content(campaign_path):
-    """Load campaign content from various file formats"""
+    """
+    Load campaign content from various file formats with validation
+    Enhanced version with DOCX integrity checking
+    """
     try:
         file_ext = os.path.splitext(campaign_path)[1].lower()
+        campaign_path = Path(campaign_path)
         
-        if file_ext == '.json':
-            return load_json_campaign(campaign_path)
-        elif file_ext == '.docx':
+        # Handle DOCX files with validation
+        if file_ext == '.docx':
             if not DOCX_AVAILABLE:
-                print(f"Warning: python-docx not available, skipping {campaign_path}")
+                print(f"⚠️  Warning: python-docx not available, skipping {campaign_path}")
                 return None
+            
+            # Pre-flight validation
+            print(f"  🔍 Validating: {campaign_path.name}")
+            
+            # Check file exists and has content
+            if not campaign_path.exists():
+                print(f"  ❌ Error: File does not exist")
+                return None
+            
+            file_size = campaign_path.stat().st_size
+            if file_size == 0:
+                print(f"  ❌ Error: File is empty (0 bytes)")
+                return None
+            
+            print(f"  📊 File size: {file_size / 1024:.2f} KB")
+            
+            # Validate DOCX structure
+            is_valid, error_msg = is_valid_docx(campaign_path)
+            if not is_valid:
+                print(f"  ❌ DOCX Validation Failed: {error_msg}")
+                print(f"  💡 Suggestion: Regenerate or replace this file")
+                return None
+            
+            print(f"  ✅ DOCX structure valid")
+            
+            # Attempt to load with python-docx
+            try:
+                doc = Document(campaign_path)
+                content = ""
                 
-            doc = Document(campaign_path)
-            content = ""
-            
-            for paragraph in doc.paragraphs:
-                content += paragraph.text + "\n"
-            
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        content += cell.text + " "
-                    content += "\n"
-            
-            return content.strip()
+                # Extract paragraphs
+                for paragraph in doc.paragraphs:
+                    content += paragraph.text + "\n"
+                
+                # Extract tables
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            content += cell.text + " "
+                        content += "\n"
+                
+                content = content.strip()
+                
+                if not content:
+                    print(f"  ⚠️  Warning: DOCX is valid but contains no text")
+                    return None
+                
+                print(f"  ✅ Extracted {len(content)} characters")
+                return content
+                
+            except Exception as e:
+                print(f"  ❌ Error reading DOCX: {str(e)}")
+                print(f"  💡 File may be password-protected or use unsupported features")
+                return None
         
+        # Handle JSON files
+        elif file_ext == '.json':
+            return load_json_campaign(campaign_path)
+        
+        # Handle text-based files
         elif file_ext in ['.txt', '.html', '.md']:
             encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']
             
@@ -561,6 +639,7 @@ def load_campaign_content(campaign_path):
                 except UnicodeDecodeError:
                     continue
             
+            # Fallback
             with open(campaign_path, 'rb') as f:
                 raw_content = f.read()
                 return raw_content.decode('utf-8', errors='ignore')
@@ -568,8 +647,21 @@ def load_campaign_content(campaign_path):
         return None
         
     except Exception as e:
-        print(f"Error loading campaign content from {campaign_path}: {str(e)}")
+        print(f"  ❌ Error loading campaign content from {campaign_path}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
+
+
+# PATCH INSTRUCTIONS:
+# 1. Add the is_valid_docx function before load_campaign_content
+# 2. Replace your existing load_campaign_content function with this version
+# 3. The enhanced version will:
+#    - Check file exists and is not empty
+#    - Validate DOCX ZIP structure
+#    - Verify required XML files are present
+#    - Provide helpful error messages
+#    - Continue processing other files if one fails
 
 
 def load_json_campaign(campaign_path):
