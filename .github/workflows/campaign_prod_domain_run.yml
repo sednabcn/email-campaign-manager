@@ -804,10 +804,17 @@ jobs:
           
           mkdir -p "$CONTACTS_PATH" "$SCHEDULED_PATH" "$TRACKING_PATH"
           
+          # SET MODE_TEXT EARLY
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            export MODE_TEXT="DRY-RUN (Preview Only)"
+          else
+            export MODE_TEXT="QUEUE (Create Email Files)"
+          fi
+          
           echo "Starting ENHANCED campaign execution"
           echo "=============================================================="
           echo "Environment: Production with Queue Mode"
-          echo "Mode: ${{ github.event.inputs.dry_run == 'true' && 'DRY-RUN (Preview Only)' || 'QUEUE (Create Email Files)' }}"
+          echo "Mode: $MODE_TEXT"
           echo "Working directory: $PWD"
           echo "Real data sources: ${{ needs.enhanced-validation-and-prepare.outputs.real_data_found }}"
           echo "Contact files: ${{ needs.enhanced-validation-and-prepare.outputs.contact_files_count }}"
@@ -822,10 +829,10 @@ jobs:
           # Verify script exists
           if [ ! -f "utils/docx_parser.py" ]; then
             echo "❌ ERROR: utils/docx_parser.py not found"
-            {
-              echo "emails_queued=false"
-              echo "batch_directory="
-            } >> "$GITHUB_OUTPUT"
+            echo "emails_queued=false" >> "$GITHUB_OUTPUT"
+            echo "batch_directory=" >> "$GITHUB_OUTPUT"
+            export EXECUTION_STATUS=1
+            export SUCCESS_INDICATORS=0
             exit 1
           fi
           
@@ -890,24 +897,53 @@ jobs:
           python utils/docx_parser.py "${ARGS[@]}" 2>&1 | tee "$LOG_FILE"
           EXECUTION_STATUS=${PIPESTATUS[0]}
           
+          # Export for later steps
+          export EXECUTION_STATUS
+          export LOG_FILE
+          
           echo ""
           echo "=============================================================="
           echo "Execution completed with status: $EXECUTION_STATUS"
           echo "=============================================================="
           echo ""
           
-          # Analyze results
+          # Count success indicators
+          SUCCESS_INDICATORS=0
+          
           if [ $EXECUTION_STATUS -eq 0 ]; then
             echo "✅ Script execution successful"
+            SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))
+          fi
+          
+          if grep -qi "completed successfully" "$LOG_FILE" 2>/dev/null; then
+            SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))
+          fi
+          
+          if grep -qi "campaigns processed" "$LOG_FILE" 2>/dev/null; then
+            SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))
+          fi
+          
+          if grep -qi "contacts loaded\|Total contacts" "$LOG_FILE" 2>/dev/null; then
+            SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))
+          fi
+          
+          if grep -qi "template.*substitution\|personalized" "$LOG_FILE" 2>/dev/null; then
+            SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))
+          fi
+          
+          # Export for later steps
+          export SUCCESS_INDICATORS
+          
+          echo "Success indicators: $SUCCESS_INDICATORS/5"
+          
+          # Analyze results
+          if [ -f "github_actions_email_summary.json" ]; then
+            echo "✅ Found github_actions_email_summary.json"
+            cat github_actions_email_summary.json
+            echo ""
             
-            # Check for queue summary file
-            if [ -f "github_actions_email_summary.json" ]; then
-              echo "✅ Found github_actions_email_summary.json"
-              cat github_actions_email_summary.json
-              echo ""
-              
-              # Extract batch directory and email count
-              BATCH_DIR=$(python3 -c "
+            # Extract batch directory and email count
+            BATCH_DIR=$(python3 -c "
           import json
           try:
               with open('github_actions_email_summary.json') as f:
@@ -915,9 +951,9 @@ jobs:
               print(data.get('batch_directory', ''))
           except:
               print('')
-          ")
-              
-              TOTAL_EMAILS=$(python3 -c "
+          " 2>/dev/null || echo "")
+            
+            TOTAL_EMAILS=$(python3 -c "
           import json
           try:
               with open('github_actions_email_summary.json') as f:
@@ -925,79 +961,57 @@ jobs:
               print(data.get('total_emails', 0))
           except:
               print(0)
-          ")
+          " 2>/dev/null || echo "0")
+            
+            echo "Batch directory: $BATCH_DIR"
+            echo "Total emails: $TOTAL_EMAILS"
+            
+            # Verify batch directory exists and has files
+            if [ -n "$BATCH_DIR" ] && [ -d "$BATCH_DIR" ]; then
+              EMAIL_FILES=$(find "$BATCH_DIR" -name "email_*.json" -type f 2>/dev/null | wc -l)
+              echo "Email files found: $EMAIL_FILES"
               
-              echo "Batch directory: $BATCH_DIR"
-              echo "Total emails: $TOTAL_EMAILS"
-              
-              # Verify batch directory exists and has files
-              if [ -n "$BATCH_DIR" ] && [ -d "$BATCH_DIR" ]; then
-                EMAIL_FILES=$(find "$BATCH_DIR" -name "email_*.json" -type f | wc -l)
-                echo "Email files found: $EMAIL_FILES"
+              if [ "$EMAIL_FILES" -gt 0 ] && [ "$TOTAL_EMAILS" -gt 0 ]; then
+                EMAILS_QUEUED="true"
+                echo "✅ Successfully queued $EMAIL_FILES emails in $BATCH_DIR"
                 
-                if [ "$EMAIL_FILES" -gt 0 ] && [ "$TOTAL_EMAILS" -gt 0 ]; then
-                  EMAILS_QUEUED="true"
-                  echo "✅ Successfully queued $EMAIL_FILES emails in $BATCH_DIR"
-                  
-                  # Show sample of first email
-                  FIRST_EMAIL=$(find "$BATCH_DIR" -name "email_*.json" -type f | head -1)
-                  if [ -n "$FIRST_EMAIL" ]; then
-                    echo ""
-                    echo "Sample email file:"
-                    head -20 "$FIRST_EMAIL"
-                  fi
-                else
-                  echo "⚠️ Batch directory exists but no valid emails found"
+                # Show sample of first email
+                FIRST_EMAIL=$(find "$BATCH_DIR" -name "email_*.json" -type f 2>/dev/null | head -1)
+                if [ -n "$FIRST_EMAIL" ]; then
+                  echo ""
+                  echo "Sample email file:"
+                  head -20 "$FIRST_EMAIL"
                 fi
               else
-                echo "⚠️ Batch directory not found or invalid: $BATCH_DIR"
+                echo "⚠️ Batch directory exists but no valid emails found"
               fi
             else
-              echo "ℹ️ No github_actions_email_summary.json (expected in dry-run mode)"
+              echo "⚠️ Batch directory not found or invalid: $BATCH_DIR"
             fi
-            
-            # Count success indicators from log
-            SUCCESS_INDICATORS=0
-            
-            if grep -qi "completed successfully" "$LOG_FILE"; then
-              SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))
-            fi
-            
-            if grep -qi "campaigns processed" "$LOG_FILE"; then
-              SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))
-            fi
-            
-            if grep -qi "contacts loaded\|Total contacts" "$LOG_FILE"; then
-              SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))
-            fi
-            
-            if grep -qi "template.*substitution\|personalized" "$LOG_FILE"; then
-              SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))
-            fi
-            
-            if grep -qi "queued.*emails\|queue mode" "$LOG_FILE"; then
-              SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))
-            fi
-            
-            echo ""
-            echo "Success indicators: $SUCCESS_INDICATORS/5"
-            
           else
-            echo "❌ Script execution failed with status $EXECUTION_STATUS"
-            echo "Check $LOG_FILE for details"
+            echo "ℹ️ No github_actions_email_summary.json (expected in dry-run mode)"
           fi
           
-          # Write outputs in correct format
+          # Write outputs
           {
-            echo "emails_queued=${EMAILS_QUEUED}"
-            echo "batch_directory=${BATCH_DIR}"
+            echo "emails_queued=$EMAILS_QUEUED"
+            echo "batch_directory=$BATCH_DIR"
           } >> "$GITHUB_OUTPUT"
           
           echo ""
           echo "Step outputs set:"
           echo "  emails_queued: $EMAILS_QUEUED"
           echo "  batch_directory: $BATCH_DIR"
+          echo "  execution_status: $EXECUTION_STATUS"
+          echo "  success_indicators: $SUCCESS_INDICATORS"
+          echo "  mode_text: $MODE_TEXT"
           echo ""
+          
+          # Make variables available to subsequent steps
+          echo "EXECUTION_STATUS=$EXECUTION_STATUS" >> $GITHUB_ENV
+          echo "SUCCESS_INDICATORS=$SUCCESS_INDICATORS" >> $GITHUB_ENV
+          echo "MODE_TEXT=$MODE_TEXT" >> $GITHUB_ENV
+          echo "LOG_FILE=$LOG_FILE" >> $GITHUB_ENV
           
           # Exit with script's status code
           exit $EXECUTION_STATUS
