@@ -1336,47 +1336,42 @@ Campaign Details:
         print(f"Warning: Could not send summary alert: {e}")
 
 
-# ============================================================================
-# MAIN CAMPAIGN FUNCTION
-# ============================================================================
-def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dry_run=False, 
-                  queue_emails=False, specific_template=None, feedback_email=None,
-                  target_domain=None, campaign_filter=None, debug=False,
-                  compliance_mode=False, daily_limit=0, per_domain_limit=0, 
-                  suppression_file=None, **kwargs):
-
-    """Main campaign execution function with queue support and specific file handling"""
-
-    # Handle compliance mode
-    if compliance_mode:
-        print(f"🔒 Compliance checks enabled")
+def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, 
+                  dry_run=False, queue_emails=False, specific_template=None, 
+                  feedback_email=None, target_domain=None, campaign_filter=None, 
+                  debug=False, compliance_mode=False, daily_limit=0, 
+                  per_domain_limit=0, suppression_file=None, 
+                  batch_size=50, delay=5, **kwargs):
+    """
+    Main campaign execution function with compliance support and rate limiting.
     
-    # Load suppression list if provided
-    suppression_list = set()
-    if suppression_file and Path(suppression_file).exists():
-        try:
-            with open(suppression_file, 'r') as f:
-                suppression_data = json.load(f)
-                suppression_list = set(suppression_data.get('suppressed_emails', []))
-            print(f"   Loaded {len(suppression_list)} suppressed emails")
-        except Exception as e:
-            print(f"   Warning: Could not load suppression file: {e}")
-    
-    # Apply daily limit if set
-    if daily_limit > 0:
-        print(f"   Daily send limit: {daily_limit}")
-        # TODO: Implement daily limit tracking
-    
-    # Apply per-domain limit if set  
-    if per_domain_limit > 0:
-        print(f"   Per-domain send limit: {per_domain_limit}")
-        
-    # TODO: Implement per-domain limit tracking
+    Args:
+        contacts_root: Path to contacts directory
+        scheduled_root: Path to scheduled campaigns/templates directory
+        tracking_root: Path to tracking directory
+        alerts_email: Email for system alerts
+        dry_run: If True, preview without sending
+        queue_emails: If True, queue emails for batch sending
+        specific_template: Path to specific template file to process
+        feedback_email: Email for feedback responses
+        target_domain: Filter to specific domain
+        campaign_filter: Filter campaigns by pattern
+        debug: Enable debug logging
+        compliance_mode: Enable compliance checks and rate limiting
+        daily_limit: Maximum emails per day (0 = no limit)
+        per_domain_limit: Maximum emails per domain (0 = no limit)
+        suppression_file: Path to suppression list JSON
+        batch_size: Batch size for processing
+        delay: Delay between batches in seconds
+        **kwargs: Additional arguments for future expansion
+    """
     try:
+        # ===== INITIALIZATION & STARTUP LOGGING =====
         print(f"Starting domain-aware campaign system")
         print(f"GitHub Actions detected: {os.getenv('GITHUB_ACTIONS') is not None}")
         print(f"Queue mode: {queue_emails}")
         print(f"Dry run mode: {dry_run}")
+        print(f"Compliance mode: {compliance_mode}")
         print(f"Contacts: {contacts_root}")
         print(f"Templates (domain-based): {scheduled_root}")
         
@@ -1388,7 +1383,68 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         
         os.makedirs(tracking_root, exist_ok=True)
         
-        # Load contacts with professional data_loader or fallback
+        # ===== COMPLIANCE & RATE LIMITING SETUP =====
+        suppression_list = set()
+        rate_limit_file = Path(tracking_root) / 'rate_limits.json'
+        rate_data = {
+            'daily_sent': 0,
+            'last_reset': datetime.now().date().isoformat(),
+            'domain_counts': {}
+        }
+        
+        if compliance_mode:
+            print(f"\n🔒 Compliance Mode Active:")
+            print(f"   Daily limit: {daily_limit if daily_limit > 0 else 'No limit'}")
+            print(f"   Per-domain limit: {per_domain_limit if per_domain_limit > 0 else 'No limit'}")
+            
+            # Check if rate limit file needs reset (new day)
+            if rate_limit_file.exists():
+                try:
+                    with open(rate_limit_file, 'r') as f:
+                        existing_data = json.load(f)
+                        last_reset = existing_data.get('last_reset')
+                        today = datetime.now().date().isoformat()
+                        
+                        if last_reset != today:
+                            # New day, reset counters
+                            rate_data = {
+                                'daily_sent': 0,
+                                'last_reset': today,
+                                'domain_counts': {}
+                            }
+                            print(f"   ↻ Rate limits reset for new day")
+                        else:
+                            # Same day, load existing data
+                            rate_data = existing_data
+                except Exception as e:
+                    print(f"   ⚠️  Warning: Could not load rate limits: {e}")
+            
+            print(f"   Current daily sent: {rate_data.get('daily_sent', 0)}/{daily_limit if daily_limit > 0 else '∞'}")
+            
+            # Load suppression list
+            if suppression_file:
+                suppression_path = Path(suppression_file)
+                if suppression_path.exists():
+                    try:
+                        with open(suppression_path, 'r') as f:
+                            suppression_data = json.load(f)
+                            suppression_list = set(suppression_data.get('suppressed_emails', []))
+                        print(f"   ✅ Loaded {len(suppression_list)} suppressed emails")
+                    except Exception as e:
+                        print(f"   ⚠️  Warning: Could not load suppression file: {e}")
+                else:
+                    print(f"   ℹ️  Suppression file will be created: {suppression_file}")
+                    suppression_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(suppression_path, 'w') as f:
+                        json.dump({
+                            'suppressed_emails': [],
+                            'last_updated': datetime.now().isoformat(),
+                            'count': 0
+                        }, f, indent=2)
+            
+            print()
+        
+        # ===== LOAD CONTACTS =====
         if DATA_LOADER_AVAILABLE:
             print("Using professional data_loader module")
             all_contacts = load_contacts_directory(contacts_root)
@@ -1401,23 +1457,48 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         else:
             print("Using fallback contact loading")
             all_contacts = fallback_load_contacts_from_directory(contacts_root)
-
-        # Get SMTP config from environment variables
+        
+        print(f"Total contacts loaded: {len(all_contacts)}\n")
+        
+        # ===== APPLY COMPLIANCE FILTERS =====
+        original_contact_count = len(all_contacts)
+        
+        # Filter suppressed contacts
+        if compliance_mode and suppression_list:
+            all_contacts = [c for c in all_contacts 
+                          if c.get('email', '').lower() not in suppression_list]
+            filtered_count = original_contact_count - len(all_contacts)
+            if filtered_count > 0:
+                print(f"🔒 Filtered {filtered_count} suppressed contacts")
+        
+        # Check and apply daily limit
+        if compliance_mode and daily_limit > 0:
+            current_daily_sent = rate_data.get('daily_sent', 0)
+            if current_daily_sent >= daily_limit:
+                print(f"\n⚠️  Daily send limit reached ({daily_limit})")
+                print(f"   No more emails can be sent today")
+                return
+            
+            remaining = daily_limit - current_daily_sent
+            if len(all_contacts) > remaining:
+                print(f"\n⚠️  Contacts ({len(all_contacts)}) exceed daily remaining ({remaining})")
+                print(f"   Will process only {remaining} contacts")
+                all_contacts = all_contacts[:remaining]
+        
+        # ===== INITIALIZE EMAIL SYSTEM =====
         smtp_host = os.getenv('SMTP_HOST') or os.getenv('SMTP_SERVER')
         smtp_port = os.getenv('SMTP_PORT')
         smtp_user = os.getenv('SMTP_USER') or os.getenv('SMTP_USERNAME')
         smtp_pass = os.getenv('SMTP_PASS') or os.getenv('SMTP_PASSWORD')
-
-        # Initialize unsubscribe system (FOR ALL MODES)
+        
+        # Initialize unsubscribe system
         unsubscribe_manager = UnsubscribeManager(
             tracking_dir=tracking_root,
             base_url="https://sednabcn.github.io/unsubscribe"
         )
-
-        print(f"✅ Unsubscribe system initialized: {unsubscribe_manager.get_stats()}")
-
-
-        # Initialize emailer with queue support
+        print(f"✅ Unsubscribe system initialized: {unsubscribe_manager.get_stats()}\n")
+        
+        # Initialize emailer
         if queue_emails:
             print("Initializing email queue mode")
             emailer = EmailSender(
@@ -1434,10 +1515,10 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         elif GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS'):
             print("Using GitHubActionsEmailSender - SMTP timeouts bypassed")
             emailer = GitHubActionsEmailSender(
-                smtp_host=os.getenv('SMTP_HOST'),
-                smtp_port=os.getenv('SMTP_PORT'),
-                smtp_user=os.getenv('SMTP_USER'),
-                smtp_pass=os.getenv('SMTP_PASS'),
+                smtp_host=smtp_host,
+                smtp_port=smtp_port,
+                smtp_user=smtp_user,
+                smtp_pass=smtp_pass,
                 alerts_email=alerts_email,
                 dry_run=dry_run
             )
@@ -1452,7 +1533,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                 dry_run=dry_run
             )
         
-        # Scan for domain-based campaigns or specific file
+        # ===== SCAN & LOAD CAMPAIGNS =====
         domain_campaigns = scan_domain_campaigns(scheduled_root, specific_file=specific_template)
         
         if not domain_campaigns:
@@ -1464,25 +1545,26 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             print("  3. Specific file: --template-file path/to/file.docx")
             return
         
-        # Initialize tracking
+        # ===== INITIALIZE TRACKING & LOGGING =====
         campaigns_processed = 0
         total_emails_sent = 0
         total_emails_queued = 0
         total_failures = 0
         campaign_results = []
         
-        # Create log file
         log_file = "dryrun.log" if dry_run else "campaign_execution.log"
         with open(log_file, 'w') as f:
             f.write("Domain-Aware Campaign Log\n")
             f.write(f"GitHub Actions mode: {os.getenv('GITHUB_ACTIONS') is not None}\n")
             f.write(f"Queue mode: {queue_emails}\n")
+            f.write(f"Compliance mode: {compliance_mode}\n")
             f.write(f"Specific template: {specific_template if specific_template else 'None'}\n")
-            f.write(f"Total contacts loaded: {len(all_contacts)}\n")
+            f.write(f"Total contacts loaded: {original_contact_count}\n")
+            f.write(f"Total contacts after filtering: {len(all_contacts)}\n")
             f.write(f"Domains found: {len(domain_campaigns)}\n")
             f.write(f"Timestamp: {datetime.now().isoformat()}\n\n")
         
-        # Process each domain
+        # ===== PROCESS CAMPAIGNS BY DOMAIN =====
         for domain, campaign_files in domain_campaigns.items():
             print(f"\n{'='*70}")
             print(f"PROCESSING DOMAIN: {domain.upper()}")
@@ -1493,6 +1575,8 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             (domain_tracking / "campaigns").mkdir(parents=True, exist_ok=True)
             (domain_tracking / "responses").mkdir(parents=True, exist_ok=True)
             (domain_tracking / "analytics").mkdir(parents=True, exist_ok=True)
+            
+            domain_emails_sent = 0
             
             # Process each campaign
             for campaign_file in campaign_files:
@@ -1512,13 +1596,11 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     print(f"Warning: Could not load content for {campaign_file.name}")
                     continue
                 
-                # Handle content types with config JSON support
+                # Extract campaign details
                 if isinstance(campaign_content, dict):
                     subject = campaign_content.get('subject', f"Campaign: {campaign_name}")
                     content = campaign_content.get('content', '')
                     from_name = campaign_content.get('from_name', 'Campaign System')
-                    
-                    # Extract config if present
                     config = campaign_content.get('config', {})
                     
                     if config:
@@ -1541,43 +1623,54 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     content = str(campaign_content)
                     from_name = "Campaign System"
                     config = {}
-                    contact_mapping = {}
                 
                 # Generate tracking ID
                 tracking_id = generate_tracking_id(domain, full_campaign_name, campaign_file.name)
                 
-                # Prepare contacts with tracking IDs
+                # ===== PREPARE CONTACTS FOR CAMPAIGN =====
                 contacts_with_ids = []
                 skipped_unsub = 0
-
+                skipped_per_domain = 0
+                
                 for i, contact in enumerate(all_contacts):
                     email = contact.get('email', '').strip()
-    
-                    # Check if unsubscribed
+                    
+                    # Check unsubscribe status
                     if unsubscribe_manager.is_unsubscribed(email, full_campaign_name):
                         skipped_unsub += 1
                         continue
-    
-                    # Add unsubscribe link
-                    contact_copy = contact.copy()
-                    contact_copy['unsubscribe_link'] = unsubscribe_manager.generate_unsubscribe_link(
-                        email, 
-                        full_campaign_name
-                    )
-                    contact_copy['recipient_id'] = f"{domain}_{full_campaign_name.replace('/', '_')}_{i+1}"
-                    contacts_with_ids.append(contact_copy)
-
-                if skipped_unsub > 0:
-                        print(f"  Filtered out {skipped_unsub} unsubscribed contacts")
-                for i, contact in enumerate(all_contacts):
+                    
+                    # Check per-domain limit (if enabled)
+                    if compliance_mode and per_domain_limit > 0:
+                        domain_count = rate_data['domain_counts'].get(domain, 0)
+                        if domain_count >= per_domain_limit:
+                            skipped_per_domain += 1
+                            continue
+                    
+                    # Prepare contact record
                     contact_copy = contact.copy()
                     contact_copy['recipient_id'] = f"{domain}_{full_campaign_name.replace('/', '_')}_{i+1}"
                     contact_copy['campaign_id'] = full_campaign_name
                     contact_copy['domain'] = domain
                     contact_copy['tracking_id'] = tracking_id
+                    contact_copy['unsubscribe_link'] = unsubscribe_manager.generate_unsubscribe_link(
+                        email, 
+                        full_campaign_name
+                    )
+                    
                     contacts_with_ids.append(contact_copy)
                 
-                # Send campaign
+                if skipped_unsub > 0:
+                    print(f"  Filtered out {skipped_unsub} unsubscribed contacts")
+                if skipped_per_domain > 0:
+                    print(f"  Filtered out {skipped_per_domain} contacts (per-domain limit)")
+                
+                # Skip campaign if no contacts
+                if not contacts_with_ids:
+                    print(f"  No eligible contacts for this campaign")
+                    continue
+                
+                # ===== SEND CAMPAIGN =====
                 try:
                     campaign_result = emailer.send_campaign(
                         campaign_name=f"{domain}/{full_campaign_name}",
@@ -1590,12 +1683,22 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                     )
                     
                     campaigns_processed += 1
-                    total_emails_sent += campaign_result.get('sent', 0)
-                    total_emails_queued += campaign_result.get('queued', 0)
+                    sent_count = campaign_result.get('sent', 0)
+                    queued_count = campaign_result.get('queued', 0)
+                    
+                    total_emails_sent += sent_count
+                    total_emails_queued += queued_count
                     total_failures += campaign_result['failed']
+                    domain_emails_sent += sent_count
+                    
                     campaign_results.append(campaign_result)
                     
-                    # Prepare tracking data
+                    # ===== UPDATE RATE LIMITS =====
+                    if compliance_mode:
+                        rate_data['daily_sent'] = rate_data.get('daily_sent', 0) + sent_count
+                        rate_data['domain_counts'][domain] = rate_data['domain_counts'].get(domain, 0) + sent_count
+                    
+                    # ===== CREATE TRACKING DATA =====
                     tracking_data = {
                         'tracking_id': tracking_id,
                         'domain': domain,
@@ -1607,12 +1710,13 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                         'from_name': from_name,
                         'timestamp': datetime.now().isoformat(),
                         'total_recipients': campaign_result['total_recipients'],
-                        'sent': campaign_result.get('sent', 0),
-                        'queued': campaign_result.get('queued', 0),
+                        'sent': sent_count,
+                        'queued': queued_count,
                         'failed': campaign_result['failed'],
                         'dry_run': dry_run,
                         'queue_mode': queue_emails,
-                        'specific_template': specific_template if specific_template else None
+                        'specific_template': specific_template if specific_template else None,
+                        'compliance_mode': compliance_mode
                     }
                     
                     # Add config metadata if available
@@ -1634,16 +1738,27 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
                         f.write(f"Campaign: {full_campaign_name}\n")
                         f.write(f"Tracking ID: {tracking_id}\n")
                         f.write(f"Recipients: {campaign_result['total_recipients']}\n")
-                        f.write(f"Sent: {campaign_result.get('sent', 0)}\n")
-                        f.write(f"Queued: {campaign_result.get('queued', 0)}\n")
+                        f.write(f"Sent: {sent_count}\n")
+                        f.write(f"Queued: {queued_count}\n")
                         f.write(f"Failed: {campaign_result['failed']}\n\n")
+                    
+                    print(f"  ✅ Sent: {sent_count}, Queued: {queued_count}, Failed: {campaign_result['failed']}")
                     
                 except Exception as e:
                     print(f"Error processing campaign '{domain}/{full_campaign_name}': {str(e)}")
                     traceback.print_exc()
                     continue
+            
+            if domain_emails_sent > 0:
+                print(f"\nDomain {domain.upper()} total: {domain_emails_sent} emails sent")
         
-        # Send summary or create queue summary
+        # ===== SAVE RATE LIMITS =====
+        if compliance_mode:
+            rate_data['last_updated'] = datetime.now().isoformat()
+            with open(rate_limit_file, 'w') as f:
+                json.dump(rate_data, f, indent=2)
+        
+        # ===== SEND SUMMARY =====
         if queue_emails and emailer.queued_count > 0:
             create_github_actions_summary(
                 emailer.queue_batch_dir,
@@ -1677,7 +1792,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         elif not dry_run and not queue_emails and campaigns_processed > 0:
             send_summary_alert(emailer, campaigns_processed, total_emails_sent, total_failures, campaign_results)
         
-        # Final log entry
+        # ===== FINAL LOG ENTRY =====
         with open(log_file, 'a') as f:
             f.write("=== CAMPAIGN SUMMARY ===\n")
             f.write(f"Domains processed: {len(domain_campaigns)}\n")
@@ -1688,9 +1803,15 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
             f.write(f"Failed: {total_failures}\n")
             f.write(f"Tracking system: DOMAIN-BASED\n")
             f.write(f"Queue mode: {queue_emails}\n")
+            f.write(f"Compliance mode: {compliance_mode}\n")
+            if compliance_mode:
+                f.write(f"Daily limit: {daily_limit if daily_limit > 0 else 'No limit'}\n")
+                f.write(f"Per-domain limit: {per_domain_limit if per_domain_limit > 0 else 'No limit'}\n")
+                f.write(f"Total suppressed: {len(suppression_list)}\n")
             f.write(f"Specific template: {specific_template if specific_template else 'None'}\n")
             f.write(f"Completed: {datetime.now().isoformat()}\n")
         
+        # ===== FINAL SUMMARY PRINT =====
         print(f"\n{'='*70}")
         print(f"FINAL SUMMARY")
         print(f"{'='*70}")
@@ -1701,15 +1822,23 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         print(f"Failures: {total_failures}")
         print(f"Tracking system: DOMAIN-BASED")
         print(f"Template processing: ENABLED")
-        print("Campaign completed successfully")
+        
+        if compliance_mode:
+            print(f"\n🔒 COMPLIANCE SUMMARY:")
+            print(f"   Daily sent: {rate_data.get('daily_sent', 0)}/{daily_limit if daily_limit > 0 else '∞'}")
+            print(f"   Suppressed contacts: {len(suppression_list)}")
+            print(f"   Domain distribution: {dict(rate_data.get('domain_counts', {}))}")
+        
+        print("\nCampaign completed successfully")
         
     except Exception as e:
         print(f"ERROR: {str(e)}")
         traceback.print_exc()
         sys.exit(1)
 
+        
 # ============================================================================
-# MAIN ENTRY POINT - FIXED ARGUMENT PARSER
+# MAIN ENTRY POINT - COMPLETE FIXED VERSION
 # ============================================================================
 
 if __name__ == "__main__":
@@ -1717,62 +1846,87 @@ if __name__ == "__main__":
     print(f"Remote environment: {IS_REMOTE}")
     print(f"Available modules: docx={DOCX_AVAILABLE}, email_sender={EMAIL_SENDER_AVAILABLE}, data_loader={DATA_LOADER_AVAILABLE}")
     
-    # CONSOLIDATED ARGUMENT PARSER - All arguments in one place
-    parser = argparse.ArgumentParser(description='Domain-Aware Email Campaign System')
+    # SINGLE CONSOLIDATED ARGUMENT PARSER
+    parser = argparse.ArgumentParser(description='Domain-Aware Email Campaign System with Compliance')
     
-    # Core arguments
+    # === REQUIRED CORE ARGUMENTS ===
     parser.add_argument("--contacts", required=True, help="Contacts directory path")
-    parser.add_argument("--scheduled", required=True, help="Domain-based templates directory (campaign-templates/)")
+    parser.add_argument("--scheduled", required=True, help="Domain-based templates directory")
     parser.add_argument("--tracking", required=True, help="Tracking directory path")
     parser.add_argument("--alerts", required=True, help="Alerts email address")
-    parser.add_argument("--feedback", help="Feedback email address")
     
-    # Campaign control arguments
-    parser.add_argument("--template-file", help="Specific template file to process (overrides domain scanning)")
+    # === OPTIONAL CORE ARGUMENTS ===
+    parser.add_argument("--feedback", help="Feedback email address")
+    parser.add_argument("--templates", help="Templates directory (alias for scheduled)")
+    
+    # === CAMPAIGN CONTROL ===
+    parser.add_argument("--template-file", help="Specific template file to process")
     parser.add_argument("--domain", help="Process only specific domain")
     parser.add_argument("--filter-domain", help="Filter campaigns by domain pattern")
     
-    # Execution mode arguments
-    parser.add_argument("--dry-run", action="store_true", help="Print personalized emails instead of sending")
-    parser.add_argument("--queue-emails", action="store_true", help="Queue emails for later sending (GitHub Actions mode)")
-    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("--remote-only", action="store_true", help="Force remote-only mode")
+    # === EXECUTION MODES ===
+    parser.add_argument("--dry-run", action="store_true", 
+                       help="Preview emails without sending")
+    parser.add_argument("--queue-emails", action="store_true", 
+                       help="Queue emails for batch sending (GitHub Actions mode)")
+    parser.add_argument("--debug", action="store_true", 
+                       help="Enable debug logging")
+    parser.add_argument("--remote-only", action="store_true", 
+                       help="Force remote-only mode")
     
-    # Feature flags
-    parser.add_argument("--no-feedback", action="store_true", help="Skip feedback injection")
-    parser.add_argument("--enhanced-mode", action="store_true", help="Enable enhanced processing mode")
-    parser.add_argument("--template-variables", action="store_true", help="Enable template variable processing")
-    parser.add_argument("--comprehensive-tracking", action="store_true", help="Enable comprehensive tracking")
+    # === FEATURE FLAGS ===
+    parser.add_argument("--no-feedback", action="store_true", 
+                       help="Skip feedback injection")
+    parser.add_argument("--enhanced-mode", action="store_true", 
+                       help="Enable enhanced processing")
+    parser.add_argument("--template-variables", action="store_true", 
+                       help="Enable template variable processing")
+    parser.add_argument("--comprehensive-tracking", action="store_true", 
+                       help="Enable comprehensive tracking")
     
-    # Compliance arguments
-    parser.add_argument("--compliance", action="store_true", help="Enable compliance mode")
-    parser.add_argument("--daily-limit", type=int, default=0, help="Daily send limit (0 = no limit)")
-    parser.add_argument("--per-domain-limit", type=int, default=0, help="Per domain send limit (0 = no limit)")
-    parser.add_argument("--suppression-file", type=str, help="Path to suppression list JSON")
+    # === COMPLIANCE ARGUMENTS (CRITICAL - THESE WERE MISSING) ===
+    parser.add_argument("--compliance", action="store_true", 
+                       help="Enable compliance mode with rate limiting")
+    parser.add_argument("--daily-limit", type=int, default=0, 
+                       help="Daily send limit (0 = no limit)")
+    parser.add_argument("--per-domain-limit", type=int, default=0, 
+                       help="Per-domain send limit (0 = no limit)")
+    parser.add_argument("--suppression-file", type=str, 
+                       help="Path to suppression list JSON file")
     
-    # Processing control arguments
-    parser.add_argument("--batch-size", type=int, default=50, help="Batch size for processing")
-    parser.add_argument("--delay", type=int, default=5, help="Delay between batches (seconds)")
+    # === PROCESSING CONTROL ===
+    parser.add_argument("--batch-size", type=int, default=50, 
+                       help="Batch size for email processing")
+    parser.add_argument("--delay", type=int, default=5, 
+                       help="Delay between batches in seconds")
     
     print("Parsing arguments...")
     args = parser.parse_args()
     
-    # Apply remote-only mode if requested
+    # === VALIDATE AND PROCESS ARGUMENTS ===
+    
+    # Handle remote-only mode
     if args.remote_only:
         IS_REMOTE = True
         print("Forced remote-only mode enabled")
     
     # Display compliance settings if enabled
     if args.compliance:
-        print(f"🔒 Compliance mode enabled:")
+        print(f"\n🔒 Compliance Mode Enabled:")
         print(f"   Daily limit: {args.daily_limit}")
         print(f"   Per-domain limit: {args.per_domain_limit}")
         if args.suppression_file:
             print(f"   Suppression file: {args.suppression_file}")
+            # Verify suppression file exists
+            if not Path(args.suppression_file).exists():
+                print(f"   ⚠️  Warning: Suppression file not found, will be created")
+        print()
     
-    scheduled_path = args.scheduled
+    # Handle templates alias
+    scheduled_path = args.templates if args.templates else args.scheduled
     
-    print(f"Arguments parsed successfully:")
+    # Display all parsed arguments
+    print(f"\nArguments parsed successfully:")
     print(f"  --contacts: {args.contacts}")
     print(f"  --scheduled: {scheduled_path}")
     print(f"  --tracking: {args.tracking}")
@@ -1782,29 +1936,61 @@ if __name__ == "__main__":
     print(f"  --domain: {args.domain}")
     print(f"  --dry-run: {args.dry_run}")
     print(f"  --queue-emails: {args.queue_emails}")
-    print(f"  --debug: {args.debug}")
     print(f"  --compliance: {args.compliance}")
+    print(f"  --debug: {args.debug}")
     
     if args.template_file:
-        print(f"Using specific template file: {args.template_file}")
+        print(f"\n📄 Using specific template file: {args.template_file}")
     
-    print("Calling domain-aware campaign_main...")
-    campaign_main(
-        contacts_root=args.contacts,
-        scheduled_root=scheduled_path,
-        tracking_root=args.tracking,
-        alerts_email=args.alerts,
-        dry_run=args.dry_run,
-        queue_emails=args.queue_emails,
-        specific_template=args.template_file,
-        feedback_email=args.feedback,
-        target_domain=args.domain,
-        campaign_filter=args.filter_domain,
-        debug=args.debug,
-        compliance_mode=args.compliance,
-        daily_limit=args.daily_limit,
-        per_domain_limit=args.per_domain_limit,
-        suppression_file=args.suppression_file
-    )
-    print("Domain-aware campaign system completed successfully")
+    # === CALL MAIN CAMPAIGN FUNCTION ===
+    print("\nCalling domain-aware campaign_main...")
+    
+    try:
+        campaign_main(
+            contacts_root=args.contacts,
+            scheduled_root=scheduled_path,
+            tracking_root=args.tracking,
+            alerts_email=args.alerts,
+            dry_run=args.dry_run,
+            queue_emails=args.queue_emails,
+            specific_template=args.template_file,
+            feedback_email=args.feedback,
+            target_domain=args.domain,
+            campaign_filter=args.filter_domain,
+            debug=args.debug,
+            compliance_mode=args.compliance,
+            daily_limit=args.daily_limit,
+            per_domain_limit=args.per_domain_limit,
+            suppression_file=args.suppression_file,
+            batch_size=args.batch_size,
+            delay=args.delay
+        )
+        print("\n✅ Domain-aware campaign system completed successfully")
+        sys.exit(0)
+        
+    except Exception as e:
+        print(f"\n❌ Campaign execution failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
