@@ -19,8 +19,8 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const KEEP_RECENT_RUNS = 1;
-            const KEEP_DAYS = 1;
-            const MAX_PAGES = 50;
+            const KEEP_DAYS = 0;
+            const MAX_PAGES = 100;
             const DELETE_OLD_EVEN_IF_SUCCESSFUL = true;
             console.log(`🧹 Cleaning workflow runs for ${owner}/${repo}`);
             const cutoffDate = new Date();
