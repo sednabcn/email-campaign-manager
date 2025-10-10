@@ -24,7 +24,7 @@ jobs:
             const KEEP_RECENT_RUNS = 3;
             const KEEP_DAYS = 2;
             const MAX_PAGES = 50;
-            const DELETE_OLD_EVEN_IF_SUCCESSFUL = true;
+            const DELETE_OLD_EVEN_IF_SUCCESSFUL = false;
 
             console.log(`🧹 Cleaning workflow runs for ${owner}/${repo}`);
             const cutoffDate = new Date();
