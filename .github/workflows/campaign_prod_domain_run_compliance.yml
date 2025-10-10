@@ -650,21 +650,60 @@ jobs:
     
           echo ""
           echo "========================================"
-          echo "✅ Pre-flight compliance checks complete"    
- 
-      - name: Run Campaign with Compliance (Your existing step - MODIFY)
-        run: |
-          # Your existing campaign execution
-          python utils/integrated_runner.py \
-            --contacts "${{ inputs.contacts }}" \
-            --template "${{ inputs.template }}" \
-            --mode "${{ inputs.mode }}" \
-            --dry-run="${{ inputs.dry_run }}" \
-            --compliance-config /tmp/compliance_config.json \
-            --max-daily 50 \
-            --max-per-domain 5 \
-            --min-delay 30
+          echo "✅ Pre-flight compliance checks complete"
 
+
+      
+      - name: Run Campaign with Compliance
+        env:
+          DRY_RUN_MODE: ${{ inputs.dry_run }}
+          COMPLIANCE_MODE: "true"
+          DAILY_LIMIT: ${{ inputs.batch_size || '50' }}
+          PER_DOMAIN_LIMIT: "5"
+        run: |
+          echo "🔒 Running Integrated Campaign with Compliance..."
+          echo "📋 Configuration:"
+          echo "  - Dry Run: $DRY_RUN_MODE"
+          echo "  - Daily Limit: $DAILY_LIMIT"
+          echo "  - Per-Domain Limit: $PER_DOMAIN_LIMIT"
+          echo ""
+          
+          # Build command arguments array
+          ARGS=(
+            --contacts "${{ env.CONTACTS_DIR }}"
+            --scheduled "${{ env.SCHEDULED_DIR }}"
+            --tracking "${{ env.TRACKING_DIR }}"
+            --templates "${{ env.TEMPLATES_DIR }}"
+            --alerts "${{ env.ALERT_EMAIL }}"
+          )
+          
+          # Conditionally add --dry-run flag (only when true)
+          if [ "$DRY_RUN_MODE" == "true" ]; then
+            ARGS+=(--dry-run)
+            echo "🧪 DRY-RUN MODE: Simulating campaign execution"
+          else
+            echo "📤 LIVE MODE: Executing actual campaign"
+          fi
+          
+          # Execute integrated runner
+          echo ""
+          echo "Executing: python utils/integrated_runner.py ${ARGS[@]}"
+          echo ""
+          
+          python utils/integrated_runner.py "${ARGS[@]}"
+          
+          EXIT_CODE=$?
+          echo ""
+          echo "Exit code: $EXIT_CODE"
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ Campaign execution completed successfully"
+          else
+            echo "❌ Campaign execution failed"
+            exit $EXIT_CODE
+          fi
+      
+          
       - name: Post-flight Compliance Report (Enhanced)
         if: always()
         run: |
