@@ -10,7 +10,7 @@ from datetime import datetime, date
 from typing import Tuple, Dict, Set, Optional
 
 
-class ComplianceWrapper:
+class MinimalCompliance:
     """
     Production-ready compliance wrapper for email campaigns
     

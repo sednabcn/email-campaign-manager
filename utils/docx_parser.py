@@ -700,8 +700,8 @@ try:
                 try:
                     personalized_subject = self.substitute_variables(subject, recipient, contact_mapping=contact_mapping)
                     personalized_content = self.substitute_variables(content, recipient, contact_mapping=contact_mapping)
-                     # ADD THIS: Inject unsubscribe footer
-                     if recipient.get('unsubscribe_link'):
+                    # ADD THIS: Inject unsubscribe footer
+                    if recipient.get('unsubscribe_link'):
                          is_html = '<html' in content.lower() or '<body' in content.lower() or '<p>' in content.lower()
                          personalized_content = add_unsubscribe_footer(
                              personalized_content,
