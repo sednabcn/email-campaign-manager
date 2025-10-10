@@ -1,0 +1,1881 @@
+﻿2025-10-10T16:14:12.1820090Z Current runner version: '2.328.0'
+2025-10-10T16:14:12.1844722Z ##[group]Runner Image Provisioner
+2025-10-10T16:14:12.1845720Z Hosted Compute Agent
+2025-10-10T16:14:12.1846437Z Version: 20250912.392
+2025-10-10T16:14:12.1847290Z Commit: d921fda672a98b64f4f82364647e2f10b2267d0b
+2025-10-10T16:14:12.1848526Z Build Date: 2025-09-12T15:23:14Z
+2025-10-10T16:14:12.1849323Z ##[endgroup]
+2025-10-10T16:14:12.1850137Z ##[group]Operating System
+2025-10-10T16:14:12.1850849Z Ubuntu
+2025-10-10T16:14:12.1851550Z 24.04.3
+2025-10-10T16:14:12.1852156Z LTS
+2025-10-10T16:14:12.1852747Z ##[endgroup]
+2025-10-10T16:14:12.1853456Z ##[group]Runner Image
+2025-10-10T16:14:12.1854162Z Image: ubuntu-24.04
+2025-10-10T16:14:12.1854847Z Version: 20250929.60.1
+2025-10-10T16:14:12.1856143Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20250929.60/images/ubuntu/Ubuntu2404-Readme.md
+2025-10-10T16:14:12.1857952Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20250929.60
+2025-10-10T16:14:12.1859285Z ##[endgroup]
+2025-10-10T16:14:12.1860893Z ##[group]GITHUB_TOKEN Permissions
+2025-10-10T16:14:12.1862924Z Actions: write
+2025-10-10T16:14:12.1863745Z Contents: read
+2025-10-10T16:14:12.1864437Z Issues: write
+2025-10-10T16:14:12.1865100Z Metadata: read
+2025-10-10T16:14:12.1865876Z Packages: write
+2025-10-10T16:14:12.1866597Z ##[endgroup]
+2025-10-10T16:14:12.1869122Z Secret source: Actions
+2025-10-10T16:14:12.1870100Z Prepare workflow directory
+2025-10-10T16:14:12.2261477Z Prepare all required actions
+2025-10-10T16:14:12.2298801Z Getting action download info
+2025-10-10T16:14:12.5786160Z Download action repository 'actions/checkout@v4' (SHA:08eba0b27e820071cde6df949e0beb9ba4906955)
+2025-10-10T16:14:12.7719393Z Download action repository 'actions/setup-python@v4' (SHA:7f4fc3e22c37d6ff65e88745f38bd3157c663f7c)
+2025-10-10T16:14:12.8544899Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2025-10-10T16:14:13.0487111Z Complete job name: enhanced-campaign-execution
+2025-10-10T16:14:13.1248610Z ##[group]Run actions/checkout@v4
+2025-10-10T16:14:13.1249895Z with:
+2025-10-10T16:14:13.1250477Z   repository: sednabcn/services
+2025-10-10T16:14:13.1251384Z   token: ***
+2025-10-10T16:14:13.1251821Z   ssh-strict: true
+2025-10-10T16:14:13.1252263Z   ssh-user: git
+2025-10-10T16:14:13.1252716Z   persist-credentials: true
+2025-10-10T16:14:13.1253201Z   clean: true
+2025-10-10T16:14:13.1253651Z   sparse-checkout-cone-mode: true
+2025-10-10T16:14:13.1254167Z   fetch-depth: 1
+2025-10-10T16:14:13.1254600Z   fetch-tags: false
+2025-10-10T16:14:13.1255062Z   show-progress: true
+2025-10-10T16:14:13.1255495Z   lfs: false
+2025-10-10T16:14:13.1255897Z   submodules: false
+2025-10-10T16:14:13.1256455Z   set-safe-directory: true
+2025-10-10T16:14:13.1257267Z env:
+2025-10-10T16:14:13.1257981Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:13.1258840Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:13.1259314Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:13.1259773Z   PRODUCTION_MODE: true
+2025-10-10T16:14:13.1260288Z   TRACKING_DIR: tracking
+2025-10-10T16:14:13.1260928Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:13.1261492Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:13.1262098Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:13.1262638Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:13.1263144Z ##[endgroup]
+2025-10-10T16:14:13.2588080Z Syncing repository: sednabcn/services
+2025-10-10T16:14:13.2590130Z ##[group]Getting Git version info
+2025-10-10T16:14:13.2590881Z Working directory is '/home/runner/work/services/services'
+2025-10-10T16:14:13.2591871Z [command]/usr/bin/git version
+2025-10-10T16:14:13.5294267Z git version 2.51.0
+2025-10-10T16:14:13.5321321Z ##[endgroup]
+2025-10-10T16:14:13.5345727Z Temporarily overriding HOME='/home/runner/work/_temp/1af17f1f-d0dc-4024-800f-907814b9575f' before making global git config changes
+2025-10-10T16:14:13.5348171Z Adding repository directory to the temporary git global config as a safe directory
+2025-10-10T16:14:13.5352775Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/services/services
+2025-10-10T16:14:13.5389115Z Deleting the contents of '/home/runner/work/services/services'
+2025-10-10T16:14:13.5393097Z ##[group]Initializing the repository
+2025-10-10T16:14:13.5397686Z [command]/usr/bin/git init /home/runner/work/services/services
+2025-10-10T16:14:13.5505533Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-10-10T16:14:13.5506890Z hint: is subject to change. To configure the initial branch name to use in all
+2025-10-10T16:14:13.5507867Z hint: of your new repositories, which will suppress this warning, call:
+2025-10-10T16:14:13.5509326Z hint:
+2025-10-10T16:14:13.5509878Z hint:      git config --global init.defaultBranch <name>
+2025-10-10T16:14:13.5510933Z hint:
+2025-10-10T16:14:13.5512039Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-10-10T16:14:13.5513782Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-10-10T16:14:13.5515237Z hint:
+2025-10-10T16:14:13.5516086Z hint:      git branch -m <name>
+2025-10-10T16:14:13.5516963Z hint:
+2025-10-10T16:14:13.5518061Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2025-10-10T16:14:13.5520152Z Initialized empty Git repository in /home/runner/work/services/services/.git/
+2025-10-10T16:14:13.5523213Z [command]/usr/bin/git remote add origin https://github.com/sednabcn/services
+2025-10-10T16:14:13.5579891Z ##[endgroup]
+2025-10-10T16:14:13.5581221Z ##[group]Disabling automatic garbage collection
+2025-10-10T16:14:13.5584823Z [command]/usr/bin/git config --local gc.auto 0
+2025-10-10T16:14:13.5613300Z ##[endgroup]
+2025-10-10T16:14:13.5614674Z ##[group]Setting up auth
+2025-10-10T16:14:13.5621160Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-10-10T16:14:13.5651500Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-10-10T16:14:13.5991777Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-10-10T16:14:13.6019166Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-10-10T16:14:13.6236227Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-10-10T16:14:13.6280913Z ##[endgroup]
+2025-10-10T16:14:13.6282010Z ##[group]Fetching the repository
+2025-10-10T16:14:13.6290000Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +22c56383729736f84322b118e23457ad5f8e2a69:refs/remotes/origin/master
+2025-10-10T16:14:14.0300232Z From https://github.com/sednabcn/services
+2025-10-10T16:14:14.0303124Z  * [new ref]         22c56383729736f84322b118e23457ad5f8e2a69 -> origin/master
+2025-10-10T16:14:14.0331526Z ##[endgroup]
+2025-10-10T16:14:14.0333395Z ##[group]Determining the checkout info
+2025-10-10T16:14:14.0335220Z ##[endgroup]
+2025-10-10T16:14:14.0337489Z [command]/usr/bin/git sparse-checkout disable
+2025-10-10T16:14:14.0375685Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-10-10T16:14:14.0403159Z ##[group]Checking out the ref
+2025-10-10T16:14:14.0406039Z [command]/usr/bin/git checkout --progress --force -B master refs/remotes/origin/master
+2025-10-10T16:14:14.0542689Z Reset branch 'master'
+2025-10-10T16:14:14.0545181Z branch 'master' set up to track 'origin/master'.
+2025-10-10T16:14:14.0553145Z ##[endgroup]
+2025-10-10T16:14:14.0585943Z [command]/usr/bin/git log -1 --format=%H
+2025-10-10T16:14:14.0607167Z 22c56383729736f84322b118e23457ad5f8e2a69
+2025-10-10T16:14:14.0907654Z ##[group]Run actions/setup-python@v4
+2025-10-10T16:14:14.0909227Z with:
+2025-10-10T16:14:14.0910216Z   python-version: 3.11
+2025-10-10T16:14:14.0911323Z   cache: pip
+2025-10-10T16:14:14.0912611Z   check-latest: false
+2025-10-10T16:14:14.0913989Z   token: ***
+2025-10-10T16:14:14.0915041Z   update-environment: true
+2025-10-10T16:14:14.0916259Z   allow-prereleases: false
+2025-10-10T16:14:14.0917418Z env:
+2025-10-10T16:14:14.0918559Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:14.0920029Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:14.0921103Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:14.0922176Z   PRODUCTION_MODE: true
+2025-10-10T16:14:14.0923242Z   TRACKING_DIR: tracking
+2025-10-10T16:14:14.0924387Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:14.0925695Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:14.0926949Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:14.0928060Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:14.0929286Z ##[endgroup]
+2025-10-10T16:14:14.2728392Z ##[group]Installed versions
+2025-10-10T16:14:14.2851132Z Successfully set up CPython (3.11.13)
+2025-10-10T16:14:14.2854303Z ##[endgroup]
+2025-10-10T16:14:14.3550417Z [command]/opt/hostedtoolcache/Python/3.11.13/x64/bin/pip cache dir
+2025-10-10T16:14:17.0067673Z /home/runner/.cache/pip
+2025-10-10T16:14:17.1704262Z Cache hit for: setup-python-Linux-24.04-Ubuntu-python-3.11.13-pip-c80903bf1241d08be2427b1f1bf80294abd0502ad51eabb583841695e89ba76d
+2025-10-10T16:14:18.3147331Z Received 70256460 of 70256460 (100.0%), 75.5 MBs/sec
+2025-10-10T16:14:18.3148947Z Cache Size: ~67 MB (70256460 B)
+2025-10-10T16:14:18.3183043Z [command]/usr/bin/tar -xf /home/runner/work/_temp/59856087-bbbf-4b02-a2b2-bb17a588260d/cache.tzst -P -C /home/runner/work/services/services --use-compress-program unzstd
+2025-10-10T16:14:18.4547116Z Cache restored successfully
+2025-10-10T16:14:18.4696498Z Cache restored from key: setup-python-Linux-24.04-Ubuntu-python-3.11.13-pip-c80903bf1241d08be2427b1f1bf80294abd0502ad51eabb583841695e89ba76d
+2025-10-10T16:14:18.4854096Z ##[group]Run python -m pip install --upgrade pip setuptools wheel
+2025-10-10T16:14:18.4854707Z [36;1mpython -m pip install --upgrade pip setuptools wheel[0m
+2025-10-10T16:14:18.4855192Z [36;1mpip install requests>=2.31.0 pandas>=2.0.0 python-docx>=0.8.11[0m
+2025-10-10T16:14:18.4855669Z [36;1mpip install openpyxl>=3.1.0 xlrd>=2.0.1 jinja2>=3.1.0[0m
+2025-10-10T16:14:18.4856151Z [36;1mpip install google-auth google-auth-oauthlib google-auth-httplib2[0m
+2025-10-10T16:14:18.4856641Z [36;1mpip install google-api-python-client>=2.0.0 PyGithub>=1.55[0m
+2025-10-10T16:14:18.4857054Z [36;1mpip install gspread>=5.0.0 oauth2client>=4.1.0[0m
+2025-10-10T16:14:18.4857452Z [36;1mpip install beautifulsoup4 lxml urllib3 chardet[0m
+2025-10-10T16:14:18.4857798Z [36;1m[0m
+2025-10-10T16:14:18.4858031Z [36;1mif [ -f requirements.txt ]; then[0m
+2025-10-10T16:14:18.4858604Z [36;1m  pip install -r requirements.txt[0m
+2025-10-10T16:14:18.4858891Z [36;1mfi[0m
+2025-10-10T16:14:18.4899287Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:18.4899577Z env:
+2025-10-10T16:14:18.4899813Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:18.4900296Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:18.4900555Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:18.4900814Z   PRODUCTION_MODE: true
+2025-10-10T16:14:18.4901072Z   TRACKING_DIR: tracking
+2025-10-10T16:14:18.4901344Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:18.4901636Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:18.4901908Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:18.4902180Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:18.4902535Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:18.4903007Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:18.4903444Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:18.4903843Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:18.4904236Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:18.4904626Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:18.4904968Z ##[endgroup]
+2025-10-10T16:14:20.6772802Z Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (25.2)
+2025-10-10T16:14:20.7538671Z Requirement already satisfied: setuptools in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (65.5.0)
+2025-10-10T16:14:20.8731256Z Collecting setuptools
+2025-10-10T16:14:20.8747019Z   Using cached setuptools-80.9.0-py3-none-any.whl.metadata (6.6 kB)
+2025-10-10T16:14:20.9005406Z Collecting wheel
+2025-10-10T16:14:20.9020623Z   Using cached wheel-0.45.1-py3-none-any.whl.metadata (2.3 kB)
+2025-10-10T16:14:20.9176902Z Using cached setuptools-80.9.0-py3-none-any.whl (1.2 MB)
+2025-10-10T16:14:20.9200456Z Using cached wheel-0.45.1-py3-none-any.whl (72 kB)
+2025-10-10T16:14:20.9647169Z Installing collected packages: wheel, setuptools
+2025-10-10T16:14:21.0111334Z   Attempting uninstall: setuptools
+2025-10-10T16:14:21.0126672Z     Found existing installation: setuptools 65.5.0
+2025-10-10T16:14:21.3629274Z     Uninstalling setuptools-65.5.0:
+2025-10-10T16:14:21.5716879Z       Successfully uninstalled setuptools-65.5.0
+2025-10-10T16:14:22.2599670Z 
+2025-10-10T16:14:22.2609024Z Successfully installed setuptools-80.9.0 wheel-0.45.1
+2025-10-10T16:14:32.3725282Z Collecting google-auth
+2025-10-10T16:14:32.3741758Z   Using cached google_auth-2.41.1-py2.py3-none-any.whl.metadata (6.6 kB)
+2025-10-10T16:14:32.3923444Z Collecting google-auth-oauthlib
+2025-10-10T16:14:32.3938650Z   Using cached google_auth_oauthlib-1.2.2-py3-none-any.whl.metadata (2.7 kB)
+2025-10-10T16:14:32.4024755Z Collecting google-auth-httplib2
+2025-10-10T16:14:32.4039112Z   Using cached google_auth_httplib2-0.2.0-py2.py3-none-any.whl.metadata (2.2 kB)
+2025-10-10T16:14:32.4205116Z Collecting cachetools<7.0,>=2.0.0 (from google-auth)
+2025-10-10T16:14:32.4220206Z   Using cached cachetools-6.2.0-py3-none-any.whl.metadata (5.4 kB)
+2025-10-10T16:14:32.4385832Z Collecting pyasn1-modules>=0.2.1 (from google-auth)
+2025-10-10T16:14:32.4400782Z   Using cached pyasn1_modules-0.4.2-py3-none-any.whl.metadata (3.5 kB)
+2025-10-10T16:14:32.4544006Z Collecting rsa<5,>=3.1.4 (from google-auth)
+2025-10-10T16:14:32.4558479Z   Using cached rsa-4.9.1-py3-none-any.whl.metadata (5.6 kB)
+2025-10-10T16:14:32.4878138Z Collecting pyasn1>=0.1.3 (from rsa<5,>=3.1.4->google-auth)
+2025-10-10T16:14:32.4892826Z   Using cached pyasn1-0.6.1-py3-none-any.whl.metadata (8.4 kB)
+2025-10-10T16:14:32.5112838Z Collecting requests-oauthlib>=0.7.0 (from google-auth-oauthlib)
+2025-10-10T16:14:32.5127207Z   Using cached requests_oauthlib-2.0.0-py2.py3-none-any.whl.metadata (11 kB)
+2025-10-10T16:14:32.5252100Z Collecting httplib2>=0.19.0 (from google-auth-httplib2)
+2025-10-10T16:14:32.5265309Z   Using cached httplib2-0.31.0-py3-none-any.whl.metadata (2.2 kB)
+2025-10-10T16:14:32.5489800Z Collecting pyparsing<4,>=3.0.4 (from httplib2>=0.19.0->google-auth-httplib2)
+2025-10-10T16:14:32.5503011Z   Using cached pyparsing-3.2.5-py3-none-any.whl.metadata (5.0 kB)
+2025-10-10T16:14:32.5658537Z Collecting oauthlib>=3.0.0 (from requests-oauthlib>=0.7.0->google-auth-oauthlib)
+2025-10-10T16:14:32.5672252Z   Using cached oauthlib-3.3.1-py3-none-any.whl.metadata (7.9 kB)
+2025-10-10T16:14:32.5696973Z Requirement already satisfied: requests>=2.0.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from requests-oauthlib>=0.7.0->google-auth-oauthlib) (2.32.5)
+2025-10-10T16:14:32.5712645Z Requirement already satisfied: charset_normalizer<4,>=2 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib) (3.4.3)
+2025-10-10T16:14:32.5718747Z Requirement already satisfied: idna<4,>=2.5 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib) (3.10)
+2025-10-10T16:14:32.5724912Z Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib) (2.5.0)
+2025-10-10T16:14:32.5730414Z Requirement already satisfied: certifi>=2017.4.17 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib) (2025.10.5)
+2025-10-10T16:14:32.5786270Z Using cached google_auth-2.41.1-py2.py3-none-any.whl (221 kB)
+2025-10-10T16:14:32.5802275Z Using cached cachetools-6.2.0-py3-none-any.whl (11 kB)
+2025-10-10T16:14:32.5815550Z Using cached rsa-4.9.1-py3-none-any.whl (34 kB)
+2025-10-10T16:14:32.5828963Z Using cached google_auth_oauthlib-1.2.2-py3-none-any.whl (19 kB)
+2025-10-10T16:14:32.5842489Z Using cached google_auth_httplib2-0.2.0-py2.py3-none-any.whl (9.3 kB)
+2025-10-10T16:14:32.5855493Z Using cached httplib2-0.31.0-py3-none-any.whl (91 kB)
+2025-10-10T16:14:32.5868919Z Using cached pyparsing-3.2.5-py3-none-any.whl (113 kB)
+2025-10-10T16:14:32.5883062Z Using cached pyasn1-0.6.1-py3-none-any.whl (83 kB)
+2025-10-10T16:14:32.5896733Z Using cached pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
+2025-10-10T16:14:32.5911203Z Using cached requests_oauthlib-2.0.0-py2.py3-none-any.whl (24 kB)
+2025-10-10T16:14:32.5924278Z Using cached oauthlib-3.3.1-py3-none-any.whl (160 kB)
+2025-10-10T16:14:32.6432908Z Installing collected packages: pyparsing, pyasn1, oauthlib, cachetools, rsa, requests-oauthlib, pyasn1-modules, httplib2, google-auth, google-auth-oauthlib, google-auth-httplib2
+2025-10-10T16:14:33.1441013Z 
+2025-10-10T16:14:33.1461140Z Successfully installed cachetools-6.2.0 google-auth-2.41.1 google-auth-httplib2-0.2.0 google-auth-oauthlib-1.2.2 httplib2-0.31.0 oauthlib-3.3.1 pyasn1-0.6.1 pyasn1-modules-0.4.2 pyparsing-3.2.5 requests-oauthlib-2.0.0 rsa-4.9.1
+2025-10-10T16:14:36.9775421Z Collecting beautifulsoup4
+2025-10-10T16:14:36.9791164Z   Using cached beautifulsoup4-4.14.2-py3-none-any.whl.metadata (3.8 kB)
+2025-10-10T16:14:36.9815824Z Requirement already satisfied: lxml in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (6.0.2)
+2025-10-10T16:14:36.9819921Z Requirement already satisfied: urllib3 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (2.5.0)
+2025-10-10T16:14:36.9900888Z Collecting chardet
+2025-10-10T16:14:36.9915288Z   Using cached chardet-5.2.0-py3-none-any.whl.metadata (3.4 kB)
+2025-10-10T16:14:37.0065725Z Collecting soupsieve>1.2 (from beautifulsoup4)
+2025-10-10T16:14:37.0080398Z   Using cached soupsieve-2.8-py3-none-any.whl.metadata (4.6 kB)
+2025-10-10T16:14:37.0096049Z Requirement already satisfied: typing-extensions>=4.0.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from beautifulsoup4) (4.15.0)
+2025-10-10T16:14:37.0141311Z Using cached beautifulsoup4-4.14.2-py3-none-any.whl (106 kB)
+2025-10-10T16:14:37.0155845Z Using cached chardet-5.2.0-py3-none-any.whl (199 kB)
+2025-10-10T16:14:37.0170666Z Using cached soupsieve-2.8-py3-none-any.whl (36 kB)
+2025-10-10T16:14:37.0739480Z Installing collected packages: soupsieve, chardet, beautifulsoup4
+2025-10-10T16:14:37.3592729Z 
+2025-10-10T16:14:37.3616950Z Successfully installed beautifulsoup4-4.14.2 chardet-5.2.0 soupsieve-2.8
+2025-10-10T16:14:37.7414489Z Requirement already satisfied: gspread in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 1)) (6.2.1)
+2025-10-10T16:14:37.7418603Z Requirement already satisfied: oauth2client in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 2)) (4.1.3)
+2025-10-10T16:14:37.7423088Z Requirement already satisfied: PyGithub in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 3)) (2.8.1)
+2025-10-10T16:14:37.7427995Z Requirement already satisfied: requests>=2.25.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 6)) (2.32.5)
+2025-10-10T16:14:37.7432832Z Requirement already satisfied: pandas>=1.3.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 7)) (2.3.3)
+2025-10-10T16:14:37.7437320Z Requirement already satisfied: python-docx>=0.8.11 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 8)) (1.2.0)
+2025-10-10T16:14:37.7442317Z Requirement already satisfied: openpyxl>=3.0.9 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 9)) (3.1.5)
+2025-10-10T16:14:37.7447843Z Requirement already satisfied: google-auth>=2.0.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 13)) (2.41.1)
+2025-10-10T16:14:37.7452568Z Requirement already satisfied: google-auth-oauthlib>=0.5.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 14)) (1.2.2)
+2025-10-10T16:14:37.7457033Z Requirement already satisfied: google-auth-httplib2>=0.1.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 15)) (0.2.0)
+2025-10-10T16:14:37.7461598Z Requirement already satisfied: google-api-python-client>=2.0.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from -r requirements.txt (line 16)) (2.184.0)
+2025-10-10T16:14:37.7952678Z Collecting email-validator>=1.1.0 (from -r requirements.txt (line 19))
+2025-10-10T16:14:37.7968627Z   Using cached email_validator-2.3.0-py3-none-any.whl.metadata (26 kB)
+2025-10-10T16:14:37.8304047Z Collecting pytest>=6.0.0 (from -r requirements.txt (line 22))
+2025-10-10T16:14:37.8318986Z   Using cached pytest-8.4.2-py3-none-any.whl.metadata (7.7 kB)
+2025-10-10T16:14:37.8469681Z Collecting pytest-cov>=2.10.0 (from -r requirements.txt (line 23))
+2025-10-10T16:14:37.8483956Z   Using cached pytest_cov-7.0.0-py3-none-any.whl.metadata (31 kB)
+2025-10-10T16:14:37.9051025Z Collecting black>=21.0.0 (from -r requirements.txt (line 24))
+2025-10-10T16:14:37.9067283Z   Using cached black-25.9.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl.metadata (83 kB)
+2025-10-10T16:14:37.9314804Z Collecting flake8>=3.8.0 (from -r requirements.txt (line 25))
+2025-10-10T16:14:37.9328722Z   Using cached flake8-7.3.0-py2.py3-none-any.whl.metadata (3.8 kB)
+2025-10-10T16:14:37.9671888Z Collecting pyyaml (from -r requirements.txt (line 27))
+2025-10-10T16:14:37.9686871Z   Using cached pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+2025-10-10T16:14:37.9717735Z Requirement already satisfied: httplib2>=0.9.1 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from oauth2client->-r requirements.txt (line 2)) (0.31.0)
+2025-10-10T16:14:37.9723893Z Requirement already satisfied: pyasn1>=0.1.7 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from oauth2client->-r requirements.txt (line 2)) (0.6.1)
+2025-10-10T16:14:37.9729712Z Requirement already satisfied: pyasn1-modules>=0.0.5 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from oauth2client->-r requirements.txt (line 2)) (0.4.2)
+2025-10-10T16:14:37.9735462Z Requirement already satisfied: rsa>=3.1.4 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from oauth2client->-r requirements.txt (line 2)) (4.9.1)
+2025-10-10T16:14:37.9741566Z Requirement already satisfied: six>=1.6.1 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from oauth2client->-r requirements.txt (line 2)) (1.17.0)
+2025-10-10T16:14:37.9751456Z Requirement already satisfied: pynacl>=1.4.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from PyGithub->-r requirements.txt (line 3)) (1.6.0)
+2025-10-10T16:14:37.9762476Z Requirement already satisfied: pyjwt>=2.4.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from pyjwt[crypto]>=2.4.0->PyGithub->-r requirements.txt (line 3)) (2.10.1)
+2025-10-10T16:14:37.9769670Z Requirement already satisfied: typing-extensions>=4.5.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from PyGithub->-r requirements.txt (line 3)) (4.15.0)
+2025-10-10T16:14:37.9774693Z Requirement already satisfied: urllib3>=1.26.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from PyGithub->-r requirements.txt (line 3)) (2.5.0)
+2025-10-10T16:14:37.9786723Z Requirement already satisfied: charset_normalizer<4,>=2 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from requests>=2.25.0->-r requirements.txt (line 6)) (3.4.3)
+2025-10-10T16:14:37.9792584Z Requirement already satisfied: idna<4,>=2.5 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from requests>=2.25.0->-r requirements.txt (line 6)) (3.10)
+2025-10-10T16:14:37.9800154Z Requirement already satisfied: certifi>=2017.4.17 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from requests>=2.25.0->-r requirements.txt (line 6)) (2025.10.5)
+2025-10-10T16:14:37.9884042Z Requirement already satisfied: numpy>=1.23.2 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from pandas>=1.3.0->-r requirements.txt (line 7)) (2.3.3)
+2025-10-10T16:14:37.9891060Z Requirement already satisfied: python-dateutil>=2.8.2 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from pandas>=1.3.0->-r requirements.txt (line 7)) (2.9.0.post0)
+2025-10-10T16:14:37.9896735Z Requirement already satisfied: pytz>=2020.1 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from pandas>=1.3.0->-r requirements.txt (line 7)) (2025.2)
+2025-10-10T16:14:37.9902489Z Requirement already satisfied: tzdata>=2022.7 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from pandas>=1.3.0->-r requirements.txt (line 7)) (2025.2)
+2025-10-10T16:14:37.9990250Z Requirement already satisfied: lxml>=3.1.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from python-docx>=0.8.11->-r requirements.txt (line 8)) (6.0.2)
+2025-10-10T16:14:38.0001669Z Requirement already satisfied: et-xmlfile in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from openpyxl>=3.0.9->-r requirements.txt (line 9)) (2.0.0)
+2025-10-10T16:14:38.0014449Z Requirement already satisfied: cachetools<7.0,>=2.0.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from google-auth>=2.0.0->-r requirements.txt (line 13)) (6.2.0)
+2025-10-10T16:14:38.0079095Z Requirement already satisfied: requests-oauthlib>=0.7.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from google-auth-oauthlib>=0.5.0->-r requirements.txt (line 14)) (2.0.0)
+2025-10-10T16:14:38.0113708Z Requirement already satisfied: google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from google-api-python-client>=2.0.0->-r requirements.txt (line 16)) (2.26.0)
+2025-10-10T16:14:38.0121171Z Requirement already satisfied: uritemplate<5,>=3.0.1 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from google-api-python-client>=2.0.0->-r requirements.txt (line 16)) (4.2.0)
+2025-10-10T16:14:38.0137951Z Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.56.2 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.0.0->-r requirements.txt (line 16)) (1.70.0)
+2025-10-10T16:14:38.0146659Z Requirement already satisfied: protobuf!=3.20.0,!=3.20.1,!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<7.0.0,>=3.19.5 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.0.0->-r requirements.txt (line 16)) (6.32.1)
+2025-10-10T16:14:38.0151753Z Requirement already satisfied: proto-plus<2.0.0,>=1.22.3 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.0.0->-r requirements.txt (line 16)) (1.26.1)
+2025-10-10T16:14:38.0204072Z Requirement already satisfied: pyparsing<4,>=3.0.4 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from httplib2>=0.9.1->oauth2client->-r requirements.txt (line 2)) (3.2.5)
+2025-10-10T16:14:38.0383617Z Collecting dnspython>=2.0.0 (from email-validator>=1.1.0->-r requirements.txt (line 19))
+2025-10-10T16:14:38.0396577Z   Using cached dnspython-2.8.0-py3-none-any.whl.metadata (5.7 kB)
+2025-10-10T16:14:38.0509959Z Collecting iniconfig>=1 (from pytest>=6.0.0->-r requirements.txt (line 22))
+2025-10-10T16:14:38.0523096Z   Using cached iniconfig-2.1.0-py3-none-any.whl.metadata (2.7 kB)
+2025-10-10T16:14:38.0681912Z Collecting packaging>=20 (from pytest>=6.0.0->-r requirements.txt (line 22))
+2025-10-10T16:14:38.0694995Z   Using cached packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+2025-10-10T16:14:38.0820404Z Collecting pluggy<2,>=1.5 (from pytest>=6.0.0->-r requirements.txt (line 22))
+2025-10-10T16:14:38.0833257Z   Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+2025-10-10T16:14:38.1000039Z Collecting pygments>=2.7.2 (from pytest>=6.0.0->-r requirements.txt (line 22))
+2025-10-10T16:14:38.1012741Z   Using cached pygments-2.19.2-py3-none-any.whl.metadata (2.5 kB)
+2025-10-10T16:14:38.4117495Z Collecting coverage>=7.10.6 (from coverage[toml]>=7.10.6->pytest-cov>=2.10.0->-r requirements.txt (line 23))
+2025-10-10T16:14:38.4133155Z   Using cached coverage-7.10.7-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.9 kB)
+2025-10-10T16:14:38.4422422Z Collecting click>=8.0.0 (from black>=21.0.0->-r requirements.txt (line 24))
+2025-10-10T16:14:38.4437625Z   Using cached click-8.3.0-py3-none-any.whl.metadata (2.6 kB)
+2025-10-10T16:14:38.4514979Z Collecting mypy-extensions>=0.4.3 (from black>=21.0.0->-r requirements.txt (line 24))
+2025-10-10T16:14:38.4528475Z   Using cached mypy_extensions-1.1.0-py3-none-any.whl.metadata (1.1 kB)
+2025-10-10T16:14:38.4658566Z Collecting pathspec>=0.9.0 (from black>=21.0.0->-r requirements.txt (line 24))
+2025-10-10T16:14:38.4671609Z   Using cached pathspec-0.12.1-py3-none-any.whl.metadata (21 kB)
+2025-10-10T16:14:38.4842028Z Collecting platformdirs>=2 (from black>=21.0.0->-r requirements.txt (line 24))
+2025-10-10T16:14:38.5177895Z   Downloading platformdirs-4.5.0-py3-none-any.whl.metadata (12 kB)
+2025-10-10T16:14:38.5297479Z Collecting pytokens>=0.1.10 (from black>=21.0.0->-r requirements.txt (line 24))
+2025-10-10T16:14:38.5310963Z   Using cached pytokens-0.1.10-py3-none-any.whl.metadata (2.0 kB)
+2025-10-10T16:14:38.5406842Z Collecting mccabe<0.8.0,>=0.7.0 (from flake8>=3.8.0->-r requirements.txt (line 25))
+2025-10-10T16:14:38.5421248Z   Using cached mccabe-0.7.0-py2.py3-none-any.whl.metadata (5.0 kB)
+2025-10-10T16:14:38.5514735Z Collecting pycodestyle<2.15.0,>=2.14.0 (from flake8>=3.8.0->-r requirements.txt (line 25))
+2025-10-10T16:14:38.5528175Z   Using cached pycodestyle-2.14.0-py2.py3-none-any.whl.metadata (4.5 kB)
+2025-10-10T16:14:38.5645722Z Collecting pyflakes<3.5.0,>=3.4.0 (from flake8>=3.8.0->-r requirements.txt (line 25))
+2025-10-10T16:14:38.5659069Z   Using cached pyflakes-3.4.0-py2.py3-none-any.whl.metadata (3.5 kB)
+2025-10-10T16:14:38.5917133Z Requirement already satisfied: cryptography>=3.4.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from pyjwt[crypto]>=2.4.0->PyGithub->-r requirements.txt (line 3)) (46.0.2)
+2025-10-10T16:14:38.5940523Z Requirement already satisfied: cffi>=2.0.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from cryptography>=3.4.0->pyjwt[crypto]>=2.4.0->PyGithub->-r requirements.txt (line 3)) (2.0.0)
+2025-10-10T16:14:38.5975912Z Requirement already satisfied: pycparser in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=3.4.0->pyjwt[crypto]>=2.4.0->PyGithub->-r requirements.txt (line 3)) (2.23)
+2025-10-10T16:14:38.6050529Z Requirement already satisfied: oauthlib>=3.0.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from requests-oauthlib>=0.7.0->google-auth-oauthlib>=0.5.0->-r requirements.txt (line 14)) (3.3.1)
+2025-10-10T16:14:38.6148640Z Using cached email_validator-2.3.0-py3-none-any.whl (35 kB)
+2025-10-10T16:14:38.6162360Z Using cached pytest-8.4.2-py3-none-any.whl (365 kB)
+2025-10-10T16:14:38.6177948Z Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+2025-10-10T16:14:38.6191351Z Using cached pytest_cov-7.0.0-py3-none-any.whl (22 kB)
+2025-10-10T16:14:38.6204878Z Using cached black-25.9.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl (1.6 MB)
+2025-10-10T16:14:38.6229938Z Using cached flake8-7.3.0-py2.py3-none-any.whl (57 kB)
+2025-10-10T16:14:38.6243348Z Using cached mccabe-0.7.0-py2.py3-none-any.whl (7.3 kB)
+2025-10-10T16:14:38.6256211Z Using cached pycodestyle-2.14.0-py2.py3-none-any.whl (31 kB)
+2025-10-10T16:14:38.6269359Z Using cached pyflakes-3.4.0-py2.py3-none-any.whl (63 kB)
+2025-10-10T16:14:38.6283118Z Using cached pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (806 kB)
+2025-10-10T16:14:38.6301541Z Using cached click-8.3.0-py3-none-any.whl (107 kB)
+2025-10-10T16:14:38.6315449Z Using cached coverage-7.10.7-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (250 kB)
+2025-10-10T16:14:38.6329947Z Using cached dnspython-2.8.0-py3-none-any.whl (331 kB)
+2025-10-10T16:14:38.6344938Z Using cached iniconfig-2.1.0-py3-none-any.whl (6.0 kB)
+2025-10-10T16:14:38.6358045Z Using cached mypy_extensions-1.1.0-py3-none-any.whl (5.0 kB)
+2025-10-10T16:14:38.6371430Z Using cached packaging-25.0-py3-none-any.whl (66 kB)
+2025-10-10T16:14:38.6384649Z Using cached pathspec-0.12.1-py3-none-any.whl (31 kB)
+2025-10-10T16:14:38.6428898Z Downloading platformdirs-4.5.0-py3-none-any.whl (18 kB)
+2025-10-10T16:14:38.6480869Z Using cached pygments-2.19.2-py3-none-any.whl (1.2 MB)
+2025-10-10T16:14:38.6502264Z Using cached pytokens-0.1.10-py3-none-any.whl (12 kB)
+2025-10-10T16:14:38.7259575Z Installing collected packages: pyyaml, pytokens, pygments, pyflakes, pycodestyle, pluggy, platformdirs, pathspec, packaging, mypy-extensions, mccabe, iniconfig, dnspython, coverage, click, pytest, flake8, email-validator, black, pytest-cov
+2025-10-10T16:14:40.3448873Z 
+2025-10-10T16:14:40.3484858Z Successfully installed black-25.9.0 click-8.3.0 coverage-7.10.7 dnspython-2.8.0 email-validator-2.3.0 flake8-7.3.0 iniconfig-2.1.0 mccabe-0.7.0 mypy-extensions-1.1.0 packaging-25.0 pathspec-0.12.1 platformdirs-4.5.0 pluggy-1.6.0 pycodestyle-2.14.0 pyflakes-3.4.0 pygments-2.19.2 pytest-8.4.2 pytest-cov-7.0.0 pytokens-0.1.10 pyyaml-6.0.3
+2025-10-10T16:14:40.4620650Z ##[group]Run echo "Testing SMTP connection..."
+2025-10-10T16:14:40.4621061Z [36;1mecho "Testing SMTP connection..."[0m
+2025-10-10T16:14:40.4621588Z [36;1mpython3 .github/scripts/test_smtp_connection.py || echo "⚠️ SMTP test failed but continuing..."[0m
+2025-10-10T16:14:40.4654799Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:40.4655067Z env:
+2025-10-10T16:14:40.4655297Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:40.4655878Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:40.4656132Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:40.4656377Z   PRODUCTION_MODE: true
+2025-10-10T16:14:40.4656644Z   TRACKING_DIR: tracking
+2025-10-10T16:14:40.4656901Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:40.4657196Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:40.4657470Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:40.4657726Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:40.4658052Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:40.4658741Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:40.4659168Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:40.4659550Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:40.4659941Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:40.4660334Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:40.4660697Z   SMTP_HOST: ***
+2025-10-10T16:14:40.4660932Z   SMTP_PORT: ***
+2025-10-10T16:14:40.4661169Z   SMTP_USER: ***
+2025-10-10T16:14:40.4661397Z   SMTP_PASS: ***
+2025-10-10T16:14:40.4661817Z ##[endgroup]
+2025-10-10T16:14:40.4713735Z Testing SMTP connection...
+2025-10-10T16:14:41.0553785Z ======================================================================
+2025-10-10T16:14:41.0554475Z   SMTP Connection Test
+2025-10-10T16:14:41.0554962Z ======================================================================
+2025-10-10T16:14:41.0555362Z 
+2025-10-10T16:14:41.0555948Z 📮 Testing SMTP connection...
+2025-10-10T16:14:41.0556761Z    Host: ***
+2025-10-10T16:14:41.0557203Z    Port: ***
+2025-10-10T16:14:41.0557623Z    Username: ***
+2025-10-10T16:14:41.0557959Z    Use TLS: True
+2025-10-10T16:14:41.0558599Z    Timeout: 30s
+2025-10-10T16:14:41.0558845Z 
+2025-10-10T16:14:41.0559153Z 🔌 Connecting to SMTP server...
+2025-10-10T16:14:41.0559693Z ✅ Connection established
+2025-10-10T16:14:41.0560057Z 🔒 Starting TLS...
+2025-10-10T16:14:41.0560345Z ✅ TLS started
+2025-10-10T16:14:41.0560790Z 🔑 Authenticating...
+2025-10-10T16:14:41.0561330Z ✅ Authentication successful
+2025-10-10T16:14:41.0561683Z 
+2025-10-10T16:14:41.0561957Z 📋 Server capabilities:
+2025-10-10T16:14:41.0562437Z    - size: 35882577
+2025-10-10T16:14:41.0562878Z    - 8bitmime: 
+2025-10-10T16:14:41.0563499Z    - auth:  LOGIN PLAIN XOAUTH2 PLAIN-CLIENTTOKEN OAUTHBEARER XOAUTH
+2025-10-10T16:14:41.0564221Z    - enhancedstatuscodes: 
+2025-10-10T16:14:41.0564597Z    - pipelining: 
+2025-10-10T16:14:41.0564870Z    - chunking: 
+2025-10-10T16:14:41.0565144Z    - smtputf8: 
+2025-10-10T16:14:41.0565307Z 
+2025-10-10T16:14:41.0565518Z ✅ SMTP connection test PASSED
+2025-10-10T16:14:41.0565728Z 
+2025-10-10T16:14:41.0565866Z ======================================================================
+2025-10-10T16:14:41.0721768Z ##[group]Run # Enhanced credential setup
+2025-10-10T16:14:41.0722173Z [36;1m# Enhanced credential setup[0m
+2025-10-10T16:14:41.0722493Z [36;1mif [ -n "$GOOGLE_SVC_JSON" ]; then[0m
+2025-10-10T16:14:41.0722872Z [36;1m  echo "$GOOGLE_SVC_JSON" | base64 -d > /tmp/google_svc.json[0m
+2025-10-10T16:14:41.0723253Z [36;1m  chmod 600 /tmp/google_svc.json[0m
+2025-10-10T16:14:41.0723684Z [36;1m  echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/google_svc.json" >> $GITHUB_ENV[0m
+2025-10-10T16:14:41.0724127Z [36;1m  echo "✅ Google credentials configured"[0m
+2025-10-10T16:14:41.0724429Z [36;1mfi[0m
+2025-10-10T16:14:41.0724629Z [36;1m[0m
+2025-10-10T16:14:41.0724880Z [36;1m# Enhanced email configuration validation[0m
+2025-10-10T16:14:41.0725230Z [36;1mecho "Validating email configuration..."[0m
+2025-10-10T16:14:41.0725545Z [36;1mpython -c """[0m
+2025-10-10T16:14:41.0725786Z [36;1mimport sys[0m
+2025-10-10T16:14:41.0726018Z [36;1mimport os[0m
+2025-10-10T16:14:41.0726260Z [36;1m[0m
+2025-10-10T16:14:41.0726475Z [36;1m# Check SMTP configuration[0m
+2025-10-10T16:14:41.0726772Z [36;1msmtp_host = os.getenv('SMTP_HOST', '')[0m
+2025-10-10T16:14:41.0727091Z [36;1msmtp_user = os.getenv('SMTP_USER', '')[0m
+2025-10-10T16:14:41.0727396Z [36;1msmtp_pass = os.getenv('SMTP_PASS', '')[0m
+2025-10-10T16:14:41.0727673Z [36;1m[0m
+2025-10-10T16:14:41.0727909Z [36;1mif smtp_host and smtp_user and smtp_pass:[0m
+2025-10-10T16:14:41.0728455Z [36;1m  print('✅ SMTP credentials available')[0m
+2025-10-10T16:14:41.0728756Z [36;1melse:[0m
+2025-10-10T16:14:41.0729003Z [36;1m  print('⚠️ SMTP credentials incomplete')[0m
+2025-10-10T16:14:41.0729301Z [36;1m  if '' != 'true':[0m
+2025-10-10T16:14:41.0729648Z [36;1m    print('Warning: Email issues in live mode may cause failures')[0m
+2025-10-10T16:14:41.0730004Z [36;1m  else:[0m
+2025-10-10T16:14:41.0730357Z [36;1m    print('Continuing in dry-run mode despite email configuration issues')[0m
+2025-10-10T16:14:41.0730759Z [36;1m[0m
+2025-10-10T16:14:41.0731023Z [36;1m# Check IMAP configuration for reply tracking[0m
+2025-10-10T16:14:41.0731375Z [36;1mimap_host = os.getenv('IMAP_HOST', '')[0m
+2025-10-10T16:14:41.0731701Z [36;1mimap_user = os.getenv('IMAP_USER', '')[0m
+2025-10-10T16:14:41.0732023Z [36;1mimap_pass = os.getenv('IMAP_PASS', '')[0m
+2025-10-10T16:14:41.0732302Z [36;1m[0m
+2025-10-10T16:14:41.0732737Z [36;1mif imap_host and imap_user and imap_pass:[0m
+2025-10-10T16:14:41.0733141Z [36;1m  print('✅ IMAP credentials available for reply tracking')[0m
+2025-10-10T16:14:41.0733490Z [36;1melse:[0m
+2025-10-10T16:14:41.0733828Z [36;1m  print('⚠️ IMAP credentials incomplete - reply tracking may be limited')[0m
+2025-10-10T16:14:41.0734221Z [36;1m"""[0m
+2025-10-10T16:14:41.0766670Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:41.0767006Z env:
+2025-10-10T16:14:41.0767264Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:41.0767663Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:41.0767909Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:41.0768165Z   PRODUCTION_MODE: true
+2025-10-10T16:14:41.0768616Z   TRACKING_DIR: tracking
+2025-10-10T16:14:41.0768879Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:41.0769176Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:41.0769464Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:41.0769711Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:41.0770034Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.0770499Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:41.0770935Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.0771321Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.0771708Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.0772106Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:41.0879110Z   GOOGLE_SVC_JSON: ***
+2025-10-10T16:14:41.0879383Z   SMTP_HOST: ***
+2025-10-10T16:14:41.0879615Z   SMTP_PORT: ***
+2025-10-10T16:14:41.0880116Z   SMTP_USER: ***
+2025-10-10T16:14:41.0880395Z   SMTP_PASS: ***
+2025-10-10T16:14:41.0880649Z   IMAP_HOST: ***
+2025-10-10T16:14:41.0880893Z   IMAP_USER: ***
+2025-10-10T16:14:41.0881117Z   IMAP_PASS: ***
+2025-10-10T16:14:41.0881335Z ##[endgroup]
+2025-10-10T16:14:41.0967515Z ✅ Google credentials configured
+2025-10-10T16:14:41.0968022Z Validating email configuration...
+2025-10-10T16:14:41.1056813Z ✅ SMTP credentials available
+2025-10-10T16:14:41.1057248Z ✅ IMAP credentials available for reply tracking
+2025-10-10T16:14:41.1104992Z ##[group]Run echo "Creating comprehensive tracking directory structure..."
+2025-10-10T16:14:41.1105579Z [36;1mecho "Creating comprehensive tracking directory structure..."[0m
+2025-10-10T16:14:41.1105956Z [36;1m[0m
+2025-10-10T16:14:41.1106290Z [36;1m# Create tracking structure using Python for better reliability[0m
+2025-10-10T16:14:41.1106684Z [36;1mpython3 << 'PYTHON_SCRIPT'[0m
+2025-10-10T16:14:41.1106984Z [36;1mfrom pathlib import Path[0m
+2025-10-10T16:14:41.1107254Z [36;1m[0m
+2025-10-10T16:14:41.1107474Z [36;1mbase_path = Path("tracking")[0m
+2025-10-10T16:14:41.1107745Z [36;1m[0m
+2025-10-10T16:14:41.1107967Z [36;1m# Main tracking subdirectories[0m
+2025-10-10T16:14:41.1108403Z [36;1mmain_dirs = [[0m
+2025-10-10T16:14:41.1108659Z [36;1m    "feedback_responses",[0m
+2025-10-10T16:14:41.1108933Z [36;1m    "domain_stats",[0m
+2025-10-10T16:14:41.1109206Z [36;1m    "execution_logs",[0m
+2025-10-10T16:14:41.1109466Z [36;1m    "batch_reports",[0m
+2025-10-10T16:14:41.1109738Z [36;1m    "reply_tracking"[0m
+2025-10-10T16:14:41.1109975Z [36;1m][0m
+2025-10-10T16:14:41.1110170Z [36;1m[0m
+2025-10-10T16:14:41.1110391Z [36;1m# Domain-specific directories[0m
+2025-10-10T16:14:41.1110667Z [36;1mdomains = {[0m
+2025-10-10T16:14:41.1111044Z [36;1m    "education": ["adult_education", "higher_education", "k12_education", "vocational"],[0m
+2025-10-10T16:14:41.1111550Z [36;1m    "finance": ["banking", "insurance", "investment", "accounting"],[0m
+2025-10-10T16:14:41.1111995Z [36;1m    "healthcare": ["hospitals", "clinics", "research", "pharma"],[0m
+2025-10-10T16:14:41.1112451Z [36;1m    "industry": ["manufacturing", "retail", "services", "construction"],[0m
+2025-10-10T16:14:41.1112918Z [36;1m    "technology": ["software", "hardware", "telecom", "it_services"],[0m
+2025-10-10T16:14:41.1113351Z [36;1m    "government": ["federal", "state", "local", "agencies"][0m
+2025-10-10T16:14:41.1113849Z [36;1m}[0m
+2025-10-10T16:14:41.1114046Z [36;1m[0m
+2025-10-10T16:14:41.1114361Z [36;1mprint(f"Creating tracking structure in: {base_path.absolute()}")[0m
+2025-10-10T16:14:41.1114719Z [36;1m[0m
+2025-10-10T16:14:41.1114927Z [36;1m# Create main directories[0m
+2025-10-10T16:14:41.1115209Z [36;1mfor dir_name in main_dirs:[0m
+2025-10-10T16:14:41.1115507Z [36;1m    dir_path = base_path / dir_name[0m
+2025-10-10T16:14:41.1115849Z [36;1m    dir_path.mkdir(parents=True, exist_ok=True)[0m
+2025-10-10T16:14:41.1116187Z [36;1m    print(f"✅ {dir_path}")[0m
+2025-10-10T16:14:41.1116451Z [36;1m[0m
+2025-10-10T16:14:41.1116696Z [36;1m# Create domain-specific directories[0m
+2025-10-10T16:14:41.1117037Z [36;1mfor domain, subdomains in domains.items():[0m
+2025-10-10T16:14:41.1117370Z [36;1m    domain_path = base_path / domain[0m
+2025-10-10T16:14:41.1117716Z [36;1m    domain_path.mkdir(parents=True, exist_ok=True)[0m
+2025-10-10T16:14:41.1118058Z [36;1m    print(f"✅ {domain_path}")[0m
+2025-10-10T16:14:41.1118427Z [36;1m    [0m
+2025-10-10T16:14:41.1118662Z [36;1m    for subdomain in subdomains:[0m
+2025-10-10T16:14:41.1118991Z [36;1m        subdomain_path = domain_path / subdomain[0m
+2025-10-10T16:14:41.1119359Z [36;1m        subdomain_path.mkdir(parents=True, exist_ok=True)[0m
+2025-10-10T16:14:41.1119678Z [36;1m[0m
+2025-10-10T16:14:41.1120051Z [36;1mprint(f"\n✅ All tracking directories created successfully")[0m
+2025-10-10T16:14:41.1120419Z [36;1mPYTHON_SCRIPT[0m
+2025-10-10T16:14:41.1120653Z [36;1m[0m
+2025-10-10T16:14:41.1120903Z [36;1mecho "Verifying directory structure..."[0m
+2025-10-10T16:14:41.1121231Z [36;1mls -la tracking/[0m
+2025-10-10T16:14:41.1121477Z [36;1mecho ""[0m
+2025-10-10T16:14:41.1121707Z [36;1mecho "Domain directories:"[0m
+2025-10-10T16:14:41.1122034Z [36;1mfind tracking -type d -maxdepth 2 | sort    [0m
+2025-10-10T16:14:41.1153583Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:41.1153857Z env:
+2025-10-10T16:14:41.1154109Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:41.1154495Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:41.1154919Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:41.1155178Z   PRODUCTION_MODE: true
+2025-10-10T16:14:41.1155426Z   TRACKING_DIR: tracking
+2025-10-10T16:14:41.1155685Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:41.1155978Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:41.1156249Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:41.1156499Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:41.1156820Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1157272Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:41.1157736Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1158130Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1158651Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1159052Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:41.1159449Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:41.1159767Z ##[endgroup]
+2025-10-10T16:14:41.1210765Z Creating comprehensive tracking directory structure...
+2025-10-10T16:14:41.1408188Z Creating tracking structure in: /home/runner/work/services/services/tracking
+2025-10-10T16:14:41.1409311Z ✅ tracking/feedback_responses
+2025-10-10T16:14:41.1409705Z ✅ tracking/domain_stats
+2025-10-10T16:14:41.1410056Z ✅ tracking/execution_logs
+2025-10-10T16:14:41.1410398Z ✅ tracking/batch_reports
+2025-10-10T16:14:41.1410734Z ✅ tracking/reply_tracking
+2025-10-10T16:14:41.1411058Z ✅ tracking/education
+2025-10-10T16:14:41.1411371Z ✅ tracking/finance
+2025-10-10T16:14:41.1411680Z ✅ tracking/healthcare
+2025-10-10T16:14:41.1411988Z ✅ tracking/industry
+2025-10-10T16:14:41.1412290Z ✅ tracking/technology
+2025-10-10T16:14:41.1412603Z ✅ tracking/government
+2025-10-10T16:14:41.1412766Z 
+2025-10-10T16:14:41.1412985Z ✅ All tracking directories created successfully
+2025-10-10T16:14:41.1442595Z Verifying directory structure...
+2025-10-10T16:14:41.1459763Z total 60
+2025-10-10T16:14:41.1460250Z drwxr-xr-x 14 runner runner 4096 Oct 10 16:14 .
+2025-10-10T16:14:41.1460791Z drwxr-xr-x 11 runner runner 4096 Oct 10 16:14 ..
+2025-10-10T16:14:41.1461321Z -rw-r--r--  1 runner runner    0 Oct 10 16:14 .gitkeep
+2025-10-10T16:14:41.1461987Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 batch_reports
+2025-10-10T16:14:41.1462607Z drwxr-xr-x  3 runner runner 4096 Oct 10 16:14 default
+2025-10-10T16:14:41.1463229Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 domain_stats
+2025-10-10T16:14:41.1463863Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 education
+2025-10-10T16:14:41.1464506Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 execution_logs
+2025-10-10T16:14:41.1465127Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 feedback_responses
+2025-10-10T16:14:41.1465530Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 finance
+2025-10-10T16:14:41.1465937Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 government
+2025-10-10T16:14:41.1466318Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 healthcare
+2025-10-10T16:14:41.1466679Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 industry
+2025-10-10T16:14:41.1467054Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 reply_tracking
+2025-10-10T16:14:41.1467408Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 technology
+2025-10-10T16:14:41.1467781Z -rw-r--r--  1 runner runner  142 Oct 10 16:14 unsubscribed.json
+2025-10-10T16:14:41.1468027Z 
+2025-10-10T16:14:41.1468129Z Domain directories:
+2025-10-10T16:14:41.1483701Z tracking
+2025-10-10T16:14:41.1484137Z tracking/batch_reports
+2025-10-10T16:14:41.1484550Z tracking/default
+2025-10-10T16:14:41.1484947Z tracking/default/campaigns
+2025-10-10T16:14:41.1485375Z tracking/domain_stats
+2025-10-10T16:14:41.1485764Z tracking/education
+2025-10-10T16:14:41.1486008Z tracking/education/adult_education
+2025-10-10T16:14:41.1486316Z tracking/education/higher_education
+2025-10-10T16:14:41.1486628Z tracking/education/k12_education
+2025-10-10T16:14:41.1486923Z tracking/education/vocational
+2025-10-10T16:14:41.1487181Z tracking/execution_logs
+2025-10-10T16:14:41.1487670Z tracking/feedback_responses
+2025-10-10T16:14:41.1487935Z tracking/finance
+2025-10-10T16:14:41.1488184Z tracking/finance/accounting
+2025-10-10T16:14:41.1488815Z tracking/finance/banking
+2025-10-10T16:14:41.1489249Z tracking/finance/insurance
+2025-10-10T16:14:41.1489657Z tracking/finance/investment
+2025-10-10T16:14:41.1490079Z tracking/government
+2025-10-10T16:14:41.1490476Z tracking/government/agencies
+2025-10-10T16:14:41.1490781Z tracking/government/federal
+2025-10-10T16:14:41.1491039Z tracking/government/local
+2025-10-10T16:14:41.1491303Z tracking/government/state
+2025-10-10T16:14:41.1491548Z tracking/healthcare
+2025-10-10T16:14:41.1491783Z tracking/healthcare/clinics
+2025-10-10T16:14:41.1492049Z tracking/healthcare/hospitals
+2025-10-10T16:14:41.1492321Z tracking/healthcare/pharma
+2025-10-10T16:14:41.1492579Z tracking/healthcare/research
+2025-10-10T16:14:41.1492843Z tracking/industry
+2025-10-10T16:14:41.1493080Z tracking/industry/construction
+2025-10-10T16:14:41.1493354Z tracking/industry/manufacturing
+2025-10-10T16:14:41.1493631Z tracking/industry/retail
+2025-10-10T16:14:41.1493884Z tracking/industry/services
+2025-10-10T16:14:41.1494161Z tracking/reply_tracking
+2025-10-10T16:14:41.1494405Z tracking/technology
+2025-10-10T16:14:41.1494637Z tracking/technology/hardware
+2025-10-10T16:14:41.1494899Z tracking/technology/it_services
+2025-10-10T16:14:41.1495161Z tracking/technology/software
+2025-10-10T16:14:41.1495425Z tracking/technology/telecom
+2025-10-10T16:14:41.1533309Z ##[group]Run echo "### Campaign Execution Results" >> $GITHUB_STEP_SUMMARY
+2025-10-10T16:14:41.1533843Z [36;1mecho "### Campaign Execution Results" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:41.1534242Z [36;1mecho "" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:41.1534578Z [36;1mecho "**Emails Queued:** " >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:41.1534953Z [36;1mecho "**Batch Directory:** " >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:41.1535494Z [36;1mecho "**Mode:** Queue" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:41.1567685Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:41.1567961Z env:
+2025-10-10T16:14:41.1568303Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:41.1568700Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:41.1568944Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:41.1569188Z   PRODUCTION_MODE: true
+2025-10-10T16:14:41.1569432Z   TRACKING_DIR: tracking
+2025-10-10T16:14:41.1569686Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:41.1570025Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:41.1570312Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:41.1570561Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:41.1570889Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1571331Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:41.1571761Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1572156Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1572548Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1572928Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:41.1573313Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:41.1573633Z ##[endgroup]
+2025-10-10T16:14:41.1671531Z ##[group]Run echo "Setting up enhanced feedback and tracking systems..."
+2025-10-10T16:14:41.1672097Z [36;1mecho "Setting up enhanced feedback and tracking systems..."[0m
+2025-10-10T16:14:41.1672466Z [36;1m[0m
+2025-10-10T16:14:41.1672720Z [36;1m# Create comprehensive tracking structure[0m
+2025-10-10T16:14:41.1673241Z [36;1mmkdir -p tracking/{feedback_responses,domain_stats,execution_logs,batch_reports,reply_tracking}[0m
+2025-10-10T16:14:41.1673716Z [36;1m[0m
+2025-10-10T16:14:41.1673958Z [36;1m# Initialize enhanced tracking metadata[0m
+2025-10-10T16:14:41.1674296Z [36;1mcat > tracking/execution_start.json << 'EOF'[0m
+2025-10-10T16:14:41.1674612Z [36;1m{[0m
+2025-10-10T16:14:41.1674838Z [36;1m"workflow_run_id": "18412045681",[0m
+2025-10-10T16:14:41.1675149Z [36;1m"execution_start": "$(date -Iseconds)",[0m
+2025-10-10T16:14:41.1675449Z [36;1m"mode": "live",[0m
+2025-10-10T16:14:41.1675698Z [36;1m"target_domain": "",[0m
+2025-10-10T16:14:41.1675993Z [36;1m"batch_size": "50",[0m
+2025-10-10T16:14:41.1676256Z [36;1m"real_time_tracking": "",[0m
+2025-10-10T16:14:41.1676525Z [36;1m"debug_mode": "",[0m
+2025-10-10T16:14:41.1676807Z [36;1m"feedback_injection": "enabled",[0m
+2025-10-10T16:14:41.1677101Z [36;1m"real_data_sources": "true",[0m
+2025-10-10T16:14:41.1677377Z [36;1m"contact_files_count": "6"[0m
+2025-10-10T16:14:41.1677629Z [36;1m}[0m
+2025-10-10T16:14:41.1677832Z [36;1mEOF[0m
+2025-10-10T16:14:41.1678029Z [36;1m[0m
+2025-10-10T16:14:41.1678491Z [36;1m# Enhanced feedback injection setup[0m
+2025-10-10T16:14:41.1678859Z [36;1mif [ -f "utils/email_feedback_injector.py" ]; then[0m
+2025-10-10T16:14:41.1679260Z [36;1m        echo "Setting up enhanced feedback injection..."[0m
+2025-10-10T16:14:41.1679638Z [36;1m        python utils/email_feedback_injector.py \[0m
+2025-10-10T16:14:41.1679997Z [36;1m        --campaigns-dir scheduled-campaigns \[0m
+2025-10-10T16:14:41.1680342Z [36;1m        --feedback-email "$FEEDBACK_EMAIL" \[0m
+2025-10-10T16:14:41.1680659Z [36;1m        --setup-tracking \[0m
+2025-10-10T16:14:41.1681092Z [36;1m        --injection-type footer_signature || echo "Feedback injector completed with warnings"[0m
+2025-10-10T16:14:41.1681522Z [36;1melse[0m
+2025-10-10T16:14:41.1681851Z [36;1m        echo "email_feedback_injector.py not found - creating tracking setup"[0m
+2025-10-10T16:14:41.1682313Z [36;1m        echo "Feedback system will be handled by main processor"[0m
+2025-10-10T16:14:41.1682647Z [36;1mfi[0m
+2025-10-10T16:14:41.1682851Z [36;1m[0m
+2025-10-10T16:14:41.1683069Z [36;1m# Enhanced DOCX processing[0m
+2025-10-10T16:14:41.1683405Z [36;1mif [ -f "utils/docx_feedback_processor.py" ]; then[0m
+2025-10-10T16:14:41.1684041Z [36;1m   echo "Processing DOCX templates with enhanced feedback integration..."[0m
+2025-10-10T16:14:41.1684474Z [36;1m   python utils/docx_feedback_processor.py \[0m
+2025-10-10T16:14:41.1684822Z [36;1m   --templates-dir campaign-templates \[0m
+2025-10-10T16:14:41.1685178Z [36;1m   --feedback-email "$FEEDBACK_EMAIL" \[0m
+2025-10-10T16:14:41.1685492Z [36;1m   --create-backups \[0m
+2025-10-10T16:14:41.1685859Z [36;1m   --create-report || echo "DOCX processor completed with warnings"[0m
+2025-10-10T16:14:41.1686225Z [36;1melse[0m
+2025-10-10T16:14:41.1686638Z [36;1m  echo "docx_feedback_processor.py not found - DOCX processing will be handled by main processor"[0m
+2025-10-10T16:14:41.1687085Z [36;1mfi[0m
+2025-10-10T16:14:41.1716734Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:41.1717007Z env:
+2025-10-10T16:14:41.1717237Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:41.1717626Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:41.1717885Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:41.1718133Z   PRODUCTION_MODE: true
+2025-10-10T16:14:41.1718585Z   TRACKING_DIR: tracking
+2025-10-10T16:14:41.1718843Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:41.1719141Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:41.1719417Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:41.1719836Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:41.1720177Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1720624Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:41.1721043Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1721425Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1721810Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.1722192Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:41.1722569Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:41.1722883Z ##[endgroup]
+2025-10-10T16:14:41.1773745Z Setting up enhanced feedback and tracking systems...
+2025-10-10T16:14:41.1798719Z Setting up enhanced feedback injection...
+2025-10-10T16:14:41.2075540Z 🔧 Email Feedback Injector
+2025-10-10T16:14:41.2076444Z 📧 Feedback Email: ***
+2025-10-10T16:14:41.2076917Z 📁 Campaigns Dir: scheduled-campaigns
+2025-10-10T16:14:41.2077405Z 🎯 Injection Type: footer_signature
+2025-10-10T16:14:41.2077781Z ==================================================
+2025-10-10T16:14:41.2078736Z ✅ Feedback tracking config created: tracking/feedback_config.json
+2025-10-10T16:14:41.2079258Z Processing: test_campaign.json
+2025-10-10T16:14:41.2079768Z ✅ Added feedback email to: Education Outreach Campaign
+2025-10-10T16:14:41.2080126Z 
+2025-10-10T16:14:41.2080250Z 📊 SUMMARY:
+2025-10-10T16:14:41.2080561Z ✅ Processed 1 campaign configs
+2025-10-10T16:14:41.2080973Z 📧 Feedback email: ***
+2025-10-10T16:14:41.2081313Z 🎯 Injection method: footer_signature
+2025-10-10T16:14:41.2081732Z   - Education Outreach Campaign (test_campaign.json)
+2025-10-10T16:14:41.2119358Z Processing DOCX templates with enhanced feedback integration...
+2025-10-10T16:14:41.3211084Z 📧 DOCX Feedback Processor
+2025-10-10T16:14:41.3211858Z 📁 Templates Dir: campaign-templates
+2025-10-10T16:14:41.3212667Z 📧 Feedback Email: ***
+2025-10-10T16:14:41.3213242Z 🎨 Style: footer
+2025-10-10T16:14:41.3213786Z 💾 Create Backups: True
+2025-10-10T16:14:41.3214277Z ============================================================
+2025-10-10T16:14:41.3214879Z Processing templates in: campaign-templates
+2025-10-10T16:14:41.3215261Z 
+2025-10-10T16:14:41.3215624Z 📁 Processing domain: healthcare
+2025-10-10T16:14:41.3216252Z   📄 Processing: outreach.docx
+2025-10-10T16:14:41.3216932Z   📄 Backup created: outreach.backup_20251010_161441.docx
+2025-10-10T16:14:41.3217745Z   ⚠️  Feedback email already exists, skipping...
+2025-10-10T16:14:41.3218133Z 
+2025-10-10T16:14:41.3218641Z 📁 Processing domain: education
+2025-10-10T16:14:41.3219156Z   No DOCX files found in education
+2025-10-10T16:14:41.3219817Z 
+2025-10-10T16:14:41.3220016Z 📁 Processing domain: finance
+2025-10-10T16:14:41.3220354Z   📄 Processing: outreach.docx
+2025-10-10T16:14:41.3220740Z   📄 Backup created: outreach.backup_20251010_161441.docx
+2025-10-10T16:14:41.3221151Z   ⚠️  Feedback email already exists, skipping...
+2025-10-10T16:14:41.3221620Z 📋 Processing report generated: docx_feedback_processing_report.md
+2025-10-10T16:14:41.3221898Z 
+2025-10-10T16:14:41.3222025Z 📊 PROCESSING SUMMARY:
+2025-10-10T16:14:41.3222329Z ✅ Successfully processed: 0 files
+2025-10-10T16:14:41.3222624Z ⚠️ Skipped: 2 files
+2025-10-10T16:14:41.3222868Z ❌ Failed: 0 files
+2025-10-10T16:14:41.3406935Z ##[group]Run echo "🔍 Validating DOCX files before campaign execution..."
+2025-10-10T16:14:41.3407498Z [36;1mecho "🔍 Validating DOCX files before campaign execution..."[0m
+2025-10-10T16:14:41.3407850Z [36;1m[0m
+2025-10-10T16:14:41.3408086Z [36;1m# Check if python-docx is installed[0m
+2025-10-10T16:14:41.3408661Z [36;1mpython3 -c "import docx" 2>/dev/null || {[0m
+2025-10-10T16:14:41.3409010Z [36;1m  echo "Installing python-docx..."[0m
+2025-10-10T16:14:41.3409317Z [36;1m  pip install python-docx[0m
+2025-10-10T16:14:41.3409585Z [36;1m  }[0m
+2025-10-10T16:14:41.3409789Z [36;1m[0m
+2025-10-10T16:14:41.3410165Z [36;1m# Run validation script[0m
+2025-10-10T16:14:41.3410634Z [36;1mpython3 utils/docx_validator.py campaign-templates/ --verbose[0m
+2025-10-10T16:14:41.3411220Z [36;1m[0m
+2025-10-10T16:14:41.3411532Z [36;1mVALIDATION_EXIT=$?[0m
+2025-10-10T16:14:41.3411888Z [36;1m[0m
+2025-10-10T16:14:41.3412305Z [36;1mif [ $VALIDATION_EXIT -eq 0 ]; then[0m
+2025-10-10T16:14:41.3423988Z [36;1m    echo "✅ All DOCX files validated successfully"[0m
+2025-10-10T16:14:41.3424558Z [36;1melse[0m
+2025-10-10T16:14:41.3425014Z [36;1m    echo "❌ DOCX validation failed - check logs above"[0m
+2025-10-10T16:14:41.3425384Z [36;1m    echo "💡 Common fixes:"[0m
+2025-10-10T16:14:41.3425718Z [36;1m    echo "  1. Ensure DOCX files are not corrupted"[0m
+2025-10-10T16:14:41.3426114Z [36;1m    echo "  2. Try opening files locally in Word/LibreOffice"[0m
+2025-10-10T16:14:41.3426522Z [36;1m    echo "  3. Regenerate any empty or invalid files"[0m
+2025-10-10T16:14:41.3426867Z [36;1m    echo "  4. Check file permissions"[0m
+2025-10-10T16:14:41.3427160Z [36;1m    exit 1[0m
+2025-10-10T16:14:41.3427376Z [36;1mfi[0m
+2025-10-10T16:14:41.3459879Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:41.3460143Z env:
+2025-10-10T16:14:41.3460370Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:41.3460744Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:41.3460988Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:41.3461240Z   PRODUCTION_MODE: true
+2025-10-10T16:14:41.3461485Z   TRACKING_DIR: tracking
+2025-10-10T16:14:41.3461751Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:41.3462040Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:41.3462309Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:41.3462561Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:41.3462899Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.3463334Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:41.3463759Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.3464164Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.3464546Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.3464928Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:41.3465310Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:41.3465624Z ##[endgroup]
+2025-10-10T16:14:41.3518769Z 🔍 Validating DOCX files before campaign execution...
+2025-10-10T16:14:41.5148993Z 
+2025-10-10T16:14:41.5149936Z 🔍 Validating campaign directory: campaign-templates
+2025-10-10T16:14:41.5150714Z ======================================================================
+2025-10-10T16:14:41.5151438Z 📁 Found 6 DOCX file(s)
+2025-10-10T16:14:41.5152856Z 
+2025-10-10T16:14:41.5153188Z Checking: healthcare/outreach.backup_20251010_161441.docx
+2025-10-10T16:14:41.5153757Z   📄 File: outreach.backup_20251010_161441.docx
+2025-10-10T16:14:41.5154176Z   📊 Size: 36.02 KB
+2025-10-10T16:14:41.5154535Z   ✅ Validation passed
+2025-10-10T16:14:41.5154729Z 
+2025-10-10T16:14:41.5154877Z Checking: healthcare/outreach.docx
+2025-10-10T16:14:41.5155273Z   📄 File: outreach.docx
+2025-10-10T16:14:41.5155656Z   📊 Size: 36.02 KB
+2025-10-10T16:14:41.5155969Z   ✅ Validation passed
+2025-10-10T16:14:41.5156141Z 
+2025-10-10T16:14:41.5156389Z Checking: education/adult_education/adult_education_letter_general.docx
+2025-10-10T16:14:41.5157175Z   📄 File: adult_education_letter_general.docx
+2025-10-10T16:14:41.5157569Z   📊 Size: 6.86 KB
+2025-10-10T16:14:41.5157863Z   ✅ Validation passed
+2025-10-10T16:14:41.5158039Z 
+2025-10-10T16:14:41.5158480Z Checking: education/adult_education/adult_education_letter.docx
+2025-10-10T16:14:41.5158987Z   📄 File: adult_education_letter.docx
+2025-10-10T16:14:41.5159870Z   📊 Size: 6.87 KB
+2025-10-10T16:14:41.5160164Z   ✅ Validation passed
+2025-10-10T16:14:41.5160337Z 
+2025-10-10T16:14:41.5160517Z Checking: finance/outreach.backup_20251010_161441.docx
+2025-10-10T16:14:41.5160982Z   📄 File: outreach.backup_20251010_161441.docx
+2025-10-10T16:14:41.5161353Z   📊 Size: 36.02 KB
+2025-10-10T16:14:41.5161641Z   ✅ Validation passed
+2025-10-10T16:14:41.5161807Z 
+2025-10-10T16:14:41.5161934Z Checking: finance/outreach.docx
+2025-10-10T16:14:41.5162274Z   📄 File: outreach.docx
+2025-10-10T16:14:41.5162573Z   📊 Size: 36.02 KB
+2025-10-10T16:14:41.5162854Z   ✅ Validation passed
+2025-10-10T16:14:41.5163021Z 
+2025-10-10T16:14:41.5163162Z ======================================================================
+2025-10-10T16:14:41.5163536Z 📊 VALIDATION SUMMARY
+2025-10-10T16:14:41.5163803Z   Total files: 6
+2025-10-10T16:14:41.5164079Z   ✅ Valid: 6
+2025-10-10T16:14:41.5164340Z   ❌ Invalid: 0
+2025-10-10T16:14:41.5164598Z   Success rate: 100.0%
+2025-10-10T16:14:41.5164780Z 
+2025-10-10T16:14:41.5164921Z ✅ All files are valid!
+2025-10-10T16:14:41.5289205Z ✅ All DOCX files validated successfully
+2025-10-10T16:14:41.5317892Z ##[group]Run echo "🔧 Checking and fixing corrupted DOCX files..."
+2025-10-10T16:14:41.5318617Z [36;1mecho "🔧 Checking and fixing corrupted DOCX files..."[0m
+2025-10-10T16:14:41.5318963Z [36;1m[0m
+2025-10-10T16:14:41.5319189Z [36;1mpip install python-docx[0m
+2025-10-10T16:14:41.5319453Z [36;1m[0m
+2025-10-10T16:14:41.5319661Z [36;1m# Create the fix script[0m
+2025-10-10T16:14:41.5319975Z [36;1mcat > utils/fix_corrupted_docx.py << 'EOF'[0m
+2025-10-10T16:14:41.5320332Z [36;1m# (paste the Python script content here)[0m
+2025-10-10T16:14:41.5320634Z [36;1mEOF[0m
+2025-10-10T16:14:41.5320844Z [36;1m[0m
+2025-10-10T16:14:41.5321047Z [36;1m# Run the fix[0m
+2025-10-10T16:14:41.5321373Z [36;1mpython utils/fix_corrupted_docx.py campaign-templates/[0m
+2025-10-10T16:14:41.5321717Z [36;1m[0m
+2025-10-10T16:14:41.5321933Z [36;1mif [ $? -eq 0 ]; then[0m
+2025-10-10T16:14:41.5322239Z [36;1m  echo "✅ All DOCX files are now valid"[0m
+2025-10-10T16:14:41.5322555Z [36;1melse[0m
+2025-10-10T16:14:41.5322793Z [36;1m  echo "❌ Some files could not be fixed"[0m
+2025-10-10T16:14:41.5323100Z [36;1m  exit 1[0m
+2025-10-10T16:14:41.5323303Z [36;1mfi[0m
+2025-10-10T16:14:41.5355488Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:41.5355756Z env:
+2025-10-10T16:14:41.5355990Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:41.5356364Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:41.5356610Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:41.5356849Z   PRODUCTION_MODE: true
+2025-10-10T16:14:41.5357094Z   TRACKING_DIR: tracking
+2025-10-10T16:14:41.5357361Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:41.5357666Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:41.5357948Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:41.5358358Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:41.5358794Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.5359431Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:41.5359875Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.5360270Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.5360651Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:41.5361038Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:41.5361428Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:41.5361741Z ##[endgroup]
+2025-10-10T16:14:41.5413984Z 🔧 Checking and fixing corrupted DOCX files...
+2025-10-10T16:14:41.8837556Z Requirement already satisfied: python-docx in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (1.2.0)
+2025-10-10T16:14:41.8848641Z Requirement already satisfied: lxml>=3.1.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from python-docx) (6.0.2)
+2025-10-10T16:14:41.8854523Z Requirement already satisfied: typing_extensions>=4.9.0 in /opt/hostedtoolcache/Python/3.11.13/x64/lib/python3.11/site-packages (from python-docx) (4.15.0)
+2025-10-10T16:14:42.0127998Z ✅ All DOCX files are now valid
+2025-10-10T16:14:42.0156999Z ##[group]Run echo "🔍 Quick DOCX validation using unzip..."
+2025-10-10T16:14:42.0157492Z [36;1mecho "🔍 Quick DOCX validation using unzip..."[0m
+2025-10-10T16:14:42.0157807Z [36;1m[0m
+2025-10-10T16:14:42.0158017Z [36;1mINVALID_COUNT=0[0m
+2025-10-10T16:14:42.0158493Z [36;1m[0m
+2025-10-10T16:14:42.0158794Z [36;1mfor file in $(find campaign-templates -name "*.docx"); do[0m
+2025-10-10T16:14:42.0159154Z [36;1m  echo "Checking: $file"[0m
+2025-10-10T16:14:42.0159410Z [36;1m[0m
+2025-10-10T16:14:42.0159654Z [36;1m  # Check if file exists and is not empty[0m
+2025-10-10T16:14:42.0159961Z [36;1m  if [ ! -s "$file" ]; then[0m
+2025-10-10T16:14:42.0160267Z [36;1m    echo "  ❌ File is empty or does not exist"[0m
+2025-10-10T16:14:42.0160603Z [36;1m    INVALID_COUNT=$((INVALID_COUNT + 1))[0m
+2025-10-10T16:14:42.0160927Z [36;1m    continue[0m
+2025-10-10T16:14:42.0161152Z [36;1m  fi[0m
+2025-10-10T16:14:42.0161354Z [36;1m[0m
+2025-10-10T16:14:42.0161663Z [36;1m  # Check if file is a valid ZIP (DOCX files are ZIP archives)[0m
+2025-10-10T16:14:42.0162057Z [36;1m  if ! unzip -tq "$file" > /dev/null 2>&1; then[0m
+2025-10-10T16:14:42.0162391Z [36;1m     echo "  ❌ Not a valid DOCX (ZIP) file"[0m
+2025-10-10T16:14:42.0162716Z [36;1m     INVALID_COUNT=$((INVALID_COUNT + 1))[0m
+2025-10-10T16:14:42.0162997Z [36;1m  [0m
+2025-10-10T16:14:42.0163226Z [36;1m     # Show file info for debugging[0m
+2025-10-10T16:14:42.0163517Z [36;1m     ls -lh "$file"[0m
+2025-10-10T16:14:42.0163764Z [36;1m     file "$file"[0m
+2025-10-10T16:14:42.0164000Z [36;1m  else[0m
+2025-10-10T16:14:42.0164213Z [36;1m     echo "  ✅ Valid"[0m
+2025-10-10T16:14:42.0164452Z [36;1m  fi[0m
+2025-10-10T16:14:42.0164650Z [36;1mdone[0m
+2025-10-10T16:14:42.0164850Z [36;1m[0m
+2025-10-10T16:14:42.0165045Z [36;1mecho ""[0m
+2025-10-10T16:14:42.0165289Z [36;1mif [ $INVALID_COUNT -gt 0 ]; then[0m
+2025-10-10T16:14:42.0165639Z [36;1m   echo "❌ Found $INVALID_COUNT invalid DOCX file(s)"[0m
+2025-10-10T16:14:42.0166082Z [36;1m   echo "Please fix or regenerate invalid files before running campaigns"[0m
+2025-10-10T16:14:42.0166462Z [36;1m   exit 1[0m
+2025-10-10T16:14:42.0166680Z [36;1melse[0m
+2025-10-10T16:14:42.0166943Z [36;1m    echo "✅ All DOCX files are valid ZIP archives"[0m
+2025-10-10T16:14:42.0167244Z [36;1mfi[0m
+2025-10-10T16:14:42.0199845Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:42.0200115Z env:
+2025-10-10T16:14:42.0200346Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:42.0200757Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:42.0201007Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:42.0201266Z   PRODUCTION_MODE: true
+2025-10-10T16:14:42.0201509Z   TRACKING_DIR: tracking
+2025-10-10T16:14:42.0201771Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:42.0202071Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:42.0202559Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:42.0202807Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:42.0203128Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.0203589Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:42.0204026Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.0204426Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.0204816Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.0205203Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:42.0205585Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:42.0205903Z ##[endgroup]
+2025-10-10T16:14:42.0257424Z 🔍 Quick DOCX validation using unzip...
+2025-10-10T16:14:42.0274232Z Checking: campaign-templates/healthcare/outreach.backup_20251010_161441.docx
+2025-10-10T16:14:42.0326857Z   ✅ Valid
+2025-10-10T16:14:42.0327189Z Checking: campaign-templates/healthcare/outreach.docx
+2025-10-10T16:14:42.0370823Z   ✅ Valid
+2025-10-10T16:14:42.0371571Z Checking: campaign-templates/education/adult_education/adult_education_letter_general.docx
+2025-10-10T16:14:42.0488532Z   ✅ Valid
+2025-10-10T16:14:42.0489297Z Checking: campaign-templates/education/adult_education/adult_education_letter.docx
+2025-10-10T16:14:42.0506566Z   ✅ Valid
+2025-10-10T16:14:42.0507142Z Checking: campaign-templates/finance/outreach.backup_20251010_161441.docx
+2025-10-10T16:14:42.0549571Z   ✅ Valid
+2025-10-10T16:14:42.0550046Z Checking: campaign-templates/finance/outreach.docx
+2025-10-10T16:14:42.0592957Z   ✅ Valid
+2025-10-10T16:14:42.0593194Z 
+2025-10-10T16:14:42.0593509Z ✅ All DOCX files are valid ZIP archives
+2025-10-10T16:14:42.0633818Z ##[group]Run set -e  # Exit on error
+2025-10-10T16:14:42.0634669Z [36;1mset -e  # Exit on error[0m
+2025-10-10T16:14:42.0634934Z [36;1m[0m
+2025-10-10T16:14:42.0635202Z [36;1m# Ensure directories exist with absolute paths[0m
+2025-10-10T16:14:42.0635606Z [36;1mexport CONTACTS_PATH="$PWD/$CONTACTS_DIR"[0m
+2025-10-10T16:14:42.0635953Z [36;1mexport SCHEDULED_PATH="$PWD/$SCHEDULED_DIR"[0m
+2025-10-10T16:14:42.0636301Z [36;1mexport TRACKING_PATH="$PWD/$TRACKING_DIR"[0m
+2025-10-10T16:14:42.0636620Z [36;1m[0m
+2025-10-10T16:14:42.0636927Z [36;1mmkdir -p "$CONTACTS_PATH" "$SCHEDULED_PATH" "$TRACKING_PATH"[0m
+2025-10-10T16:14:42.0637286Z [36;1m[0m
+2025-10-10T16:14:42.0637568Z [36;1m# Determine mode FIRST and set as environment variable[0m
+2025-10-10T16:14:42.0637980Z [36;1m# SET MODE_TEXT EARLY - Write to GITHUB_ENV immediately[0m
+2025-10-10T16:14:42.0638530Z [36;1mif [ "" == "true" ]; then[0m
+2025-10-10T16:14:42.0638863Z [36;1m    MODE_TEXT="DRY-RUN (Preview Only)"[0m
+2025-10-10T16:14:42.0639155Z [36;1melse[0m
+2025-10-10T16:14:42.0639401Z [36;1m    MODE_TEXT="QUEUE (Create Email Files)"[0m
+2025-10-10T16:14:42.0639695Z [36;1mfi[0m
+2025-10-10T16:14:42.0639894Z [36;1m[0m
+2025-10-10T16:14:42.0640113Z [36;1m# Export to GITHUB_ENV immediately[0m
+2025-10-10T16:14:42.0640438Z [36;1mecho "MODE_TEXT=$MODE_TEXT" >> $GITHUB_ENV[0m
+2025-10-10T16:14:42.0640733Z [36;1m[0m
+2025-10-10T16:14:42.0640965Z [36;1mecho "🔒 Compliance Configuration:"[0m
+2025-10-10T16:14:42.0641285Z [36;1mecho "  Daily limit: ${DAILY_LIMIT}"[0m
+2025-10-10T16:14:42.0641629Z [36;1mecho "  Per-domain limit: ${PER_DOMAIN_LIMIT}"[0m
+2025-10-10T16:14:42.0642025Z [36;1mecho "  Suppression list: contacts/suppression_list.json"[0m
+2025-10-10T16:14:42.0642372Z [36;1mecho ""[0m
+2025-10-10T16:14:42.0642635Z [36;1mecho "Starting ENHANCED campaign execution"[0m
+2025-10-10T16:14:42.0642999Z [36;1mecho "=============================================================="[0m
+2025-10-10T16:14:42.0643385Z [36;1mecho "Environment: Production with Queue Mode"[0m
+2025-10-10T16:14:42.0643719Z [36;1mecho "Mode: $MODE_TEXT"[0m
+2025-10-10T16:14:42.0644017Z [36;1mecho "Working directory: $PWD"[0m
+2025-10-10T16:14:42.0644313Z [36;1mecho "Real data sources: true"[0m
+2025-10-10T16:14:42.0644808Z [36;1mecho "Contact files: 6"[0m
+2025-10-10T16:14:42.0645088Z [36;1mecho "Contacts loaded: 17"[0m
+2025-10-10T16:14:42.0645398Z [36;1mecho "Campaign templates: 3"[0m
+2025-10-10T16:14:42.0645670Z [36;1mecho ""[0m
+2025-10-10T16:14:42.0645882Z [36;1m[0m
+2025-10-10T16:14:42.0646096Z [36;1m# Initialize outputs[0m
+2025-10-10T16:14:42.0646373Z [36;1mEMAILS_QUEUED="false"[0m
+2025-10-10T16:14:42.0646636Z [36;1mBATCH_DIR=""[0m
+2025-10-10T16:14:42.0646856Z [36;1m[0m
+2025-10-10T16:14:42.0647073Z [36;1m# Verify script exists[0m
+2025-10-10T16:14:42.0647374Z [36;1mif [ ! -f "utils/docx_parser.py" ]; then[0m
+2025-10-10T16:14:42.0647731Z [36;1m  echo "❌ ERROR: utils/docx_parser.py not found"[0m
+2025-10-10T16:14:42.0648102Z [36;1m  echo "emails_queued=false" >> "$GITHUB_OUTPUT"[0m
+2025-10-10T16:14:42.0648703Z [36;1m  echo "batch_directory=" >> "$GITHUB_OUTPUT"[0m
+2025-10-10T16:14:42.0649042Z [36;1m  echo "EXECUTION_STATUS=1" >> $GITHUB_ENV[0m
+2025-10-10T16:14:42.0649383Z [36;1m  echo "SUCCESS_INDICATORS=0" >> $GITHUB_ENV[0m
+2025-10-10T16:14:42.0649691Z [36;1m  exit 1[0m
+2025-10-10T16:14:42.0649903Z [36;1mfi[0m
+2025-10-10T16:14:42.0650105Z [36;1m[0m
+2025-10-10T16:14:42.0650365Z [36;1mecho "✅ Script verified: utils/docx_parser.py"[0m
+2025-10-10T16:14:42.0650679Z [36;1m[0m
+2025-10-10T16:14:42.0650900Z [36;1m# Build command arguments[0m
+2025-10-10T16:14:42.0651163Z [36;1mARGS=([0m
+2025-10-10T16:14:42.0651403Z [36;1m  "--contacts" "$CONTACTS_PATH"[0m
+2025-10-10T16:14:42.0651702Z [36;1m  "--scheduled" "$SCHEDULED_PATH"[0m
+2025-10-10T16:14:42.0652004Z [36;1m  "--tracking" "$TRACKING_PATH"[0m
+2025-10-10T16:14:42.0652293Z [36;1m  "--alerts" "$ALERT_EMAIL"[0m
+2025-10-10T16:14:42.0652762Z [36;1m  "--feedback" "$FEEDBACK_EMAIL"[0m
+2025-10-10T16:14:42.0653040Z [36;1m)[0m
+2025-10-10T16:14:42.0653258Z [36;1mARGS+=("--compliance")[0m
+2025-10-10T16:14:42.0653556Z [36;1mARGS+=("--daily-limit" "${DAILY_LIMIT}")[0m
+2025-10-10T16:14:42.0653920Z [36;1mARGS+=("--per-domain-limit" "${PER_DOMAIN_LIMIT}")[0m
+2025-10-10T16:14:42.0654351Z [36;1mARGS+=("--suppression-file" "contacts/suppression_list.json")[0m
+2025-10-10T16:14:42.0654711Z [36;1m[0m
+2025-10-10T16:14:42.0654944Z [36;1m# Add queue mode flag (unless dry-run)[0m
+2025-10-10T16:14:42.0655246Z [36;1mif [ "" == "true" ]; then[0m
+2025-10-10T16:14:42.0655514Z [36;1m  ARGS+=("--dry-run")[0m
+2025-10-10T16:14:42.0655851Z [36;1m  echo "📋 DRY-RUN mode: Preview personalized content only"[0m
+2025-10-10T16:14:42.0656183Z [36;1melse[0m
+2025-10-10T16:14:42.0656406Z [36;1m  ARGS+=("--queue-emails")[0m
+2025-10-10T16:14:42.0656743Z [36;1m  echo "📦 QUEUE mode: Creating email files for batch sending"[0m
+2025-10-10T16:14:42.0657084Z [36;1mfi[0m
+2025-10-10T16:14:42.0657292Z [36;1m[0m
+2025-10-10T16:14:42.0657504Z [36;1m# Optional arguments[0m
+2025-10-10T16:14:42.0657773Z [36;1mif [ -n "" ]; then[0m
+2025-10-10T16:14:42.0658031Z [36;1m  ARGS+=("--domain" "")[0m
+2025-10-10T16:14:42.0658738Z [36;1m  echo "🎯 Domain filter: "[0m
+2025-10-10T16:14:42.0659032Z [36;1mfi[0m
+2025-10-10T16:14:42.0659246Z [36;1m[0m
+2025-10-10T16:14:42.0659459Z [36;1mif [ -n "" ]; then[0m
+2025-10-10T16:14:42.0659731Z [36;1m  ARGS+=("--filter-domain" "")[0m
+2025-10-10T16:14:42.0660025Z [36;1m  echo "🔍 Campaign filter: "[0m
+2025-10-10T16:14:42.0660308Z [36;1mfi[0m
+2025-10-10T16:14:42.0660510Z [36;1m[0m
+2025-10-10T16:14:42.0660716Z [36;1mif [ "" == "true" ]; then[0m
+2025-10-10T16:14:42.0660983Z [36;1m  ARGS+=("--no-feedback")[0m
+2025-10-10T16:14:42.0661316Z [36;1m  echo "⚠️ Feedback injection disabled"[0m
+2025-10-10T16:14:42.0661606Z [36;1mfi[0m
+2025-10-10T16:14:42.0661804Z [36;1m[0m
+2025-10-10T16:14:42.0662012Z [36;1mif [ "" ]; then[0m
+2025-10-10T16:14:42.0662272Z [36;1m  ARGS+=("--batch-size" "")[0m
+2025-10-10T16:14:42.0662533Z [36;1mfi[0m
+2025-10-10T16:14:42.0662726Z [36;1m[0m
+2025-10-10T16:14:42.0662928Z [36;1mif [ "" ]; then[0m
+2025-10-10T16:14:42.0663167Z [36;1m  ARGS+=("--delay" "")[0m
+2025-10-10T16:14:42.0663576Z [36;1mfi[0m
+2025-10-10T16:14:42.0663767Z [36;1m[0m
+2025-10-10T16:14:42.0663974Z [36;1mif [ "" == "true" ]; then[0m
+2025-10-10T16:14:42.0664235Z [36;1m  ARGS+=("--debug")[0m
+2025-10-10T16:14:42.0664500Z [36;1m  echo "🐛 Debug mode enabled"[0m
+2025-10-10T16:14:42.0664764Z [36;1mfi[0m
+2025-10-10T16:14:42.0664961Z [36;1m[0m
+2025-10-10T16:14:42.0665153Z [36;1mecho ""[0m
+2025-10-10T16:14:42.0665382Z [36;1mecho "Command arguments:"[0m
+2025-10-10T16:14:42.0665664Z [36;1mprintf '  %s\n' "${ARGS[@]}"[0m
+2025-10-10T16:14:42.0665929Z [36;1mecho ""[0m
+2025-10-10T16:14:42.0666132Z [36;1m[0m
+2025-10-10T16:14:42.0666340Z [36;1m# Execute campaign[0m
+2025-10-10T16:14:42.0666624Z [36;1mLOG_FILE="campaign_execution.log"[0m
+2025-10-10T16:14:42.0666984Z [36;1mecho "Executing: python utils/docx_parser.py ..."[0m
+2025-10-10T16:14:42.0667306Z [36;1m[0m
+2025-10-10T16:14:42.0667594Z [36;1m# Use a temporary status file to capture exit code reliably[0m
+2025-10-10T16:14:42.0668049Z [36;1mpython utils/docx_parser.py "${ARGS[@]}" 2>&1 | tee "$LOG_FILE"[0m
+2025-10-10T16:14:42.0668649Z [36;1mEXECUTION_STATUS=${PIPESTATUS[0]}[0m
+2025-10-10T16:14:42.0668934Z [36;1m[0m
+2025-10-10T16:14:42.0669138Z [36;1mecho ""[0m
+2025-10-10T16:14:42.0669398Z [36;1mecho "=============================================================="[0m
+2025-10-10T16:14:42.0669810Z [36;1mecho "Execution completed with status: $EXECUTION_STATUS"[0m
+2025-10-10T16:14:42.0670204Z [36;1mecho "=============================================================="[0m
+2025-10-10T16:14:42.0670513Z [36;1mecho ""[0m
+2025-10-10T16:14:42.0670720Z [36;1m[0m
+2025-10-10T16:14:42.0670936Z [36;1m# Count success indicators[0m
+2025-10-10T16:14:42.0671363Z [36;1mSUCCESS_INDICATORS=0[0m
+2025-10-10T16:14:42.0671613Z [36;1m[0m
+2025-10-10T16:14:42.0671844Z [36;1mif [ $EXECUTION_STATUS -eq 0 ]; then[0m
+2025-10-10T16:14:42.0672168Z [36;1m  echo "✅ Script execution successful"[0m
+2025-10-10T16:14:42.0672520Z [36;1m  SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))[0m
+2025-10-10T16:14:42.0672837Z [36;1mfi[0m
+2025-10-10T16:14:42.0673032Z [36;1m[0m
+2025-10-10T16:14:42.0673332Z [36;1mif grep -qi "completed successfully" "$LOG_FILE" 2>/dev/null; then[0m
+2025-10-10T16:14:42.0673736Z [36;1m  echo "✅ Found success message in log"[0m
+2025-10-10T16:14:42.0674076Z [36;1m  SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))[0m
+2025-10-10T16:14:42.0674418Z [36;1mfi[0m
+2025-10-10T16:14:42.0674617Z [36;1m[0m
+2025-10-10T16:14:42.0674903Z [36;1mif grep -qi "campaigns processed" "$LOG_FILE" 2>/dev/null; then[0m
+2025-10-10T16:14:42.0675279Z [36;1m  echo "✅ Campaigns processed"[0m
+2025-10-10T16:14:42.0675605Z [36;1m  SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))[0m
+2025-10-10T16:14:42.0675917Z [36;1mfi[0m
+2025-10-10T16:14:42.0676111Z [36;1m[0m
+2025-10-10T16:14:42.0676430Z [36;1mif grep -qi "contacts loaded\|Total contacts" "$LOG_FILE" 2>/dev/null; then[0m
+2025-10-10T16:14:42.0676837Z [36;1m  echo "✅ Contacts loaded"[0m
+2025-10-10T16:14:42.0677174Z [36;1m  SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))[0m
+2025-10-10T16:14:42.0677479Z [36;1mfi[0m
+2025-10-10T16:14:42.0677672Z [36;1m[0m
+2025-10-10T16:14:42.0678015Z [36;1mif grep -qi "template.*substitution\|personalized" "$LOG_FILE" 2>/dev/null; then[0m
+2025-10-10T16:14:42.0678634Z [36;1m  echo "✅ Template substitution active"[0m
+2025-10-10T16:14:42.0678978Z [36;1m  SUCCESS_INDICATORS=$((SUCCESS_INDICATORS + 1))[0m
+2025-10-10T16:14:42.0679284Z [36;1mfi[0m
+2025-10-10T16:14:42.0679476Z [36;1m[0m
+2025-10-10T16:14:42.0679726Z [36;1mecho "Success indicators: $SUCCESS_INDICATORS/5"[0m
+2025-10-10T16:14:42.0680030Z [36;1m[0m
+2025-10-10T16:14:42.0680237Z [36;1m# Analyze results[0m
+2025-10-10T16:14:42.0680549Z [36;1mif [ -f "github_actions_email_summary.json" ]; then[0m
+2025-10-10T16:14:42.0680928Z [36;1m  echo "✅ Found github_actions_email_summary.json"[0m
+2025-10-10T16:14:42.0681283Z [36;1m  cat github_actions_email_summary.json[0m
+2025-10-10T16:14:42.0681575Z [36;1m  echo ""[0m
+2025-10-10T16:14:42.0681927Z [36;1m  [0m
+2025-10-10T16:14:42.0682170Z [36;1m  # Extract batch directory and email count[0m
+2025-10-10T16:14:42.0682490Z [36;1m  BATCH_DIR=$(python3 -c "[0m
+2025-10-10T16:14:42.0682756Z [36;1mimport json[0m
+2025-10-10T16:14:42.0682978Z [36;1mtry:[0m
+2025-10-10T16:14:42.0683262Z [36;1m    with open('github_actions_email_summary.json') as f:[0m
+2025-10-10T16:14:42.0683613Z [36;1m        data = json.load(f)[0m
+2025-10-10T16:14:42.0683914Z [36;1m    print(data.get('batch_directory', ''))[0m
+2025-10-10T16:14:42.0684207Z [36;1mexcept:[0m
+2025-10-10T16:14:42.0684434Z [36;1m    print('')[0m
+2025-10-10T16:14:42.0684677Z [36;1m" 2>/dev/null || echo "")[0m
+2025-10-10T16:14:42.0684934Z [36;1m  [0m
+2025-10-10T16:14:42.0685164Z [36;1m  TOTAL_EMAILS=$(python3 -c "[0m
+2025-10-10T16:14:42.0685452Z [36;1mimport json[0m
+2025-10-10T16:14:42.0685670Z [36;1mtry:[0m
+2025-10-10T16:14:42.0685946Z [36;1m    with open('github_actions_email_summary.json') as f:[0m
+2025-10-10T16:14:42.0686288Z [36;1m        data = json.load(f)[0m
+2025-10-10T16:14:42.0686585Z [36;1m    print(data.get('total_emails', 0))[0m
+2025-10-10T16:14:42.0686875Z [36;1mexcept:[0m
+2025-10-10T16:14:42.0687087Z [36;1m    print(0)[0m
+2025-10-10T16:14:42.0687324Z [36;1m" 2>/dev/null || echo "0")[0m
+2025-10-10T16:14:42.0687574Z [36;1m  [0m
+2025-10-10T16:14:42.0687804Z [36;1m  echo "Batch directory: $BATCH_DIR"[0m
+2025-10-10T16:14:42.0688113Z [36;1m  echo "Total emails: $TOTAL_EMAILS"[0m
+2025-10-10T16:14:42.0688605Z [36;1m  [0m
+2025-10-10T16:14:42.0688867Z [36;1m  # Verify batch directory exists and has files[0m
+2025-10-10T16:14:42.0689222Z [36;1m  if [ -n "$BATCH_DIR" ] && [ -d "$BATCH_DIR" ]; then[0m
+2025-10-10T16:14:42.0689804Z [36;1m    EMAIL_FILES=$(find "$BATCH_DIR" -name "email_*.json" -type f 2>/dev/null | wc -l)[0m
+2025-10-10T16:14:42.0690253Z [36;1m    echo "Email files found: $EMAIL_FILES"[0m
+2025-10-10T16:14:42.0690578Z [36;1m    [0m
+2025-10-10T16:14:42.0690861Z [36;1m    if [ "$EMAIL_FILES" -gt 0 ] && [ "$TOTAL_EMAILS" -gt 0 ]; then[0m
+2025-10-10T16:14:42.0691227Z [36;1m      EMAILS_QUEUED="true"[0m
+2025-10-10T16:14:42.0691591Z [36;1m      echo "✅ Successfully queued $EMAIL_FILES emails in $BATCH_DIR"[0m
+2025-10-10T16:14:42.0692007Z [36;1m      [0m
+2025-10-10T16:14:42.0692249Z [36;1m      # Show sample of first email[0m
+2025-10-10T16:14:42.0692659Z [36;1m      FIRST_EMAIL=$(find "$BATCH_DIR" -name "email_*.json" -type f 2>/dev/null | head -1)[0m
+2025-10-10T16:14:42.0693083Z [36;1m      if [ -n "$FIRST_EMAIL" ]; then[0m
+2025-10-10T16:14:42.0693374Z [36;1m        echo ""[0m
+2025-10-10T16:14:42.0693630Z [36;1m        echo "Sample email file:"[0m
+2025-10-10T16:14:42.0693927Z [36;1m        head -20 "$FIRST_EMAIL"[0m
+2025-10-10T16:14:42.0694200Z [36;1m      fi[0m
+2025-10-10T16:14:42.0694418Z [36;1m    else[0m
+2025-10-10T16:14:42.0694714Z [36;1m      echo "⚠️ Batch directory exists but no valid emails found"[0m
+2025-10-10T16:14:42.0695057Z [36;1m    fi[0m
+2025-10-10T16:14:42.0695269Z [36;1m  else[0m
+2025-10-10T16:14:42.0695565Z [36;1m    echo "⚠️ Batch directory not found or invalid: $BATCH_DIR"[0m
+2025-10-10T16:14:42.0695901Z [36;1m  fi[0m
+2025-10-10T16:14:42.0696103Z [36;1melse[0m
+2025-10-10T16:14:42.0696434Z [36;1m  echo "ℹ️ No github_actions_email_summary.json (expected in dry-run mode)"[0m
+2025-10-10T16:14:42.0696924Z [36;1mfi[0m
+2025-10-10T16:14:42.0697393Z [36;1m[0m
+2025-10-10T16:14:42.0697831Z [36;1m# Write outputs - CRITICAL: Do this before writing to GITHUB_ENV[0m
+2025-10-10T16:14:42.0698648Z [36;1mecho "emails_queued=$EMAILS_QUEUED" >> "$GITHUB_OUTPUT"[0m
+2025-10-10T16:14:42.0699216Z [36;1mecho "batch_directory=$BATCH_DIR" >> "$GITHUB_OUTPUT"[0m
+2025-10-10T16:14:42.0699623Z [36;1m[0m
+2025-10-10T16:14:42.0711788Z [36;1m [0m
+2025-10-10T16:14:42.0712236Z [36;1m# NOW write to GITHUB_ENV for use in subsequent steps[0m
+2025-10-10T16:14:42.0712780Z [36;1mecho "EXECUTION_STATUS=$EXECUTION_STATUS" >> $GITHUB_ENV[0m
+2025-10-10T16:14:42.0713437Z [36;1mecho "SUCCESS_INDICATORS=$SUCCESS_INDICATORS" >> $GITHUB_ENV[0m
+2025-10-10T16:14:42.0713838Z [36;1mecho "LOG_FILE=$LOG_FILE" >> $GITHUB_ENV[0m
+2025-10-10T16:14:42.0714130Z [36;1m[0m
+2025-10-10T16:14:42.0714324Z [36;1m[0m
+2025-10-10T16:14:42.0714537Z [36;1mecho ""[0m
+2025-10-10T16:14:42.0714787Z [36;1mecho "Environment variables set:"[0m
+2025-10-10T16:14:42.0715115Z [36;1mecho "  EXECUTION_STATUS=$EXECUTION_STATUS"[0m
+2025-10-10T16:14:42.0715485Z [36;1mecho "  SUCCESS_INDICATORS=$SUCCESS_INDICATORS"[0m
+2025-10-10T16:14:42.0715834Z [36;1mecho "  MODE_TEXT=$MODE_TEXT"[0m
+2025-10-10T16:14:42.0716123Z [36;1mecho "  LOG_FILE=$LOG_FILE"[0m
+2025-10-10T16:14:42.0716396Z [36;1mecho ""[0m
+2025-10-10T16:14:42.0716632Z [36;1mecho "Step outputs set:"[0m
+2025-10-10T16:14:42.0716943Z [36;1mecho "  emails_queued=$EMAILS_QUEUED"[0m
+2025-10-10T16:14:42.0717263Z [36;1mecho "  batch_directory=$BATCH_DIR"[0m
+2025-10-10T16:14:42.0717545Z [36;1mecho ""[0m
+2025-10-10T16:14:42.0717788Z [36;1m# Exit with script's status code[0m
+2025-10-10T16:14:42.0718083Z [36;1mexit $EXECUTION_STATUS[0m
+2025-10-10T16:14:42.0750711Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:42.0750991Z env:
+2025-10-10T16:14:42.0751226Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:42.0751603Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:42.0751856Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:42.0752103Z   PRODUCTION_MODE: true
+2025-10-10T16:14:42.0752345Z   TRACKING_DIR: tracking
+2025-10-10T16:14:42.0752597Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:42.0752891Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:42.0753165Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:42.0753405Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:42.0753873Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.0754331Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:42.0754781Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.0755173Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.0755573Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.0755963Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:42.0756351Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:42.0756705Z   SMTP_HOST: ***
+2025-10-10T16:14:42.0756932Z   SMTP_PORT: ***
+2025-10-10T16:14:42.0757169Z   SMTP_USER: ***
+2025-10-10T16:14:42.0757405Z   SMTP_PASS: ***
+2025-10-10T16:14:42.0757623Z   COMPLIANCE_MODE: true
+2025-10-10T16:14:42.0757864Z   DAILY_LIMIT: 50
+2025-10-10T16:14:42.0758084Z   PER_DOMAIN_LIMIT: 5
+2025-10-10T16:14:42.0758642Z ##[endgroup]
+2025-10-10T16:14:42.0827458Z 🔒 Compliance Configuration:
+2025-10-10T16:14:42.0827861Z   Daily limit: 50
+2025-10-10T16:14:42.0828108Z   Per-domain limit: 5
+2025-10-10T16:14:42.0828651Z   Suppression list: contacts/suppression_list.json
+2025-10-10T16:14:42.0828917Z 
+2025-10-10T16:14:42.0829040Z Starting ENHANCED campaign execution
+2025-10-10T16:14:42.0829354Z ==============================================================
+2025-10-10T16:14:42.0829689Z Environment: Production with Queue Mode
+2025-10-10T16:14:42.0830100Z Mode: QUEUE (Create Email Files)
+2025-10-10T16:14:42.0830447Z Working directory: /home/runner/work/services/services
+2025-10-10T16:14:42.0830943Z Real data sources: true
+2025-10-10T16:14:42.0831305Z Contact files: 6
+2025-10-10T16:14:42.0831673Z Contacts loaded: 17
+2025-10-10T16:14:42.0831908Z Campaign templates: 3
+2025-10-10T16:14:42.0832058Z 
+2025-10-10T16:14:42.0832367Z ✅ Script verified: utils/docx_parser.py
+2025-10-10T16:14:42.0833113Z 📦 QUEUE mode: Creating email files for batch sending
+2025-10-10T16:14:42.0833513Z 
+2025-10-10T16:14:42.0833694Z Command arguments:
+2025-10-10T16:14:42.0834074Z   --contacts
+2025-10-10T16:14:42.0834495Z   /home/runner/work/services/services/contacts
+2025-10-10T16:14:42.0835016Z   --scheduled
+2025-10-10T16:14:42.0835492Z   /home/runner/work/services/services/scheduled-campaigns
+2025-10-10T16:14:42.0836333Z   --tracking
+2025-10-10T16:14:42.0836758Z   /home/runner/work/services/services/tracking
+2025-10-10T16:14:42.0837273Z   --alerts
+2025-10-10T16:14:42.0837654Z   alerts@modelphysmat.com
+2025-10-10T16:14:42.0838061Z   --feedback
+2025-10-10T16:14:42.0838775Z   ***
+2025-10-10T16:14:42.0839135Z   --compliance
+2025-10-10T16:14:42.0839526Z   --daily-limit
+2025-10-10T16:14:42.0839894Z   50
+2025-10-10T16:14:42.0840265Z   --per-domain-limit
+2025-10-10T16:14:42.0840658Z   5
+2025-10-10T16:14:42.0841002Z   --suppression-file
+2025-10-10T16:14:42.0841440Z   contacts/suppression_list.json
+2025-10-10T16:14:42.0841898Z   --queue-emails
+2025-10-10T16:14:42.0842108Z 
+2025-10-10T16:14:42.0842335Z Executing: python utils/docx_parser.py ...
+2025-10-10T16:14:42.6394904Z ✅ UnsubscribeManager initialized
+2025-10-10T16:14:42.6395658Z    Base URL: https://sednabcn.github.io/unsubscribe
+2025-10-10T16:14:42.6396352Z    Unsubscribed count: 1
+2025-10-10T16:14:42.6397456Z Unsubscribe link: https://sednabcn.github.io/unsubscribe?email=test%40example.com&campaign=campaign1&token=58a13014
+2025-10-10T16:14:42.6398683Z Is unsubscribed: False
+2025-10-10T16:14:42.6399167Z 📛 Added test@example.com to unsubscribe list (campaign: all)
+2025-10-10T16:14:42.6399796Z Unsubscribe stats: {'total_unsubscribed': 2, 'global_unsubscribes': 2, 'campaign_specific': 0}
+2025-10-10T16:14:42.6400223Z 
+2025-10-10T16:14:42.6400334Z Enhanced HTML:
+2025-10-10T16:14:42.6400672Z <html><body><h1>Test</h1><p>Content here</p></body></html>
+2025-10-10T16:14:42.6401233Z <hr style="margin-top: 30px; border: none; border-top: 1px solid #ccc;">
+2025-10-10T16:14:42.6401816Z <div style="font-size: 11px; color: #666; margin-top: 15px; text-align: center;">
+2025-10-10T16:14:42.6402547Z     <p><strong>Professional Outreach</strong></p>
+2025-10-10T16:14:42.6403056Z     <p>You received this email as part of professional networking outreach.</p>
+2025-10-10T16:14:42.6403515Z     <p>
+2025-10-10T16:14:42.6403816Z         If you prefer not to receive future emails, you can 
+2025-10-10T16:14:42.6404782Z         <a href="https://sednabcn.github.io/unsubscribe?email=test%40example.com&campaign=campaign1&token=58a13014" style="color: #0066cc; text-decoration: underline;">unsubscribe here</a>.
+2025-10-10T16:14:42.6405642Z     </p>
+2025-10-10T16:14:42.6405960Z     <p style="font-size: 10px; color: #999; margin-top: 10px;">
+2025-10-10T16:14:42.6406655Z         This is professional outreach. We respect your preferences and will honor all opt-out requests immediately.
+2025-10-10T16:14:42.6407246Z     </p>
+2025-10-10T16:14:42.6407475Z </div>
+2025-10-10T16:14:42.6407611Z 
+2025-10-10T16:14:42.6407744Z GitHub Actions email sender available
+2025-10-10T16:14:42.6408059Z Using professional data_loader module
+2025-10-10T16:14:42.6408611Z Domain-Aware Campaign System Script started
+2025-10-10T16:14:42.6408937Z Remote environment: True
+2025-10-10T16:14:42.6409277Z Available modules: docx=True, email_sender=True, data_loader=True
+2025-10-10T16:14:42.6409639Z Parsing arguments...
+2025-10-10T16:14:42.6409791Z 
+2025-10-10T16:14:42.6409949Z 🔒 Compliance Mode Enabled:
+2025-10-10T16:14:42.6410205Z    Daily limit: 50
+2025-10-10T16:14:42.6410438Z    Per-domain limit: 5
+2025-10-10T16:14:42.6410723Z    Suppression file: contacts/suppression_list.json
+2025-10-10T16:14:42.6410957Z 
+2025-10-10T16:14:42.6410961Z 
+2025-10-10T16:14:42.6411071Z Arguments parsed successfully:
+2025-10-10T16:14:42.6411408Z   --contacts: /home/runner/work/services/services/contacts
+2025-10-10T16:14:42.6411868Z   --scheduled: /home/runner/work/services/services/scheduled-campaigns
+2025-10-10T16:14:42.6412303Z   --tracking: /home/runner/work/services/services/tracking
+2025-10-10T16:14:42.6412650Z   --alerts: alerts@modelphysmat.com
+2025-10-10T16:14:42.6413059Z   --feedback: ***
+2025-10-10T16:14:42.6413299Z   --template-file: None
+2025-10-10T16:14:42.6413543Z   --domain: None
+2025-10-10T16:14:42.6413767Z   --dry-run: False
+2025-10-10T16:14:42.6413995Z   --queue-emails: True
+2025-10-10T16:14:42.6414229Z   --compliance: True
+2025-10-10T16:14:42.6414642Z   --debug: False
+2025-10-10T16:14:42.6414776Z 
+2025-10-10T16:14:42.6414899Z Calling domain-aware campaign_main...
+2025-10-10T16:14:42.6415198Z Starting domain-aware campaign system
+2025-10-10T16:14:42.6415483Z GitHub Actions detected: True
+2025-10-10T16:14:42.6415741Z Queue mode: True
+2025-10-10T16:14:42.6415961Z Dry run mode: False
+2025-10-10T16:14:42.6416186Z Compliance mode: True
+2025-10-10T16:14:42.6416470Z Contacts: /home/runner/work/services/services/contacts
+2025-10-10T16:14:42.6416940Z Templates (domain-based): /home/runner/work/services/services/scheduled-campaigns
+2025-10-10T16:14:42.6417412Z Tracking: /home/runner/work/services/services/tracking
+2025-10-10T16:14:42.6417750Z Alerts: alerts@modelphysmat.com
+2025-10-10T16:14:42.6417945Z 
+2025-10-10T16:14:42.6418095Z 🔒 Compliance Mode Active:
+2025-10-10T16:14:42.6418470Z    Daily limit: 50
+2025-10-10T16:14:42.6418695Z    Per-domain limit: 5
+2025-10-10T16:14:42.6418938Z    Current daily sent: 0/50
+2025-10-10T16:14:42.6419249Z    ✅ Loaded 0 suppressed emails
+2025-10-10T16:14:42.6419425Z 
+2025-10-10T16:14:42.6419545Z Using professional data_loader module
+2025-10-10T16:14:42.6419736Z 
+2025-10-10T16:14:42.6419836Z === VALIDATION SUMMARY ===
+2025-10-10T16:14:42.6420078Z Total contacts: 12
+2025-10-10T16:14:42.6420302Z Valid contacts: 11
+2025-10-10T16:14:42.6420524Z Valid emails: 11
+2025-10-10T16:14:42.6420737Z Missing emails: 1
+2025-10-10T16:14:42.6420951Z Missing names: 0
+2025-10-10T16:14:42.6421167Z Unique domains: 1
+2025-10-10T16:14:42.6421392Z Contact validation stats:
+2025-10-10T16:14:42.6421630Z   Total: 12
+2025-10-10T16:14:42.6421840Z   Valid emails: 11
+2025-10-10T16:14:42.6422066Z Total contacts loaded: 11
+2025-10-10T16:14:42.6422216Z 
+2025-10-10T16:14:42.6422494Z ✅ UnsubscribeManager initialized
+2025-10-10T16:14:42.6422837Z    Base URL: https://sednabcn.github.io/unsubscribe
+2025-10-10T16:14:42.6423168Z    Unsubscribed count: 2
+2025-10-10T16:14:42.6423718Z ✅ Unsubscribe system initialized: {'total_unsubscribed': 2, 'global_unsubscribes': 2, 'campaign_specific': 0}
+2025-10-10T16:14:42.6424129Z 
+2025-10-10T16:14:42.6424234Z Initializing email queue mode
+2025-10-10T16:14:42.6424585Z Email queue mode enabled - saving to email_batch_20251010_161442
+2025-10-10T16:14:42.6425018Z No domain subdirectories found, using flat directory structure
+2025-10-10T16:14:42.6425441Z Found 1 campaign(s) in flat structure (using 'default' domain)
+2025-10-10T16:14:42.6425695Z 
+2025-10-10T16:14:42.6425805Z ======================================================================
+2025-10-10T16:14:42.6426120Z PROCESSING DOMAIN: DEFAULT
+2025-10-10T16:14:42.6426379Z ======================================================================
+2025-10-10T16:14:42.6426580Z 
+2025-10-10T16:14:42.6426731Z --- Processing Campaign: default/test_campaign ---
+2025-10-10T16:14:42.6427268Z Loaded JSON campaign: /home/runner/work/services/services/scheduled-campaigns/test_campaign.json
+2025-10-10T16:14:42.6427823Z   🔍 Validating: adult_education_letter.docx
+2025-10-10T16:14:42.6428148Z   📊 File size: 6.87 KB
+2025-10-10T16:14:42.6428544Z   ✅ DOCX structure valid
+2025-10-10T16:14:42.6428838Z   ✅ Extracted 2684 characters
+2025-10-10T16:14:42.6429131Z Using config-based campaign settings from JSON
+2025-10-10T16:14:42.6429815Z Contact field mapping active: ['Recipient Name', 'Title / Position', 'Department / School', 'University / Institution', 'Address or Campus, if needed', 'Department Name']
+2025-10-10T16:14:42.6430463Z Sector: education
+2025-10-10T16:14:42.6430705Z Feedback auto-injection: ENABLED
+2025-10-10T16:14:42.6430977Z Enhanced tracking: ENABLED
+2025-10-10T16:14:42.6431136Z 
+2025-10-10T16:14:42.6431253Z === CAMPAIGN: default/test_campaign ===
+2025-10-10T16:14:42.6431568Z Tracking ID: DEFAULT_85b65531_20251010_161442
+2025-10-10T16:14:42.6431938Z Subject Template: Partnership Opportunity in Education
+2025-10-10T16:14:42.6432270Z From: Outreach Team
+2025-10-10T16:14:42.6432504Z Recipients: 11
+2025-10-10T16:14:42.6432773Z Queue mode: Saving emails to email_batch_20251010_161442
+2025-10-10T16:14:42.6433271Z   Queued 10/11 emails...
+2025-10-10T16:14:42.6433558Z Queued 11 emails for campaign default/test_campaign
+2025-10-10T16:14:42.6434172Z Tracking data saved: /home/runner/work/services/services/tracking/default/campaigns/DEFAULT_85b65531_20251010_161442.json
+2025-10-10T16:14:42.6434786Z   ✅ Sent: 0, Queued: 11, Failed: 0
+2025-10-10T16:14:42.6435100Z Created GitHub Actions email summary: 11 emails queued
+2025-10-10T16:14:42.6435327Z 
+2025-10-10T16:14:42.6435442Z ======================================================================
+2025-10-10T16:14:42.6435733Z EMAIL QUEUE SUMMARY
+2025-10-10T16:14:42.6435967Z ======================================================================
+2025-10-10T16:14:42.6436259Z Total emails queued: 11
+2025-10-10T16:14:42.6436533Z Queue directory: email_batch_20251010_161442
+2025-10-10T16:14:42.6436814Z Campaigns: 1
+2025-10-10T16:14:42.6437015Z Domains: 1
+2025-10-10T16:14:42.6437273Z Emails will be sent by GitHub Actions email sender job
+2025-10-10T16:14:42.6437587Z Summary files created:
+2025-10-10T16:14:42.6437847Z   - github_actions_email_summary.json
+2025-10-10T16:14:42.6438140Z   - campaign_summary_email.json
+2025-10-10T16:14:42.6438513Z 
+2025-10-10T16:14:42.6438688Z ======================================================================
+2025-10-10T16:14:42.6438977Z FINAL SUMMARY
+2025-10-10T16:14:42.6439202Z ======================================================================
+2025-10-10T16:14:42.6439488Z Domains processed: 1
+2025-10-10T16:14:42.6439729Z Campaigns processed: 1
+2025-10-10T16:14:42.6439958Z Emails sent: 0
+2025-10-10T16:14:42.6440168Z Emails queued: 11
+2025-10-10T16:14:42.6440389Z Failures: 0
+2025-10-10T16:14:42.6440609Z Tracking system: DOMAIN-BASED
+2025-10-10T16:14:42.6441021Z Template processing: ENABLED
+2025-10-10T16:14:42.6441198Z 
+2025-10-10T16:14:42.6441338Z 🔒 COMPLIANCE SUMMARY:
+2025-10-10T16:14:42.6441574Z    Daily sent: 0/50
+2025-10-10T16:14:42.6441805Z    Suppressed contacts: 0
+2025-10-10T16:14:42.6442066Z    Domain distribution: {'default': 0}
+2025-10-10T16:14:42.6442262Z 
+2025-10-10T16:14:42.6442369Z Campaign completed successfully
+2025-10-10T16:14:42.6442540Z 
+2025-10-10T16:14:42.6442755Z ✅ Domain-aware campaign system completed successfully
+2025-10-10T16:14:42.6982237Z 
+2025-10-10T16:14:42.6982924Z ==============================================================
+2025-10-10T16:14:42.6983502Z Execution completed with status: 0
+2025-10-10T16:14:42.6983988Z ==============================================================
+2025-10-10T16:14:42.6984316Z 
+2025-10-10T16:14:42.6984785Z ✅ Script execution successful
+2025-10-10T16:14:42.7000987Z ✅ Found success message in log
+2025-10-10T16:14:42.7015511Z ✅ Campaigns processed
+2025-10-10T16:14:42.7029763Z ✅ Contacts loaded
+2025-10-10T16:14:42.7045763Z Success indicators: 4/5
+2025-10-10T16:14:42.7047020Z ✅ Found github_actions_email_summary.json
+2025-10-10T16:14:42.7056145Z {
+2025-10-10T16:14:42.7056591Z   "batch_directory": "email_batch_20251010_161442",
+2025-10-10T16:14:42.7057156Z   "total_emails": 11,
+2025-10-10T16:14:42.7057637Z   "queued_at": "2025-10-10T16:14:42.638861",
+2025-10-10T16:14:42.7058148Z   "campaigns": 1,
+2025-10-10T16:14:42.7058700Z   "campaign_details": [
+2025-10-10T16:14:42.7059114Z     {
+2025-10-10T16:14:42.7059536Z       "campaign_name": "default/test_campaign",
+2025-10-10T16:14:42.7060151Z       "tracking_id": "DEFAULT_85b65531_20251010_161442",
+2025-10-10T16:14:42.7060699Z       "total_recipients": 11,
+2025-10-10T16:14:42.7061008Z       "sent": 0,
+2025-10-10T16:14:42.7061268Z       "queued": 11,
+2025-10-10T16:14:42.7061524Z       "failed": 0,
+2025-10-10T16:14:42.7061802Z       "duration_seconds": 1.5,
+2025-10-10T16:14:42.7062126Z       "template_substitution": true
+2025-10-10T16:14:42.7062433Z     }
+2025-10-10T16:14:42.7062659Z   ]
+2025-10-10T16:14:42.7062873Z }
+2025-10-10T16:14:42.7453285Z Batch directory: email_batch_20251010_161442
+2025-10-10T16:14:42.7453840Z Total emails: 11
+2025-10-10T16:14:42.7479217Z Email files found: 11
+2025-10-10T16:14:42.7480108Z ✅ Successfully queued 11 emails in email_batch_20251010_161442
+2025-10-10T16:14:42.7503117Z 
+2025-10-10T16:14:42.7503468Z Sample email file:
+2025-10-10T16:14:42.7512144Z {
+2025-10-10T16:14:42.7512514Z   "to": "alerts@modelphysmat.com",
+2025-10-10T16:14:42.7513062Z   "subject": "Partnership Opportunity in Education",
+2025-10-10T16:14:42.7525599Z   "body": "[Title / Position] Unknown Contact\n\n\ufeffProfessor Rachel Hilliam\n\nThe Open University\n\n[Address or Campus, if needed]\n\n\nDear Unknown Contact,\n\nI hope this message finds you well.\n\nI am writing to express my interest in contributing to the \ufeffProfessor Rachel Hilliam through afternoon, evening, and part-time teaching roles. With over four decades of international teaching experience\u2014including recent engagement in the UK\u2014I am passionate about supporting adult learners who balance education with personal and professional responsibilities.\n\n**Why Adult Education Resonates With Me**\n\nThroughout my career, I have specialized in working with adult students in universities, corporate training, and professional development settings. Their drive, life experience, and need for flexibility have shaped my teaching style, which is:\n\n- **Practical** \u2013 connecting mathematical concepts to real-world applications  \n- **Adaptive** \u2013 responding to varying backgrounds and time constraints  \n- **Supportive** \u2013 building confidence in students returning to formal study  \n- **Efficient** \u2013 delivering value within limited contact time  \n- **Inclusive** \u2013 fostering a safe environment for academic risk-taking  \n\n**My Background**\n\n- Ph.D. in Computational Mechanics  \n- Ongoing UK teaching experience since [Month Year]  \n- Broad international university teaching exposure  \n- Specialist in adult learning, with cross-cultural teaching competence  \n- Up-to-date training in AI and data analysis  \n- Fully available for evening (Tue\u2013Thu) and weekend teaching, with capacity for online/hybrid delivery, short courses, and intensive programs  \n\n**Specific Contributions I Can Offer**\n\n- Mathematics instruction across levels, including foundation and advanced topics  \n- Statistics and quantitative methods for diverse academic programs  \n- Research methodology support for project-based learning  \n- Summer schools and accelerated revision workshops  \n- Professional development modules focused on career advancement  \n\n**A Meaningful Commitment**\n\nThis is not a retirement pursuit but a serious professional contribution. I believe evening and part-time students often represent the most determined and deserving learners, and I strive to deliver them the same standard of instruction expected in full-time programs.\n\nI would be grateful for the opportunity to discuss how my expertise can support your department's educational mission. I am available for an interview at your convenience and ready to begin teaching immediately.\n\nThank you for your time and consideration.\n\nYours sincerely,  \n**Dr. Ruperto Pedro Bonet Chaple**  \n\ud83d\udce7 ruperto.bonet@modelphysmat.com  \n\ud83d\udcde +44 7553 049140 / +44 7901 693987\n\n---\nProfessional Outreach\n\nYou received this email as part of professional networking outreach.\n\nIf you prefer not to receive future emails, please visit:\nhttps://sednabcn.github.io/unsubscribe?email=alerts%40modelphysmat.com&campaign=test_campaign&token=aa476e83\n\nOr reply with \"UNSUBSCRIBE\" in the subject line.\n\nThis is professional outreach. We respect your preferences \nand will honor all opt-out requests immediately.\n",
+2025-10-10T16:14:42.7535958Z   "from_name": "Outreach Team",
+2025-10-10T16:14:42.7536242Z   "queued_at": "2025-10-10T16:14:42.636870",
+2025-10-10T16:14:42.7536533Z   "ready_to_send": true
+2025-10-10T16:14:42.7536764Z }
+2025-10-10T16:14:42.7536979Z Environment variables set:
+2025-10-10T16:14:42.7537227Z   EXECUTION_STATUS=0
+2025-10-10T16:14:42.7537463Z   SUCCESS_INDICATORS=4
+2025-10-10T16:14:42.7537708Z   MODE_TEXT=QUEUE (Create Email Files)
+2025-10-10T16:14:42.7538003Z   LOG_FILE=campaign_execution.log
+2025-10-10T16:14:42.7538516Z 
+2025-10-10T16:14:42.7538618Z Step outputs set:
+2025-10-10T16:14:42.7538851Z   emails_queued=true
+2025-10-10T16:14:42.7539109Z   batch_directory=email_batch_20251010_161442
+2025-10-10T16:14:42.7539313Z 
+2025-10-10T16:14:42.7581974Z ##[group]Run echo "Creating reports directory..."
+2025-10-10T16:14:42.7582378Z [36;1mecho "Creating reports directory..."[0m
+2025-10-10T16:14:42.7582711Z [36;1mmkdir -p reports[0m
+2025-10-10T16:14:42.7582994Z [36;1mecho "✅ Reports directory ready"[0m
+2025-10-10T16:14:42.7614880Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:42.7615186Z env:
+2025-10-10T16:14:42.7615422Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:42.7615796Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:42.7616057Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:42.7616302Z   PRODUCTION_MODE: true
+2025-10-10T16:14:42.7616548Z   TRACKING_DIR: tracking
+2025-10-10T16:14:42.7616808Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:42.7617108Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:42.7617395Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:42.7617642Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:42.7617964Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7618611Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:42.7619065Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7619473Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7619865Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7620264Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:42.7620656Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:42.7620994Z   MODE_TEXT: QUEUE (Create Email Files)
+2025-10-10T16:14:42.7621285Z   EXECUTION_STATUS: 0
+2025-10-10T16:14:42.7621525Z   SUCCESS_INDICATORS: 4
+2025-10-10T16:14:42.7621774Z   LOG_FILE: campaign_execution.log
+2025-10-10T16:14:42.7622041Z ##[endgroup]
+2025-10-10T16:14:42.7670621Z Creating reports directory...
+2025-10-10T16:14:42.7683252Z ✅ Reports directory ready
+2025-10-10T16:14:42.7706020Z ##[group]Run echo "============================================="
+2025-10-10T16:14:42.7706471Z [36;1mecho "============================================="[0m
+2025-10-10T16:14:42.7706873Z [36;1mecho "   ENHANCED CAMPAIGN EXECUTION COMPLETED    "[0m
+2025-10-10T16:14:42.7707237Z [36;1mecho "============================================="[0m
+2025-10-10T16:14:42.7707547Z [36;1mecho ""[0m
+2025-10-10T16:14:42.7707781Z [36;1m[0m
+2025-10-10T16:14:42.7708009Z [36;1m# Read execution status[0m
+2025-10-10T16:14:42.7708535Z [36;1mEXEC_STATUS="0"[0m
+2025-10-10T16:14:42.7708797Z [36;1mEXEC_STATUS="${EXEC_STATUS:-1}"[0m
+2025-10-10T16:14:42.7709068Z [36;1m[0m
+2025-10-10T16:14:42.7709277Z [36;1mSUCC_IND="4"[0m
+2025-10-10T16:14:42.7709523Z [36;1mSUCC_IND="${SUCC_IND:-0}"[0m
+2025-10-10T16:14:42.7709776Z [36;1m[0m
+2025-10-10T16:14:42.7710020Z [36;1mecho "Execution Status Code: $EXEC_STATUS"[0m
+2025-10-10T16:14:42.7710378Z [36;1mecho "Success Indicators: $SUCC_IND/5"[0m
+2025-10-10T16:14:42.7710698Z [36;1mecho ""[0m
+2025-10-10T16:14:42.7710905Z [36;1m[0m
+2025-10-10T16:14:42.7711128Z [36;1m# Print summary information[0m
+2025-10-10T16:14:42.7711425Z [36;1mecho "Real Data Sources: true"[0m
+2025-10-10T16:14:42.7711713Z [36;1mecho "Contact Files: 6"[0m
+2025-10-10T16:14:42.7711992Z [36;1mecho "Contacts Processed: 17"[0m
+2025-10-10T16:14:42.7712280Z [36;1mecho "Templates Available: 3"[0m
+2025-10-10T16:14:42.7712550Z [36;1mecho ""[0m
+2025-10-10T16:14:42.7712754Z [36;1m[0m
+2025-10-10T16:14:42.7713017Z [36;1m# Determine final status and exit appropriately[0m
+2025-10-10T16:14:42.7713407Z [36;1mif [ "$EXEC_STATUS" = "0" ] && [ "$SUCC_IND" -ge "4" ]; then[0m
+2025-10-10T16:14:42.7713778Z [36;1m   echo "✅ STATUS: COMPLETE SUCCESS"[0m
+2025-10-10T16:14:42.7714163Z [36;1m   echo "All systems operational with full feature integration"[0m
+2025-10-10T16:14:42.7714516Z [36;1m   exit 0[0m
+2025-10-10T16:14:42.7714976Z [36;1melif [ "$EXEC_STATUS" = "0" ] && [ "$SUCC_IND" -ge "2" ]; then[0m
+2025-10-10T16:14:42.7715325Z [36;1m   echo "✅ STATUS: SUCCESS"[0m
+2025-10-10T16:14:42.7715688Z [36;1m   echo "Core functionality working with comprehensive features"[0m
+2025-10-10T16:14:42.7716048Z [36;1m   exit 0[0m
+2025-10-10T16:14:42.7716288Z [36;1melif [ "$SUCC_IND" -ge "2" ]; then[0m
+2025-10-10T16:14:42.7716592Z [36;1m   echo "⚠️ STATUS: PARTIAL SUCCESS"[0m
+2025-10-10T16:14:42.7716961Z [36;1m   echo "Systems partially operational - review recommended"[0m
+2025-10-10T16:14:42.7717310Z [36;1m   exit 0[0m
+2025-10-10T16:14:42.7717521Z [36;1melse[0m
+2025-10-10T16:14:42.7717738Z [36;1m   echo "❌ STATUS: FAILED"[0m
+2025-10-10T16:14:42.7718078Z [36;1m   echo "Critical issues detected - review execution logs"[0m
+2025-10-10T16:14:42.7718705Z [36;1m   exit 1[0m
+2025-10-10T16:14:42.7718918Z [36;1mfi[0m
+2025-10-10T16:14:42.7747215Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:42.7747495Z env:
+2025-10-10T16:14:42.7747727Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:42.7748090Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:42.7748538Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:42.7748782Z   PRODUCTION_MODE: true
+2025-10-10T16:14:42.7749032Z   TRACKING_DIR: tracking
+2025-10-10T16:14:42.7749295Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:42.7749612Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:42.7749897Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:42.7750152Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:42.7750487Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7750936Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:42.7751366Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7751758Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7752156Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7752546Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:42.7753112Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:42.7753481Z   MODE_TEXT: QUEUE (Create Email Files)
+2025-10-10T16:14:42.7753772Z   EXECUTION_STATUS: 0
+2025-10-10T16:14:42.7754005Z   SUCCESS_INDICATORS: 4
+2025-10-10T16:14:42.7754253Z   LOG_FILE: campaign_execution.log
+2025-10-10T16:14:42.7754523Z ##[endgroup]
+2025-10-10T16:14:42.7803228Z =============================================
+2025-10-10T16:14:42.7803759Z    ENHANCED CAMPAIGN EXECUTION COMPLETED    
+2025-10-10T16:14:42.7804082Z =============================================
+2025-10-10T16:14:42.7804274Z 
+2025-10-10T16:14:42.7804379Z Execution Status Code: 0
+2025-10-10T16:14:42.7804645Z Success Indicators: 4/5
+2025-10-10T16:14:42.7806949Z 
+2025-10-10T16:14:42.7807143Z Real Data Sources: true
+2025-10-10T16:14:42.7807550Z Contact Files: 6
+2025-10-10T16:14:42.7807923Z Contacts Processed: 17
+2025-10-10T16:14:42.7808493Z Templates Available: 3
+2025-10-10T16:14:42.7808686Z 
+2025-10-10T16:14:42.7808937Z ✅ STATUS: COMPLETE SUCCESS
+2025-10-10T16:14:42.7809330Z All systems operational with full feature integration
+2025-10-10T16:14:42.7873859Z ##[group]Run actions/upload-artifact@v4
+2025-10-10T16:14:42.7874181Z with:
+2025-10-10T16:14:42.7874426Z   name: queued-emails-18412045681
+2025-10-10T16:14:42.7874837Z   path: email_batch_20251010_161442/
+github_actions_email_summary.json
+tracking/
+
+2025-10-10T16:14:42.7875251Z   retention-days: 7
+2025-10-10T16:14:42.7875492Z   if-no-files-found: error
+2025-10-10T16:14:42.7875758Z   compression-level: 6
+2025-10-10T16:14:42.7875995Z   overwrite: false
+2025-10-10T16:14:42.7876231Z   include-hidden-files: false
+2025-10-10T16:14:42.7876478Z env:
+2025-10-10T16:14:42.7876706Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:42.7877067Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:42.7877311Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:42.7877556Z   PRODUCTION_MODE: true
+2025-10-10T16:14:42.7877793Z   TRACKING_DIR: tracking
+2025-10-10T16:14:42.7878494Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:42.7878806Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:42.7879117Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:42.7879372Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:42.7879696Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7880140Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:42.7880585Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7880987Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7881388Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:42.7881781Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:42.7882174Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:42.7882512Z   MODE_TEXT: QUEUE (Create Email Files)
+2025-10-10T16:14:42.7882791Z   EXECUTION_STATUS: 0
+2025-10-10T16:14:42.7883035Z   SUCCESS_INDICATORS: 4
+2025-10-10T16:14:42.7883303Z   LOG_FILE: campaign_execution.log
+2025-10-10T16:14:42.7883570Z ##[endgroup]
+2025-10-10T16:14:43.0282422Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2025-10-10T16:14:43.0286361Z The least common ancestor is /home/runner/work/services/services. This will be the root directory of the artifact
+2025-10-10T16:14:43.0287426Z With the provided path, there will be 24 files uploaded
+2025-10-10T16:14:43.0291777Z Artifact name is valid!
+2025-10-10T16:14:43.0292638Z Root directory input is valid!
+2025-10-10T16:14:43.1762396Z Beginning upload of artifact content to blob storage
+2025-10-10T16:14:43.3886419Z Uploaded bytes 27942
+2025-10-10T16:14:43.4281990Z Finished uploading artifact content to blob storage!
+2025-10-10T16:14:43.4284950Z SHA256 digest of uploaded artifact zip is f1204dd7bb75248646c63bbe4334b124b850b37a11b4af4e1628f86f883c709a
+2025-10-10T16:14:43.4287002Z Finalizing artifact upload
+2025-10-10T16:14:43.5309284Z Artifact queued-emails-18412045681.zip successfully finalized. Artifact ID 4239158685
+2025-10-10T16:14:43.5310900Z Artifact queued-emails-18412045681 has been successfully uploaded! Final size is 27942 bytes. Artifact ID is 4239158685
+2025-10-10T16:14:43.5319803Z Artifact download URL: https://github.com/sednabcn/services/actions/runs/18412045681/artifacts/4239158685
+2025-10-10T16:14:43.5427191Z ##[group]Run # Check for queue summary and set outputs
+2025-10-10T16:14:43.5427627Z [36;1m# Check for queue summary and set outputs[0m
+2025-10-10T16:14:43.5428024Z [36;1mif [ -f "github_actions_email_summary.json" ]; then[0m
+2025-10-10T16:14:43.5428547Z [36;1m  echo "Emails queued successfully"[0m
+2025-10-10T16:14:43.5428892Z [36;1m  echo "emails_queued=true" >> $GITHUB_OUTPUT[0m
+2025-10-10T16:14:43.5429197Z [36;1m  [0m
+2025-10-10T16:14:43.5429668Z [36;1m  BATCH_DIR=$(python3 -c "import json; print(json.load(open('github_actions_email_summary.json'))['batch_directory'])")[0m
+2025-10-10T16:14:43.5430266Z [36;1m  echo "batch_directory=$BATCH_DIR" >> $GITHUB_OUTPUT[0m
+2025-10-10T16:14:43.5430651Z [36;1m  echo "Batch directory: $BATCH_DIR"[0m
+2025-10-10T16:14:43.5430943Z [36;1melse[0m
+2025-10-10T16:14:43.5431180Z [36;1m  echo "No emails queued"[0m
+2025-10-10T16:14:43.5431496Z [36;1m  echo "emails_queued=false" >> $GITHUB_OUTPUT[0m
+2025-10-10T16:14:43.5431825Z [36;1mfi[0m
+2025-10-10T16:14:43.5464225Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:43.5464499Z env:
+2025-10-10T16:14:43.5464735Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:43.5465112Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:43.5465365Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:43.5465616Z   PRODUCTION_MODE: true
+2025-10-10T16:14:43.5465870Z   TRACKING_DIR: tracking
+2025-10-10T16:14:43.5466140Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:43.5466456Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:43.5466750Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:43.5467013Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:43.5467343Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5467986Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:43.5468550Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5468950Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5469356Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5469754Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:43.5470150Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:43.5470491Z   MODE_TEXT: QUEUE (Create Email Files)
+2025-10-10T16:14:43.5470792Z   EXECUTION_STATUS: 0
+2025-10-10T16:14:43.5471032Z   SUCCESS_INDICATORS: 4
+2025-10-10T16:14:43.5471289Z   LOG_FILE: campaign_execution.log
+2025-10-10T16:14:43.5471569Z ##[endgroup]
+2025-10-10T16:14:43.5523191Z Emails queued successfully
+2025-10-10T16:14:43.5717827Z Batch directory: email_batch_20251010_161442
+2025-10-10T16:14:43.5742202Z ##[group]Run echo "Current directory contents:"
+2025-10-10T16:14:43.5742611Z [36;1mecho "Current directory contents:"[0m
+2025-10-10T16:14:43.5742916Z [36;1mls -la[0m
+2025-10-10T16:14:43.5743157Z [36;1mecho "Tracking directory:"[0m
+2025-10-10T16:14:43.5743502Z [36;1mls -la tracking/ || echo "tracking/ not found"[0m
+2025-10-10T16:14:43.5743842Z [36;1mecho "Reports directory:"[0m
+2025-10-10T16:14:43.5744162Z [36;1mls -la reports/ || echo "reports/ not found"[0m
+2025-10-10T16:14:43.5776121Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:43.5776398Z env:
+2025-10-10T16:14:43.5776631Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:43.5777009Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:43.5777258Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:43.5777506Z   PRODUCTION_MODE: true
+2025-10-10T16:14:43.5777760Z   TRACKING_DIR: tracking
+2025-10-10T16:14:43.5778025Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:43.5778543Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:43.5778854Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:43.5779118Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:43.5779454Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5779923Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:43.5780377Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5780780Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5781192Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5781594Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:43.5781989Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:43.5782331Z   MODE_TEXT: QUEUE (Create Email Files)
+2025-10-10T16:14:43.5782627Z   EXECUTION_STATUS: 0
+2025-10-10T16:14:43.5782865Z   SUCCESS_INDICATORS: 4
+2025-10-10T16:14:43.5783126Z   LOG_FILE: campaign_execution.log
+2025-10-10T16:14:43.5783399Z ##[endgroup]
+2025-10-10T16:14:43.5835069Z Current directory contents:
+2025-10-10T16:14:43.5850478Z total 188
+2025-10-10T16:14:43.5851039Z drwxr-xr-x 13 runner runner  4096 Oct 10 16:14 .
+2025-10-10T16:14:43.5851753Z drwxr-xr-x  3 runner runner  4096 Oct 10 16:14 ..
+2025-10-10T16:14:43.5852238Z drwxr-xr-x  7 runner runner  4096 Oct 10 16:14 .git
+2025-10-10T16:14:43.5852839Z drwxr-xr-x  4 runner runner  4096 Oct 10 16:14 .github
+2025-10-10T16:14:43.5853275Z -rw-r--r--  1 runner runner   108 Oct 10 16:14 .gitignore
+2025-10-10T16:14:43.5853861Z -rw-r--r--  1 runner runner  3100 Oct 10 16:14 =0.8.11
+2025-10-10T16:14:43.5854488Z -rw-r--r--  1 runner runner  6179 Oct 10 16:14 =1.55
+2025-10-10T16:14:43.5855086Z -rw-r--r--  1 runner runner     0 Oct 10 16:14 =2.0.0
+2025-10-10T16:14:43.5855474Z -rw-r--r--  1 runner runner     0 Oct 10 16:14 =2.0.1
+2025-10-10T16:14:43.5855810Z -rw-r--r--  1 runner runner     0 Oct 10 16:14 =2.31.0
+2025-10-10T16:14:43.5856170Z -rw-r--r--  1 runner runner  1040 Oct 10 16:14 =3.1.0
+2025-10-10T16:14:43.5856534Z -rw-r--r--  1 runner runner  3218 Oct 10 16:14 =4.1.0
+2025-10-10T16:14:43.5857107Z -rw-r--r--  1 runner runner     0 Oct 10 16:14 =5.0.0
+2025-10-10T16:14:43.5857450Z -rw-r--r--  1 runner runner 35149 Oct 10 16:14 LICENSE
+2025-10-10T16:14:43.5857828Z -rw-r--r--  1 runner runner 17876 Oct 10 16:14 MailMerge.html
+2025-10-10T16:14:43.5858389Z -rw-r--r--  1 runner runner    56 Oct 10 16:14 README.md
+2025-10-10T16:14:43.5858856Z drwxr-xr-x  5 runner runner  4096 Oct 10 16:14 campaign-templates
+2025-10-10T16:14:43.5859291Z -rw-r--r--  1 runner runner  5422 Oct 10 16:14 campaign_execution.log
+2025-10-10T16:14:43.5859731Z -rw-r--r--  1 runner runner   455 Oct 10 16:14 campaign_summary_email.json
+2025-10-10T16:14:43.5860161Z -rw-r--r--  1 runner runner   646 Oct 10 16:14 compliance_config.json
+2025-10-10T16:14:43.5860581Z -rw-r--r--  1 runner runner 13516 Oct 10 16:14 compliance_wrapper.py
+2025-10-10T16:14:43.5860989Z -rw-r--r--  1 runner runner   622 Oct 10 16:14 contact_analysis.json
+2025-10-10T16:14:43.5861577Z drwxr-xr-x  4 runner runner  4096 Oct 10 16:14 contact_details
+2025-10-10T16:14:43.5861993Z drwxr-xr-x  2 runner runner  4096 Oct 10 16:14 contacts
+2025-10-10T16:14:43.5862345Z drwxr-xr-x  2 runner runner  4096 Oct 10 16:14 debug
+2025-10-10T16:14:43.5862767Z -rw-r--r--  1 runner runner   740 Oct 10 16:14 docx_feedback_processing_report.md
+2025-10-10T16:14:43.5863229Z -rw-r--r--  1 runner runner  2240 Oct 10 16:14 domain_analysis.json
+2025-10-10T16:14:43.5863670Z drwxr-xr-x  2 runner runner  4096 Oct 10 16:14 email_batch_20251010_161442
+2025-10-10T16:14:43.5864130Z -rw-r--r--  1 runner runner   438 Oct 10 16:14 github_actions_email_summary.json
+2025-10-10T16:14:43.5864563Z drwxr-xr-x  2 runner runner  4096 Oct 10 16:14 reports
+2025-10-10T16:14:43.5864953Z -rw-r--r--  1 runner runner   512 Oct 10 16:14 requirements.txt
+2025-10-10T16:14:43.5865362Z drwxr-xr-x  2 runner runner  4096 Oct 10 16:14 scheduled-campaigns
+2025-10-10T16:14:43.5865762Z drwxr-xr-x 14 runner runner  4096 Oct 10 16:14 tracking
+2025-10-10T16:14:43.5866303Z drwxr-xr-x  3 runner runner  4096 Oct 10 16:14 utils
+2025-10-10T16:14:43.5866648Z Tracking directory:
+2025-10-10T16:14:43.5866871Z total 72
+2025-10-10T16:14:43.5867118Z drwxr-xr-x 14 runner runner 4096 Oct 10 16:14 .
+2025-10-10T16:14:43.5867450Z drwxr-xr-x 13 runner runner 4096 Oct 10 16:14 ..
+2025-10-10T16:14:43.5867783Z -rw-r--r--  1 runner runner    0 Oct 10 16:14 .gitkeep
+2025-10-10T16:14:43.5868364Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 batch_reports
+2025-10-10T16:14:43.5868897Z drwxr-xr-x  5 runner runner 4096 Oct 10 16:14 default
+2025-10-10T16:14:43.5869279Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 domain_stats
+2025-10-10T16:14:43.5869860Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 education
+2025-10-10T16:14:43.5870514Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 execution_logs
+2025-10-10T16:14:43.5871098Z -rw-r--r--  1 runner runner  268 Oct 10 16:14 execution_start.json
+2025-10-10T16:14:43.5871511Z -rw-r--r--  1 runner runner  409 Oct 10 16:14 feedback_config.json
+2025-10-10T16:14:43.5871930Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 feedback_responses
+2025-10-10T16:14:43.5872318Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 finance
+2025-10-10T16:14:43.5872681Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 government
+2025-10-10T16:14:43.5873039Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 healthcare
+2025-10-10T16:14:43.5873399Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 industry
+2025-10-10T16:14:43.5873765Z -rw-r--r--  1 runner runner  142 Oct 10 16:14 rate_limits.json
+2025-10-10T16:14:43.5874149Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 reply_tracking
+2025-10-10T16:14:43.5874519Z drwxr-xr-x  6 runner runner 4096 Oct 10 16:14 technology
+2025-10-10T16:14:43.5874887Z -rw-r--r--  1 runner runner  302 Oct 10 16:14 unsubscribed.json
+2025-10-10T16:14:43.5875233Z Reports directory:
+2025-10-10T16:14:43.5880951Z total 8
+2025-10-10T16:14:43.5881230Z drwxr-xr-x  2 runner runner 4096 Oct 10 16:14 .
+2025-10-10T16:14:43.5881581Z drwxr-xr-x 13 runner runner 4096 Oct 10 16:14 ..
+2025-10-10T16:14:43.5921020Z ##[group]Run actions/upload-artifact@v4
+2025-10-10T16:14:43.5921503Z with:
+2025-10-10T16:14:43.5921762Z   name: campaign-execution-logs-18412045681
+2025-10-10T16:14:43.5922116Z   path: **/*.log
+tracking/**/*
+reports/**/*
+
+2025-10-10T16:14:43.5922423Z   retention-days: 30
+2025-10-10T16:14:43.5922699Z   if-no-files-found: warn
+2025-10-10T16:14:43.5922971Z   compression-level: 6
+2025-10-10T16:14:43.5923222Z   overwrite: false
+2025-10-10T16:14:43.5923469Z   include-hidden-files: false
+2025-10-10T16:14:43.5923730Z env:
+2025-10-10T16:14:43.5923955Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:43.5924311Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:43.5924562Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:43.5924809Z   PRODUCTION_MODE: true
+2025-10-10T16:14:43.5925060Z   TRACKING_DIR: tracking
+2025-10-10T16:14:43.5925319Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:43.5925613Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:43.5925896Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:43.5926179Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:43.5926512Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5926960Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:43.5927391Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5927786Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5928175Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:43.5928826Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:43.5929221Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:43.5929565Z   MODE_TEXT: QUEUE (Create Email Files)
+2025-10-10T16:14:43.5929858Z   EXECUTION_STATUS: 0
+2025-10-10T16:14:43.5930099Z   SUCCESS_INDICATORS: 4
+2025-10-10T16:14:43.5930354Z   LOG_FILE: campaign_execution.log
+2025-10-10T16:14:43.5930630Z ##[endgroup]
+2025-10-10T16:14:43.8408522Z With the provided path, there will be 13 files uploaded
+2025-10-10T16:14:43.8413289Z Artifact name is valid!
+2025-10-10T16:14:43.8414388Z Root directory input is valid!
+2025-10-10T16:14:43.9642009Z Beginning upload of artifact content to blob storage
+2025-10-10T16:14:44.1773566Z Uploaded bytes 8673
+2025-10-10T16:14:44.2290163Z Finished uploading artifact content to blob storage!
+2025-10-10T16:14:44.2293682Z SHA256 digest of uploaded artifact zip is 7d96d74e85410c6c30eae1a3bdb1ce34d856310231210618dedcd376465c7029
+2025-10-10T16:14:44.2295652Z Finalizing artifact upload
+2025-10-10T16:14:44.3301495Z Artifact campaign-execution-logs-18412045681.zip successfully finalized. Artifact ID 4239158803
+2025-10-10T16:14:44.3303196Z Artifact campaign-execution-logs-18412045681 has been successfully uploaded! Final size is 8673 bytes. Artifact ID is 4239158803
+2025-10-10T16:14:44.3309719Z Artifact download URL: https://github.com/sednabcn/services/actions/runs/18412045681/artifacts/4239158803
+2025-10-10T16:14:44.3423818Z ##[group]Run # Read values with safe defaults
+2025-10-10T16:14:44.3424222Z [36;1m# Read values with safe defaults[0m
+2025-10-10T16:14:44.3424566Z [36;1mMODE="QUEUE (Create Email Files)"[0m
+2025-10-10T16:14:44.3424884Z [36;1mMODE="${MODE:-Unknown Mode}"[0m
+2025-10-10T16:14:44.3425163Z [36;1m[0m
+2025-10-10T16:14:44.3425399Z [36;1mSTATUS="0"[0m
+2025-10-10T16:14:44.3425648Z [36;1mSTATUS="${STATUS:-1}"[0m
+2025-10-10T16:14:44.3425910Z [36;1m[0m
+2025-10-10T16:14:44.3426131Z [36;1mINDICATORS="4"[0m
+2025-10-10T16:14:44.3426398Z [36;1mINDICATORS="${INDICATORS:-0}"[0m
+2025-10-10T16:14:44.3426702Z [36;1m[0m
+2025-10-10T16:14:44.3427001Z [36;1m# Convert status to readable form[0m
+2025-10-10T16:14:44.3427328Z [36;1mif [ "$STATUS" = "0" ]; then[0m
+2025-10-10T16:14:44.3427618Z [36;1m   STATUS_TEXT="SUCCESS"[0m
+2025-10-10T16:14:44.3427892Z [36;1melse[0m
+2025-10-10T16:14:44.3428130Z [36;1m   STATUS_TEXT="ISSUES DETECTED"[0m
+2025-10-10T16:14:44.3428751Z [36;1mfi[0m
+2025-10-10T16:14:44.3429096Z [36;1m[0m
+2025-10-10T16:14:44.3429427Z [36;1mecho "### Enhanced Campaign Execution Summary" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3430057Z [36;1mecho "" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3430428Z [36;1mecho "**Status:** $STATUS_TEXT" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3430814Z [36;1mecho "**Mode:** $MODE" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3431220Z [36;1mecho "**Success Score:** $INDICATORS/5" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3431621Z [36;1mecho "**Contacts:** 17" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3431977Z [36;1mecho "**Templates:** 3" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3432380Z [36;1mecho "**Replies:** 0 (Feedback: 0.0%)" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3433068Z [36;1mecho "**Enhanced Features:** Template processing, feedback injection, reply tracking, multi-source data loading" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3433731Z [36;1mecho "**Real Data:** true" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3466506Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:44.3466779Z env:
+2025-10-10T16:14:44.3467036Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:44.3467405Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:44.3467717Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:44.3467973Z   PRODUCTION_MODE: true
+2025-10-10T16:14:44.3468448Z   TRACKING_DIR: tracking
+2025-10-10T16:14:44.3468912Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:44.3469402Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:44.3469844Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:44.3470234Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:44.3470751Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:44.3471454Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:44.3472164Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:44.3472851Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:44.3473532Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:44.3474218Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:44.3474891Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:44.3475476Z   MODE_TEXT: QUEUE (Create Email Files)
+2025-10-10T16:14:44.3475959Z   EXECUTION_STATUS: 0
+2025-10-10T16:14:44.3476372Z   SUCCESS_INDICATORS: 4
+2025-10-10T16:14:44.3476805Z   LOG_FILE: campaign_execution.log
+2025-10-10T16:14:44.3477262Z ##[endgroup]
+2025-10-10T16:14:44.3586161Z ##[group]Run echo "### Campaign Execution Results" >> $GITHUB_STEP_SUMMARY
+2025-10-10T16:14:44.3586939Z [36;1mecho "### Campaign Execution Results" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3587581Z [36;1mecho "" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3588185Z [36;1mecho "**Emails Queued:** true" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3589147Z [36;1mecho "**Batch Directory:** email_batch_20251010_161442" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3589927Z [36;1mecho "**Mode:** Queue" >> $GITHUB_STEP_SUMMARY[0m
+2025-10-10T16:14:44.3625758Z shell: /usr/bin/bash -e {0}
+2025-10-10T16:14:44.3626202Z env:
+2025-10-10T16:14:44.3626593Z   ALERT_EMAIL: alerts@modelphysmat.com
+2025-10-10T16:14:44.3627214Z   FEEDBACK_EMAIL: ***
+2025-10-10T16:14:44.3627640Z   PYTHON_VERSION: 3.11
+2025-10-10T16:14:44.3627957Z   PRODUCTION_MODE: true
+2025-10-10T16:14:44.3628381Z   TRACKING_DIR: tracking
+2025-10-10T16:14:44.3628704Z   SCHEDULED_DIR: scheduled-campaigns
+2025-10-10T16:14:44.3629051Z   TEMPLATES_DIR: campaign-templates
+2025-10-10T16:14:44.3629338Z   CONTACTS_DIR: contacts
+2025-10-10T16:14:44.3629597Z   FORCE_IMMEDIATE_SEND: true
+2025-10-10T16:14:44.3630002Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:44.3630463Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib/pkgconfig
+2025-10-10T16:14:44.3630926Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:44.3631330Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:44.3631730Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.13/x64
+2025-10-10T16:14:44.3632319Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.13/x64/lib
+2025-10-10T16:14:44.3632723Z   GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_svc.json
+2025-10-10T16:14:44.3633063Z   MODE_TEXT: QUEUE (Create Email Files)
+2025-10-10T16:14:44.3633362Z   EXECUTION_STATUS: 0
+2025-10-10T16:14:44.3633614Z   SUCCESS_INDICATORS: 4
+2025-10-10T16:14:44.3633877Z   LOG_FILE: campaign_execution.log
+2025-10-10T16:14:44.3634247Z ##[endgroup]
+2025-10-10T16:14:44.3730882Z Post job cleanup.
+2025-10-10T16:14:44.5200277Z Cache hit occurred on the primary key setup-python-Linux-24.04-Ubuntu-python-3.11.13-pip-c80903bf1241d08be2427b1f1bf80294abd0502ad51eabb583841695e89ba76d, not saving cache.
+2025-10-10T16:14:44.5326366Z Post job cleanup.
+2025-10-10T16:14:44.6257495Z [command]/usr/bin/git version
+2025-10-10T16:14:44.6293217Z git version 2.51.0
+2025-10-10T16:14:44.6337497Z Temporarily overriding HOME='/home/runner/work/_temp/af211006-7b3b-4f22-8c33-04f8cb503047' before making global git config changes
+2025-10-10T16:14:44.6339266Z Adding repository directory to the temporary git global config as a safe directory
+2025-10-10T16:14:44.6351269Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/services/services
+2025-10-10T16:14:44.6385848Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-10-10T16:14:44.6418522Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-10-10T16:14:44.6647881Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-10-10T16:14:44.6668561Z http.https://github.com/.extraheader
+2025-10-10T16:14:44.6681091Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2025-10-10T16:14:44.6711773Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-10-10T16:14:44.7029469Z Evaluate and set job outputs
+2025-10-10T16:14:44.7034121Z Set output 'emails_queued'
+2025-10-10T16:14:44.7035833Z Set output 'batch_directory'
+2025-10-10T16:14:44.7037014Z Cleaning up orphan processes
+
