@@ -69,7 +69,7 @@ jobs:
                   continue;
                 }
 
-                if (isFailed || (DELETE_OLD_EVEN_IF_SUCCESSFUL && isOld)) {
+                if (isOld && (isFailed || DELETE_OLD_EVEN_IF_SUCCESSFUL)) {
                   runsToDelete.push(run);
                 }
               }
