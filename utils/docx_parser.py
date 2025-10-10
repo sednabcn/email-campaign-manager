@@ -1718,6 +1718,13 @@ if __name__ == "__main__":
     parser.add_argument('--per-domain-limit', type=int, default=0, help='Per domain send limit')
     parser.add_argument('--suppression-file', type=str, help='Path to suppression list JSON')
 
+
+    parser = argparse.ArgumentParser(description="DOCX Parser for campaigns")
+    parser.add_argument("--contacts", type=str, help="Path to contacts directory")
+    parser.add_argument("--scheduled", type=str, help="Path to scheduled campaigns")
+    parser.add_argument("--tracking", type=str, help="Path to tracking directory")
+    parser.add_argument("--alerts", type=str, help="Alert email")
+    parser.add_argument("--feedback", type=str, help="Feedback email or directory")
     
     print("Parsing arguments...")
     args = parser.parse_args()
