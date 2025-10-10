@@ -3,7 +3,7 @@ name: Security Cleanup
 
 on:
   push:
-    branches: ["dev", "main", "master"]
+    branches: ["dev","master"]
 
   workflow_call:
 

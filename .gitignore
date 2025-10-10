@@ -2,3 +2,7 @@
 appengine-generated/
 docs-old/
 .env
+# Emacs backup files
+*~
+\#*\#
+.\#*

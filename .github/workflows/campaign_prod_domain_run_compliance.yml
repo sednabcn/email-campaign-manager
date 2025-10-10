@@ -2,7 +2,7 @@ name: Enhanced Production Email Campaign System with Compliance
 
 on:
   push:
-    branches: ["dev", "main", "master"]
+    branches: ["dev", "master"]
 
   workflow_dispatch:
     inputs:
