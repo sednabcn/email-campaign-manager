@@ -1,0 +1,169 @@
+name: Daily Clean CSV Files
+on:
+  push:
+    branches: ["dev", "master"]
+  schedule:
+    - cron: '30 08 * * *'  # Runs every day at 20:30 UTC
+jobs:
+  clean-csv:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for better merge handling
+          
+      - name: Keep only the latest CSV per list and remove temp files
+        run: |
+          echo "Cleaning CSV files in contacts/ directory..."
+          CLEANED_LISTS=""
+          FILES_DELETED=0
+          LISTS_NO_DELETION=""
+          TOTAL_LISTS=0
+          EXTRACTED_DELETED=0
+          TODAY=$(date +%Y%m%d)
+          SUMMARY_FILE="cleanup_summary_$TODAY.log"
+          echo "Cleanup summary for $TODAY:" > $SUMMARY_FILE
+          echo "" >> $SUMMARY_FILE
+          
+          # First: Remove ALL contacts_extracted files (these are temporary)
+          echo "Removing all temporary contacts_extracted files..."
+          EXTRACTED_FILES=$(find contacts -type f -name "contacts_extracted_*.csv" 2>/dev/null || true)
+          if [ -n "$EXTRACTED_FILES" ]; then
+            EXTRACTED_COUNT=$(echo "$EXTRACTED_FILES" | wc -l)
+            echo "$EXTRACTED_FILES" | while read -r file; do
+              if [ -n "$file" ] && [ -f "$file" ]; then
+                echo "  → Deleting temp file: $file"
+                rm -v "$file"
+              fi
+            done
+            EXTRACTED_DELETED=$EXTRACTED_COUNT
+            FILES_DELETED=$((FILES_DELETED + EXTRACTED_DELETED))
+            echo "- Temporary files: deleted $EXTRACTED_DELETED contacts_extracted files" >> $SUMMARY_FILE
+          else
+            echo "  → No contacts_extracted files found"
+            echo "- Temporary files: no contacts_extracted files to delete" >> $SUMMARY_FILE
+          fi
+          echo ""
+          
+          # Second: Process domain-specific files (edu_, health_, finance_, etc.)
+          # Find all CSVs ending with _contacts_TIMESTAMP.csv, exclude contacts_extracted
+          for prefix in $(find contacts -type f -name "*_contacts_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9].csv" \
+            | grep -v "contacts_extracted" \
+            | sed -E 's/_contacts_[0-9]{8}_[0-9]{6}\.csv$//' \
+            | sort -u); do
+            
+            TOTAL_LISTS=$((TOTAL_LISTS + 1))
+            BASENAME=$(basename "$prefix")
+            echo "Processing domain list: $BASENAME"
+            
+            # Get all files for this prefix, newest first (by modification time)
+            FILES=$(ls -t ${prefix}_contacts_*.csv 2>/dev/null || true)
+            COUNT=$(echo "$FILES" | grep -c . || echo "0")
+            
+            if [ "$COUNT" -lt 2 ]; then
+              echo "  → Only $COUNT file(s) found, nothing to delete."
+              echo "- $BASENAME: kept $COUNT, deleted 0 (no deletion needed)" >> $SUMMARY_FILE
+              LISTS_NO_DELETION="$LISTS_NO_DELETION $BASENAME"
+              continue
+            fi
+            
+            echo "  → $COUNT files found, keeping the newest and deleting the rest..."
+            NEWEST_FILE=$(echo "$FILES" | head -n 1)
+            echo "  → Keeping: $NEWEST_FILE"
+            
+            KEPT=1
+            DELETED=$((COUNT - 1))
+            
+            # Delete all but the newest file
+            echo "$FILES" | tail -n +2 | while read -r file; do
+              if [ -n "$file" ] && [ -f "$file" ]; then
+                echo "  → Deleting: $file"
+                rm -v "$file"
+              fi
+            done
+            
+            FILES_DELETED=$((FILES_DELETED + DELETED))
+            CLEANED_LISTS="$CLEANED_LISTS $BASENAME"
+            echo "- $BASENAME: kept $KEPT, deleted $DELETED" >> $SUMMARY_FILE
+          done
+          
+          # Prepend a short summary at the top of the file
+          TEMP_FILE="temp_$SUMMARY_FILE"
+          {
+            echo "Daily CSV Cleanup Report for $TODAY"
+            echo "-----------------------------------"
+            echo "Total domain lists processed: $TOTAL_LISTS"
+            echo "Total files deleted: $FILES_DELETED"
+            echo "Temporary contacts_extracted deleted: $EXTRACTED_DELETED"
+            echo "Domain lists with no deletion: ${LISTS_NO_DELETION:-None}"
+            echo ""
+            cat $SUMMARY_FILE
+          } > $TEMP_FILE
+          mv $TEMP_FILE $SUMMARY_FILE
+          
+          # Export environment variables for later steps
+          echo "CLEANED_LISTS=$CLEANED_LISTS" >> $GITHUB_ENV
+          echo "SUMMARY_FILE=$SUMMARY_FILE" >> $GITHUB_ENV
+          echo "FILES_DELETED=$FILES_DELETED" >> $GITHUB_ENV
+          echo "TODAY=$TODAY" >> $GITHUB_ENV
+          
+          echo ""
+          cat $SUMMARY_FILE
+          echo ""
+          
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          
+          if [ "${FILES_DELETED}" -gt 0 ]; then
+            # Add any remaining CSV files and the summary
+            git add contacts/ || echo "No CSV changes to commit"
+            git add $SUMMARY_FILE || echo "No summary to add"
+            
+            if ! git diff --cached --quiet; then
+              git commit -m "Daily cleanup $TODAY: cleaned lists:${CLEANED_LISTS}" || echo "No changes to commit"
+              
+              # Pull with rebase to handle any remote changes, then push
+              MAX_RETRIES=3
+              RETRY_COUNT=0
+              
+              while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                echo "Attempting to push (attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)..."
+                
+                # Pull with rebase strategy to integrate remote changes
+                git pull --rebase origin $(git branch --show-current) || {
+                  echo "Pull failed, attempting to continue rebase..."
+                  git rebase --continue || git rebase --skip || true
+                }
+                
+                # Try to push
+                if git push; then
+                  echo "Successfully pushed changes!"
+                  break
+                else
+                  echo "Push failed, retrying..."
+                  RETRY_COUNT=$((RETRY_COUNT + 1))
+                  
+                  if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                    echo "Failed to push after $MAX_RETRIES attempts"
+                    exit 1
+                  fi
+                  
+                  sleep 2
+                fi
+              done
+            else
+              echo "No changes to commit after cleanup."
+            fi
+          else
+            echo "No files deleted today. Skipping commit and push."
+          fi
+          
+      - name: Upload cleanup summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-summary-${{ github.run_id }}-${{ env.TODAY }}
+          path: ${{ env.SUMMARY_FILE }}
+          retention-days: 7
