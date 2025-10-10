@@ -1,0 +1,26 @@
+{
+  "_comment": "Minimal compliance configuration for automated outreach",
+
+  "sender_info": {
+    "from_name": "Ruperto Pedro Bonet Chaple",
+    "from_email": "ruperto.bonet@gmail.com",
+    "reply_to": "feedback@modelphysmat.com",
+      "physical_address": "26 Spenlow House, Jamaica Road, London, UK, SE16 4SJ"
+  },
+
+  "unsubscribe": {
+    "base_url": "https://sednabcn.github.io/unsubscribe"
+  },
+
+  "rate_limits": {
+    "max_daily_sends": 50,
+    "max_per_domain_daily": 5,
+    "min_delay_seconds": 30
+  },
+
+  "compliance": {
+    "add_unsubscribe_footer": true,
+    "add_physical_address": true,
+    "add_list_unsubscribe_header": true
+  }
+}

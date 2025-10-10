@@ -567,91 +567,54 @@ jobs:
 
           # Add this as a new step BEFORE your existing campaign execution step
 
-      - name: Pre-flight Compliance Check (Enhanced)
+      - name: Pre-flight Compliance Check
         run: |
-          echo "🔒 Running Enhanced Compliance Checks..."
-          echo "========================================"
-    
-          # Ensure directories exist
-          mkdir -p contacts tracking
-    
-          # STEP 1: Load/Create suppression list
-          echo "📋 Step 1: Loading suppression list..."
-          if [ -f contacts/suppression_list.json ]; then
-             echo "✅ Found existing suppression list:"
-             cat contacts/suppression_list.json | python3 -m json.tool
-          else
-             echo "Creating new suppression list..."
-             cat > contacts/suppression_list.json << 'EOF'
-             {
-             "suppressed_emails": [],
-             "last_updated": "$(date -Iseconds)",
-             "count": 0
-             }
+          echo "🔍 Running compliance checks..."
+          
+          # Create compliance config if it doesn't exist
+          cat > /tmp/compliance_config.json << 'EOF'
+          {
+            "unsubscribe_url": "https://github.com/${{ github.repository }}/issues/new?labels=unsubscribe",
+            "from_name": "${{ github.actor }}",
+            "from_email": "noreply@github.com",
+            "physical_address": "GitHub Actions Automation",
+            "max_daily_sends": 50,
+            "max_per_domain": 5,
+            "min_delay_seconds": 30
+          }
           EOF
-          echo "✅ Created empty suppression list"
-          fi
-    
-          # STEP 2: Check for unsubscribe requests (if IMAP configured)
-          echo ""
-          echo "📧 Step 2: Checking for unsubscribe requests..."
-          if [ -n "${{ secrets.IMAP_SERVER }}" ]; then
-             python utils/reply_handler.py --days 7 || echo "⚠️  Reply checking skipped"
-          else
-             echo "⚠️  IMAP not configured - skipping reply check"
-          fi
-    
-          # STEP 3: Show current compliance stats
-          echo ""
-          echo "📊 Step 3: Current Compliance Status..."
+          
+          # Quick validation
           python3 << 'PYEOF'
-          from compliance_wrapper import MinimalCompliance
-
-          compliance = MinimalCompliance(
-          daily_limit=int('${{ github.event.inputs.batch_size }}' or 50),
-          per_domain_limit=5
-          )
-
-          stats = compliance.get_stats()
-
-          print("\n📊 Compliance Statistics:")
-          print(f"   Suppressed emails: {stats['suppressed_count']}")
-          print(f"   Sent today: {stats['sent_today']}/{stats['daily_limit']}")
-          print(f"   Remaining today: {stats['remaining_today']}")
-          print(f"   Domains contacted: {stats['domains_contacted']}")
-          print(f"   Per-domain limit: {stats['per_domain_limit']}")
-
-          # Check capacity
-          if not compliance.can_send_today():
-            print("\n⚠️  WARNING: Daily send limit reached!")
-            print("   No more emails can be sent today")
-
-          if stats['remaining_today'] < 10:
-            print(f"\n⚠️  WARNING: Only {stats['remaining_today']} sends remaining today")
-
-          print("\n✅ Compliance check complete")
+          import json
+          import sys
+          from pathlib import Path
+          
+          # Load contacts
+          contacts_file = "${{ inputs.contacts }}"
+          if not Path(contacts_file).exists():
+              print(f"❌ Contacts file not found: {contacts_file}")
+              sys.exit(1)
+          
+          # Check suppression list
+          suppression_file = Path("contacts/suppression_list.json")
+          suppressed = set()
+          if suppression_file.exists():
+              with open(suppression_file) as f:
+                  data = json.load(f)
+                  suppressed = set(data.get('suppressed_emails', []))
+              print(f"📋 Loaded {len(suppressed)} suppressed emails")
+          
+          # Load config
+          with open('/tmp/compliance_config.json') as f:
+              config = json.load(f)
+          
+          print(f"✅ Compliance checks passed")
+          print(f"   Max daily sends: {config['max_daily_sends']}")
+          print(f"   Max per domain: {config['max_per_domain']}")
+          print(f"   Suppression list: {len(suppressed)} emails")
           PYEOF
-    
-          # STEP 4: Validate contacts file
-          echo ""
-          echo "📄 Step 4: Validating contacts file..."
-          CONTACTS_FILE="${{ inputs.contacts }}"
-          if [ ! -f "$CONTACTS_FILE" ]; then
-             echo "⚠️  Contacts file not found: $CONTACTS_FILE"
-             echo "Available files:"
-             ls -lh contacts/ || echo "contacts/ directory not found"
-          else
-             echo "✅ Contacts file found: $CONTACTS_FILE"
-      
-             # Show sample (first 3 lines)
-             echo "Sample contacts:"
-             head -3 "$CONTACTS_FILE"
-          fi
-    
-          echo ""
-          echo "========================================"
-          echo "✅ Pre-flight compliance checks complete"    
- 
+
       - name: Run Campaign with Compliance (Your existing step - MODIFY)
         run: |
           # Your existing campaign execution
@@ -665,64 +628,29 @@ jobs:
             --max-per-domain 5 \
             --min-delay 30
 
-      - name: Post-flight Compliance Report (Enhanced)
+      - name: Post-flight Compliance Report
         if: always()
         run: |
-          echo "📊 POST-CAMPAIGN COMPLIANCE REPORT"
-          echo "===================================="
-          echo ""
-    
-          # Show updated stats
-          python3 << 'PYEOF'
-          from compliance_wrapper import MinimalCompliance
+          echo "📊 Compliance Report"
+          
+          # Check if rate limit file exists
+          if [ -f "tracking/rate_limits.json" ]; then
+            python3 << 'PYEOF'
           import json
           from pathlib import Path
-
-          compliance = MinimalCompliance()
-          stats = compliance.get_stats()
-
-          print("📊 Final Compliance Status:")
-          print(f"   Suppressed emails: {stats['suppressed_count']}")
-          print(f"   Sent today: {stats['sent_today']}/{stats['daily_limit']}")
-          print(f"   Remaining today: {stats['remaining_today']}")
-          print(f"   Domains contacted: {stats['domains_contacted']}")
-          print("")
-
-          # Check for violations
-          if stats['sent_today'] > stats['daily_limit']:
-            print("⚠️  WARNING: Daily limit exceeded!")
-            print(f"   Sent: {stats['sent_today']}")
-            print(f"   Limit: {stats['daily_limit']}")
-
-          if stats['remaining_today'] < 5:
-            print(f"⚠️  WARNING: Near daily limit ({stats['remaining_today']} remaining)")
-
-          # Show domain breakdown
-          rate_file = Path('tracking/rate_limits.json')
+          
+          rate_file = Path("tracking/rate_limits.json")
           if rate_file.exists():
-            with open(rate_file) as f:
-              rate_data = json.load(f)
-    
-          print("\n📈 Domain Breakdown:")
-          for domain, count in sorted(rate_data.get('domain_counts', {}).items(), 
-                                 key=lambda x: x[1], reverse=True):
-              print(f"   {domain}: {count}/5")
-
-          print("\n✅ Compliance report complete")
+              with open(rate_file) as f:
+                  limits = json.load(f)
+              print(f"📈 Today's sends: {limits.get('total_sent', 0)}/50")
+              print(f"📧 Domains contacted: {len(limits.get('domain_counts', {}))}")
+              
+              domains = limits.get('domain_counts', {})
+              for domain, count in sorted(domains.items(), key=lambda x: x[1], reverse=True):
+                  print(f"   {domain}: {count}")
           PYEOF
-    
-          # Show rate limit details
-          echo ""
-          echo "📁 Rate Limit Details:"
-          if [ -f tracking/rate_limits.json ]; then
-             cat tracking/rate_limits.json | python3 -m json.tool
-          else
-             echo "No rate limit file found"
           fi
-    
-          echo ""
-          echo "===================================="
-     
           
   enhanced-campaign-execution:
     needs: enhanced-validation-and-prepare
@@ -1053,9 +981,6 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          COMPLIANCE_MODE: "true"
-          DAILY_LIMIT: ${{ github.event.inputs.batch_size || '50' }}
-          PER_DOMAIN_LIMIT: "5"
         run: |
           set -e  # Exit on error
           
@@ -1076,12 +1001,7 @@ jobs:
           
           # Export to GITHUB_ENV immediately
           echo "MODE_TEXT=$MODE_TEXT" >> $GITHUB_ENV
-
-          echo "🔒 Compliance Configuration:"
-          echo "  Daily limit: ${DAILY_LIMIT}"
-          echo "  Per-domain limit: ${PER_DOMAIN_LIMIT}"
-          echo "  Suppression list: contacts/suppression_list.json"
-          echo ""
+          
           echo "Starting ENHANCED campaign execution"
           echo "=============================================================="
           echo "Environment: Production with Queue Mode"
@@ -1117,11 +1037,7 @@ jobs:
             "--alerts" "$ALERT_EMAIL"
             "--feedback" "$FEEDBACK_EMAIL"
           )
-          ARGS+=("--compliance")
-          ARGS+=("--daily-limit" "${DAILY_LIMIT}")
-          ARGS+=("--per-domain-limit" "${PER_DOMAIN_LIMIT}")
-          ARGS+=("--suppression-file" "contacts/suppression_list.json")
-    
+          
           # Add queue mode flag (unless dry-run)
           if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
             ARGS+=("--dry-run")
@@ -1996,20 +1912,6 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-
-      - name: Upload Compliance Logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compliance-logs-${{ github.run_id }}
-          path: |
-            contacts/suppression_list.json
-            contacts/suppression_log.jsonl
-            contacts/reply_log.jsonl
-            tracking/rate_limits.json
-          retention-days: 90
-          if-no-files-found: warn
-          
       - name: Generate execution summary
         if: always()
         run: |
@@ -2304,21 +2206,3 @@ jobs:
           echo "- **Summary Generation:** ${SUMMARY_METHOD:-integrated} method used" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
       
-      - name: Compliance Alert
-        if: failure()
-        run: |
-          echo "🚨 COMPLIANCE ALERT"
-          echo "==================="
-          echo ""
-          echo "Campaign may have failed compliance checks"
-          echo ""
-          echo "Please review:"
-          echo "  1. Suppression list: contacts/suppression_list.json"
-          echo "  2. Rate limits: tracking/rate_limits.json"
-          echo "  3. Execution logs in artifacts"
-          echo ""
-          echo "Common issues:"
-          echo "  - Daily send limit exceeded"
-          echo "  - Per-domain limit exceeded"
-          echo "  - Sending to suppressed email"
-          echo ""

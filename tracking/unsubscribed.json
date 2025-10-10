@@ -1,0 +1,7 @@
+{
+  "user@example.com": {
+    "campaigns": ["all"],
+    "unsubscribed_at": "2025-10-10T10:00:00",
+    "reason": "User request via form"
+  }
+}
