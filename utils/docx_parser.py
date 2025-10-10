@@ -1708,6 +1708,16 @@ if __name__ == "__main__":
     parser.add_argument("--comprehensive-tracking", action="store_true", help="Enable comprehensive tracking")
     parser.add_argument("--batch-size", type=int, default=50, help="Batch size for processing")
     parser.add_argument("--delay", type=int, default=5, help="Delay between batches")
+ 
+
+    parser = argparse.ArgumentParser(description="DOCX Parser")
+
+    # Add support for new arguments
+    parser.add_argument('--compliance', action='store_true', help='Enable compliance mode')
+    parser.add_argument('--daily-limit', type=int, default=0, help='Daily send limit')
+    parser.add_argument('--per-domain-limit', type=int, default=0, help='Per domain send limit')
+    parser.add_argument('--suppression-file', type=str, help='Path to suppression list JSON')
+
     
     print("Parsing arguments...")
     args = parser.parse_args()
