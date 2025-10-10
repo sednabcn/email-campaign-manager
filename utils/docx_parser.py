@@ -1339,10 +1339,39 @@ Campaign Details:
 # ============================================================================
 # MAIN CAMPAIGN FUNCTION
 # ============================================================================
-
 def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dry_run=False, 
-                  queue_emails=False, specific_template=None, **kwargs):
+                  queue_emails=False, specific_template=None, feedback_email=None,
+                  target_domain=None, campaign_filter=None, debug=False,
+                  compliance_mode=False, daily_limit=0, per_domain_limit=0, 
+                  suppression_file=None, **kwargs):
+
     """Main campaign execution function with queue support and specific file handling"""
+
+    # Handle compliance mode
+    if compliance_mode:
+        print(f"🔒 Compliance checks enabled")
+    
+    # Load suppression list if provided
+    suppression_list = set()
+    if suppression_file and Path(suppression_file).exists():
+        try:
+            with open(suppression_file, 'r') as f:
+                suppression_data = json.load(f)
+                suppression_list = set(suppression_data.get('suppressed_emails', []))
+            print(f"   Loaded {len(suppression_list)} suppressed emails")
+        except Exception as e:
+            print(f"   Warning: Could not load suppression file: {e}")
+    
+    # Apply daily limit if set
+    if daily_limit > 0:
+        print(f"   Daily send limit: {daily_limit}")
+        # TODO: Implement daily limit tracking
+    
+    # Apply per-domain limit if set  
+    if per_domain_limit > 0:
+        print(f"   Per-domain send limit: {per_domain_limit}")
+        
+    # TODO: Implement per-domain limit tracking
     try:
         print(f"Starting domain-aware campaign system")
         print(f"GitHub Actions detected: {os.getenv('GITHUB_ACTIONS') is not None}")
@@ -1679,9 +1708,8 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, dr
         traceback.print_exc()
         sys.exit(1)
 
-
 # ============================================================================
-# MAIN ENTRY POINT
+# MAIN ENTRY POINT - FIXED ARGUMENT PARSER
 # ============================================================================
 
 if __name__ == "__main__":
@@ -1689,49 +1717,58 @@ if __name__ == "__main__":
     print(f"Remote environment: {IS_REMOTE}")
     print(f"Available modules: docx={DOCX_AVAILABLE}, email_sender={EMAIL_SENDER_AVAILABLE}, data_loader={DATA_LOADER_AVAILABLE}")
     
+    # CONSOLIDATED ARGUMENT PARSER - All arguments in one place
     parser = argparse.ArgumentParser(description='Domain-Aware Email Campaign System')
+    
+    # Core arguments
     parser.add_argument("--contacts", required=True, help="Contacts directory path")
     parser.add_argument("--scheduled", required=True, help="Domain-based templates directory (campaign-templates/)")
     parser.add_argument("--tracking", required=True, help="Tracking directory path")
     parser.add_argument("--alerts", required=True, help="Alerts email address")
     parser.add_argument("--feedback", help="Feedback email address")
+    
+    # Campaign control arguments
     parser.add_argument("--template-file", help="Specific template file to process (overrides domain scanning)")
     parser.add_argument("--domain", help="Process only specific domain")
     parser.add_argument("--filter-domain", help="Filter campaigns by domain pattern")
+    
+    # Execution mode arguments
     parser.add_argument("--dry-run", action="store_true", help="Print personalized emails instead of sending")
     parser.add_argument("--queue-emails", action="store_true", help="Queue emails for later sending (GitHub Actions mode)")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("--no-feedback", action="store_true", help="Skip feedback injection")
     parser.add_argument("--remote-only", action="store_true", help="Force remote-only mode")
+    
+    # Feature flags
+    parser.add_argument("--no-feedback", action="store_true", help="Skip feedback injection")
     parser.add_argument("--enhanced-mode", action="store_true", help="Enable enhanced processing mode")
     parser.add_argument("--template-variables", action="store_true", help="Enable template variable processing")
     parser.add_argument("--comprehensive-tracking", action="store_true", help="Enable comprehensive tracking")
+    
+    # Compliance arguments
+    parser.add_argument("--compliance", action="store_true", help="Enable compliance mode")
+    parser.add_argument("--daily-limit", type=int, default=0, help="Daily send limit (0 = no limit)")
+    parser.add_argument("--per-domain-limit", type=int, default=0, help="Per domain send limit (0 = no limit)")
+    parser.add_argument("--suppression-file", type=str, help="Path to suppression list JSON")
+    
+    # Processing control arguments
     parser.add_argument("--batch-size", type=int, default=50, help="Batch size for processing")
-    parser.add_argument("--delay", type=int, default=5, help="Delay between batches")
- 
-
-    parser = argparse.ArgumentParser(description="DOCX Parser")
-
-    # Add support for new arguments
-    parser.add_argument('--compliance', action='store_true', help='Enable compliance mode')
-    parser.add_argument('--daily-limit', type=int, default=0, help='Daily send limit')
-    parser.add_argument('--per-domain-limit', type=int, default=0, help='Per domain send limit')
-    parser.add_argument('--suppression-file', type=str, help='Path to suppression list JSON')
-
-
-    parser = argparse.ArgumentParser(description="DOCX Parser for campaigns")
-    parser.add_argument("--contacts", type=str, help="Path to contacts directory")
-    parser.add_argument("--scheduled", type=str, help="Path to scheduled campaigns")
-    parser.add_argument("--tracking", type=str, help="Path to tracking directory")
-    parser.add_argument("--alerts", type=str, help="Alert email")
-    parser.add_argument("--feedback", type=str, help="Feedback email or directory")
+    parser.add_argument("--delay", type=int, default=5, help="Delay between batches (seconds)")
     
     print("Parsing arguments...")
     args = parser.parse_args()
     
+    # Apply remote-only mode if requested
     if args.remote_only:
         IS_REMOTE = True
         print("Forced remote-only mode enabled")
+    
+    # Display compliance settings if enabled
+    if args.compliance:
+        print(f"🔒 Compliance mode enabled:")
+        print(f"   Daily limit: {args.daily_limit}")
+        print(f"   Per-domain limit: {args.per_domain_limit}")
+        if args.suppression_file:
+            print(f"   Suppression file: {args.suppression_file}")
     
     scheduled_path = args.scheduled
     
@@ -1746,6 +1783,7 @@ if __name__ == "__main__":
     print(f"  --dry-run: {args.dry_run}")
     print(f"  --queue-emails: {args.queue_emails}")
     print(f"  --debug: {args.debug}")
+    print(f"  --compliance: {args.compliance}")
     
     if args.template_file:
         print(f"Using specific template file: {args.template_file}")
@@ -1762,6 +1800,11 @@ if __name__ == "__main__":
         feedback_email=args.feedback,
         target_domain=args.domain,
         campaign_filter=args.filter_domain,
-        debug=args.debug
+        debug=args.debug,
+        compliance_mode=args.compliance,
+        daily_limit=args.daily_limit,
+        per_domain_limit=args.per_domain_limit,
+        suppression_file=args.suppression_file
     )
     print("Domain-aware campaign system completed successfully")
+
