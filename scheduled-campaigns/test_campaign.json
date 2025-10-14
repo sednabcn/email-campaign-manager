@@ -18,12 +18,12 @@
   "reply_to": "feedback@modelphysmat.com",
   "subject": "Partnership Opportunity in Education",
   "contact_mapping": {
-    "Recipient Name": "name",
-    "Title / Position": "rank/title",
-    "Department / School": "position",
-    "University / Institution": "organization",
-    "Address or Campus, if needed": "address",
-    "Department Name": "position"
+    "Recipient Name": "Name",
+    "Title / Position": "Rank/Title",
+    "Department / School": "Position",
+    "University / Institution": "Organization",
+    "Address or Campus, if needed": "Address",
+    "Department Name": "Position"
   },
    "feedback": {
     "email": "feedback@modelphysmat.com",

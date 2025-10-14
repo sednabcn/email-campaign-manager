@@ -613,7 +613,12 @@ try:
                     if value and str(value).lower() not in ['nan', 'none', '']:
                         placeholder_pattern = f'[{template_placeholder}]'
                         result = result.replace(placeholder_pattern, str(value))
-            
+                # DEBUG: Print what's happening
+                print(f"\n🔍 DEBUG substitute_variables:")
+                print(f"   Contact fields: {list(contact.keys())}")
+                print(f"   Contact mapping: {contact_mapping}")
+                print(f"   Sample values: {dict(list(contact.items())[:3])}")
+                print(f"   Content sample: {content[:200]}")
             # Phase 2: Build variables dictionary for generic patterns
             if isinstance(contact, dict):
                 for key, value in contact.items():
@@ -2140,7 +2145,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                 skipped_unsub = 0
                 skipped_per_domain = 0
                 
-                for i, contact in enumerate(all_contacts):
+                for i, contact in enumerate(campaign_contacts):
                     email = contact.get('email', '').strip()
                     
                     # Check unsubscribe status
