@@ -224,11 +224,6 @@ def enhance_email_sender_with_unsubscribe():
         """Enhanced send_campaign with unsubscribe filtering and footer injection"""
         
         # Initialize unsubscribe manager if not exists
-        # Check unsubscribe for ALL modes (dry-run and live)
-        if hasattr(self, 'unsubscribe_manager'):
-            if self.unsubscribe_manager.is_unsubscribed(email, campaign_name):
-                print(f"  📛 Skipped {email} - unsubscribed")
-                continue
                
         # Filter out unsubscribed recipients
         filtered_recipients = []
