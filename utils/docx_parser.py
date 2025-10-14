@@ -1826,6 +1826,11 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                 processed_campaign_files.add(str(campaign_file))  # ← ADD THIS LINE
 
                 print(f"\n--- Campaign: {domain}/{campaign_name} ---")
+
+                # CREATE ISOLATION - ADD THESE LINES:
+                isolation = prepare_campaign_isolation(config, campaign_file)
+                print(f"  Campaign ID: {isolation['campaign_id']}")
+                
                 print(f"  Tracking: {isolation['tracking_dir']}")
                 print(f"  Archive: {isolation['archive_dir']}")
         
