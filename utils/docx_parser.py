@@ -1641,7 +1641,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                 
         if DATA_LOADER_AVAILABLE:
             print("Using professional data_loader module")
-            all_contacts = load_contacts_directory(contacts_root)
+            all_contacts = load_contacts_directory(contacts_to_load)
             if all_contacts:
                 stats, valid_contacts = validate_contact_data(all_contacts)
                 print(f"Contact validation stats:")
@@ -1650,7 +1650,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                 all_contacts = valid_contacts
         else:
             print("Using fallback contact loading")
-            all_contacts = fallback_load_contacts_from_directory(contacts_root)
+            all_contacts = fallback_load_contacts_from_directory(contacts_to_load)
         
         print(f"Total contacts loaded: {len(all_contacts)}\n")
         
