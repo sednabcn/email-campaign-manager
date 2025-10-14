@@ -864,6 +864,7 @@ except ImportError:
                         if email and '@' in email:
                             personalized_subject = self.substitute_variables(subject, recipient, contact_mapping=contact_mapping)
                             personalized_content = self.substitute_variables(content, recipient, contact_mapping=contact_mapping)
+
                             
                             save_email_to_queue(
                                 self.queue_batch_dir,
@@ -888,7 +889,15 @@ except ImportError:
                     if isinstance(recipient, dict):
                         personalized_subject = self.substitute_variables(subject, recipient, contact_mapping=contact_mapping)
                         personalized_content = self.substitute_variables(content, recipient, contact_mapping=contact_mapping)
-                        
+
+                        # ADD UNSUBSCRIBE FOOTER (fallback mode)
+                        if recipient.get('unsubscribe_link'):
+                            is_html = '<html' in content.lower() or '<body' in content.lower() or '<p>' in content.lower()
+                            personalized_content = add_unsubscribe_footer(
+                                personalized_content,
+                                recipient['unsubscribe_link'],
+                                is_html=is_html
+                            )
                         email = recipient.get('email', 'N/A')
                         name = recipient.get('name', 'N/A')
                         

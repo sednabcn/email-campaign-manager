@@ -21,7 +21,8 @@ def check_file(path, file_type="file"):
     else:
         return False, "❌ Not found"
 
-def validate_config(config_path):
+
+def validate_config(config_path, allow_env_vars=False, allow_missing_contacts=False):
     """Validate configuration file"""
     print("="*70)
     print("  Campaign Setup Validation")
@@ -64,41 +65,65 @@ def validate_config(config_path):
             print(f"   ✅ {description}: {config[field]}")
         else:
             print(f"   ❌ Missing {description}")
-            issues.append(f"Missing required field: {field}")
-    
-    # 4. Check contacts file
-    print("\n4. Contacts File:")
+
+            if allow_missing_contacts:
+                print(f"   ⚠️  Allowing missing contacts (CI/CD mode)")
+                warnings.append(f"Contacts not found but allowed: {contacts}")
+            else:
+                issues.append(f"Contacts path not found: {contacts}")
+                issues.append(f"Missing required field: {field}")
+
+    # 4. Check contacts file or directory
+    print("\n4. Contacts Source:")
     contacts = config.get('contacts', '')
     if contacts:
-        exists, msg = check_file(contacts, "csv")
-        print(f"   {msg}: {contacts}")
-        if not exists:
-            # For dynamically generated files, look for similar patterns
-            contact_dir = Path(contacts).parent
-            contact_pattern = Path(contacts).stem.rsplit('_', 2)[0] if '_2025' in contacts else Path(contacts).stem
-            
-            # Find similar files
-            similar_files = []
-            if contact_dir.exists():
-                similar_files = list(contact_dir.glob(f"{contact_pattern}*.csv"))
-            
-            if similar_files:
-                print(f"\n   ⚠️  Exact file not found, but similar files exist:")
-                latest_file = max(similar_files, key=lambda p: p.stat().st_mtime)
-                print(f"   📝 Latest matching file: {latest_file}")
-                warnings.append(f"Using latest file instead of configured: {latest_file}")
-            else:
-                issues.append(f"Contacts file not found: {contacts}")
+        contacts_path = Path(contacts)
+        
+        if contacts_path.exists():
+            if contacts_path.is_dir():
+                # Check for TXT or CSV files in directory
+                csv_files = list(contacts_path.glob("*.csv"))
+                txt_files = list(contacts_path.glob("*.txt"))
                 
-                # Suggest alternatives
-                csv_files = list(Path('contacts').glob('*.csv')) if Path('contacts').exists() else []
                 if csv_files:
-                    print("\n   Alternative CSV files found:")
-                    for csv_file in csv_files[:5]:
-                        print(f"     - {csv_file}")
+                    print(f"   ✅ Directory with {len(csv_files)} CSV file(s): {contacts}")
+                elif txt_files:
+                    print(f"   ✅ Directory with {len(txt_files)} TXT file(s): {contacts}")
+                    print(f"      (will be converted to CSV at runtime)")
+                else:
+                    print(f"   ❌ Directory exists but no contact files found: {contacts}")
+                    issues.append(f"No CSV or TXT files in contacts directory: {contacts}")
+            elif contacts_path.suffix.lower() == '.csv':
+                print(f"   ✅ CSV file exists: {contacts}")
+            elif contacts_path.suffix.lower() == '.txt':
+                print(f"   ✅ TXT file exists: {contacts}")
+                print(f"      (will be converted to CSV at runtime)")
+            else:
+                print(f"   ⚠️  Unexpected file type: {contacts}")
+                warnings.append(f"Contacts file has unexpected extension: {contacts_path.suffix}")
+        else:
+            # Path doesn't exist - try to find alternatives
+            print(f"   ❌ Path not found: {contacts}")
+            
+            contact_dir = contacts_path.parent
+            if contact_dir.exists():
+                # Look for any contact files in parent directory
+                csv_files = list(contact_dir.glob("*.csv"))
+                txt_files = list(contact_dir.glob("*.txt"))
+                
+                if csv_files or txt_files:
+                    print(f"\n   💡 Alternative contact files found in {contact_dir}:")
+                    for f in (csv_files + txt_files)[:5]:
+                        print(f"      - {f}")
+                    warnings.append(f"Contacts path not found, but alternatives exist in {contact_dir}")
+                else:
+                    issues.append(f"Contacts path not found and no alternatives: {contacts}")
+            else:
+                issues.append(f"Contacts path not found: {contacts}")
     else:
-        print("   ⚠️  No contacts file specified")
-        warnings.append("No contacts file specified")
+        print("   ⚠️  No contacts source specified")
+        warnings.append("No contacts source specified in config")
+    
     
     # 5. Check template files
     print("\n5. Template Files:")
@@ -228,6 +253,8 @@ def main():
                        help='Allow environment variable placeholders (e.g., ${SMTP_HOST})')
     parser.add_argument('--skip-contacts-check', action='store_true',
                        help='Skip strict contact file validation (useful for dynamic files)')
+    parser.add_argument('--allow-missing-contacts', action='store_true',
+                       help='Allow validation even if contacts not found (for CI/CD)')
     
     args = parser.parse_args()
     
@@ -237,8 +264,13 @@ def main():
         print("  python validate_campaign.py configs/campaign1.json")
         print("  python validate_campaign.py configs/campaign1.json --allow-env-vars --skip-contacts-check")
         sys.exit(1)
-    
-    success = validate_config(args.config_file)
+
+    success = validate_config(
+    args.config_file,
+    allow_env_vars=args.allow_env_vars,
+    allow_missing_contacts=args.allow_missing_contacts
+)
+ 
     
     print("\n" + "="*70)
     sys.exit(0 if success else 1)
