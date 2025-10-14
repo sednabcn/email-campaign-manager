@@ -6,7 +6,7 @@ on:
       contacts:
         description: 'Contacts CSV path (relative)'
         required: true
-        default: 'contact_details/'
+        default: 'contacts'
       template:
         description: 'Template DOCX path (relative)'
         required: true
