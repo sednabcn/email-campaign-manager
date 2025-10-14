@@ -1088,7 +1088,35 @@ jobs:
           echo "  2. Regenerate any empty or corrupted DOCX files"
           echo "  3. Ensure files are valid Microsoft Word documents"
           echo "  4. Consider using the DOCX validator script for detailed diagnostics"
-        
+
+
+      - name: Initialize Compliance System
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+          from datetime import datetime
+          
+          # Create directories
+          Path("contacts").mkdir(exist_ok=True)
+          Path("tracking").mkdir(exist_ok=True)
+          
+          # Initialize files
+          with open("contacts/suppression_list.json", 'w') as f:
+            json.dump({"suppressed_emails": [], "count": 0}, f)
+    
+          with open("tracking/rate_limits.json", 'w') as f:
+              json.dump({"daily_sent": 0, "last_reset": datetime.now().date().isoformat(), "domain_counts": {}}, f)
+    
+          with open("tracking/unsubscribed.json", 'w') as f:
+                json.dump({}, f)
+    
+          Path("contacts/suppression_log.jsonl").touch()
+          Path("contacts/reply_log.jsonl").touch()
+    
+          print("✅ Compliance files initialized")
+          EOF
+          
       - name: Enhanced campaign execution - QUEUE MODE
         id: execution
         env:

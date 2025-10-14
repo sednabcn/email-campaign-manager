@@ -1623,22 +1623,11 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
             print()
         
         # ===== LOAD CONTACTS =====
-        print("Loading contacts for validation...\n")
-        if DATA_LOADER_AVAILABLE:
-            all_contacts = load_contacts_directory(contacts_root)
-            if all_contacts:
-                stats, all_contacts = validate_contact_data(all_contacts)
-                original_contact_count = len(all_contacts)
-                print(f"✅ Loaded {original_contact_count} contacts globally for validation")
-            else:
-                print("⚠️  No contacts loaded globally")
-                original_contact_count = 0
-                all_contacts = []
-        else:
-            all_contacts = fallback_load_contacts_from_directory(contacts_root)
-            original_contact_count = len(all_contacts)
-            print(f"✅ Loaded {original_contact_count} contacts (fallback loader)")
-         # ===== APPLY COMPLIANCE FILTERS =====
+        print("⚠️  Global contact loading disabled - contacts loaded per-campaign\n")
+        # Track original contact count for logging (set to 0 since we load per-campaign)
+        original_contact_count = 0
+        all_contacts = []  # Empty list, contacts loaded per-campaign
+        # ===== APPLY COMPLIANCE FILTERS =====
         print("⚠️  Global compliance filtering disabled - applied per-campaign\n")      
         # ===== INITIALIZE EMAIL SYSTEM =====
         smtp_host = os.getenv('SMTP_HOST') or os.getenv('SMTP_SERVER')
