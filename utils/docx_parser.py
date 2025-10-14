@@ -1202,8 +1202,8 @@ def load_campaign_content(campaign_path):
         
     except Exception as e:
         print(f"  ❌ Error loading campaign content from {campaign_path}: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        import traceback as tb
+        tb.print_exc()
         return None
 
 
@@ -1814,17 +1814,33 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                 # ===== CRITICAL FIX: Load contacts specific to THIS campaign ONLY =====
                 contacts_path = config.get('contacts', contacts_root)
                 print(f"  📂 Loading contacts from: {contacts_path}")
-        
+
+
+
                 # ALWAYS reload contacts for each campaign - NEVER use global all_contacts
                 if DATA_LOADER_AVAILABLE:
                     campaign_contacts = load_contacts_directory(contacts_path)
                     if campaign_contacts:
                         stats, campaign_contacts = validate_contact_data(campaign_contacts)
                         print(f"    ✅ Loaded: {len(campaign_contacts)} valid contacts")
+                    else:
+                        print(f"    ⚠️ No contacts loaded from {contacts_path}")
+                        campaign_contacts = []
                 else:
                     campaign_contacts = fallback_load_contacts_from_directory(contacts_path)
-                    print(f"    ✅ Loaded: {len(campaign_contacts)} contacts")
-        
+                    if campaign_contacts:
+                        print(f"    ✅ Loaded: {len(campaign_contacts)} contacts")
+                    else:
+                        print(f"    ⚠️ No contacts loaded from {contacts_path}")
+                        campaign_contacts = []
+
+                # ===== VALIDATION: Ensure we have campaign-specific contacts =====
+                if not campaign_contacts:
+                    print(f"  ⚠️ No contacts loaded from {contacts_path} - SKIPPING")
+                    skipped_campaigns.append((domain, campaign_name, "No contacts found"))
+                    continue
+                
+               
                 # ===== VALIDATION: Ensure we have campaign-specific contacts =====
                 if not campaign_contacts:
                     print(f"  ⚠️  No contacts loaded from {contacts_path} - SKIPPING")
@@ -1834,7 +1850,14 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                 expected_subdir = os.path.basename(contacts_path)
                 print(f"  📍 Expected subdirectory: {expected_subdir}")
                 print(f"  📧 Campaign-specific contacts: {len(campaign_contacts)}")
-        
+
+                
+                # Debug: Show sample contact
+                if campaign_contacts and len(campaign_contacts) > 0:
+                    sample = campaign_contacts[0]
+                    print(f"  📋 Sample contact: {sample.get('email', 'NO EMAIL')} - {sample.get('name', 'NO NAME')}")
+                    print(f"  📋 Contact fields: {list(sample.keys())}")
+                
                 # ===== Apply compliance filters FOR THIS CAMPAIGN ONLY =====
                 original_count = len(campaign_contacts)
         
@@ -1897,18 +1920,32 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                 tracking_id = generate_tracking_id(domain, campaign_name, campaign_file.name)
         
                 # ===== CRITICAL: Use ONLY campaign_contacts, NEVER all_contacts =====
+               
                 contacts_with_ids = []
                 skipped_unsub = 0
-        
-                print(f"  🔄 Processing {len(campaign_contacts)} campaign-specific contacts...")
+
+                print(f"  📄 Processing {len(campaign_contacts)} campaign-specific contacts...")
+
+                if not campaign_contacts:
+                    print(f"  ⚠️ ERROR: campaign_contacts is empty before processing!")
+                    continue
+    
                 for i, contact in enumerate(campaign_contacts):  # <- CRITICAL: campaign_contacts
                     email = contact.get('email', '').strip()
-            
+                    
+                    if not email:
+                        print(f"    ⚠️ Skipping contact {i+1}: no email field")
+                        continue
+    
+                    if '@' not in email:
+                        print(f"    ⚠️ Skipping contact {i+1}: invalid email '{email}'")
+                        continue
+    
                     # Check unsubscribe (only in live mode, not dry-run)
                     if not dry_run and unsubscribe_manager.is_unsubscribed(email, campaign_name):
                         skipped_unsub += 1
                         continue
-            
+    
                     contact_copy = contact.copy()
                     contact_copy['recipient_id'] = f"{isolation['campaign_id']}_{i+1}"
                     contact_copy['campaign_id'] = campaign_name
@@ -1917,21 +1954,23 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                     contact_copy['unsubscribe_link'] = unsubscribe_manager.generate_unsubscribe_link(
                         email, campaign_name
                     )
-            
+    
                     contacts_with_ids.append(contact_copy)
-        
-                    if skipped_unsub > 0:
-                        print(f"  📛 Skipped {skipped_unsub} unsubscribed contacts")
-        
-                    if not contacts_with_ids:
-                        print(f"  ⚠️  No eligible contacts after all filtering - SKIPPING")
+
+                if skipped_unsub > 0:
+                    print(f"  🔕 Skipped {skipped_unsub} unsubscribed contacts")
+
+                if not contacts_with_ids:
+                        print(f"  ⚠️ No eligible contacts after all filtering - SKIPPING")
+                        print(f"     Original: {len(campaign_contacts)}, After filtering: {len(contacts_with_ids)}")
+                        skipped_campaigns.append((domain, campaign_name, "All contacts filtered out"))
                         continue
-        
-                    print(f"  ✅ Ready to send: {len(contacts_with_ids)} contacts")
-                    print(f"  📁 Source: {contacts_path}")
-        
-                    # Send campaign
-                    try:
+
+                print(f"  ✅ Ready to send: {len(contacts_with_ids)} contacts")
+                print(f"  📁 Source: {contacts_path}")
+                
+                # Send campaign
+                try:
                         campaign_result = emailer.send_campaign(
                             campaign_name=f"{domain}/{campaign_name}",
                             subject=subject,
@@ -2004,10 +2043,10 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                             if archive_success:
                                 print(f"  ✅ Contacts archived to {isolation['archive_dir']}")
         
-                    except Exception as e:
+                except Exception as e:
                         print(f"  ❌ Error processing campaign: {e}")
-                        import traceback
-                        traceback.print_exc()
+                        import traceback as tb
+                        tb.print_exc()
                         continue
 
         # ===== INITIALIZE TRACKING & LOGGING =====
@@ -2253,10 +2292,11 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
             print("  - github_actions_email_summary.json")
             print("  - campaign_summary_email.json")
             
-        elif GITHUB_ACTIONS_EMAIL_AVAILABLE and os.getenv('GITHUB_ACTIONS') and not dry_run:
+
+        elif hasattr(emailer, 'send_batch_summary') and os.getenv('GITHUB_ACTIONS') and not dry_run:
             emailer.send_batch_summary(campaigns_processed, total_emails_sent, total_failures, campaign_results)
             print("Campaign summary saved for GitHub Actions email delivery")
-            
+           
         elif not dry_run and not queue_emails and campaigns_processed > 0:
             send_summary_alert(emailer, campaigns_processed, total_emails_sent, total_failures, campaign_results)
         
@@ -2301,7 +2341,8 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
         
     except Exception as e:
         print(f"ERROR: {str(e)}")
-        traceback.print_exc()
+        import traceback as tb
+        tb.print_exc()
         sys.exit(1)
 
 
@@ -2439,8 +2480,8 @@ if __name__ == "__main__":
         
     except Exception as e:
         print(f"\n❌ Campaign execution failed: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        import traceback as tb
+        tb.print_exc()
         sys.exit(1)
 
 
