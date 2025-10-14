@@ -475,3 +475,21 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+    
+    parser = argparse.ArgumentParser(description='Integrated Email Campaign System Orchestrator')
+    parser.add_argument("--contacts", default="contacts", help="Contacts directory")
+    parser.add_argument("--scheduled", default="scheduled-campaigns", help="Scheduled campaigns directory") 
+    parser.add_argument("--tracking", default="tracking", help="Tracking directory")
+    parser.add_argument("--templates", default="campaign-templates", help="Templates directory")
+    parser.add_argument("--alerts", required=True, help="Alerts email address")
+    parser.add_argument("--dry-run", action="store_true", help="Run in dry-run mode")
+    parser.add_argument("--skip-validation", action="store_true", help="Skip initial validation")
+    parser.add_argument("--contacts-only", action="store_true", help="Only load and validate contacts")
+    parser.add_argument("--summary-only", action="store_true", help="Only generate summary from existing logs")
+    parser.add_argument("--force-continue", action="store_true", help="Continue even if validation fails")
+    
+    # Compliance arguments
+    parser.add_argument("--compliance", action="store_true", help="Enable compliance mode")
+    parser.add_argument("--daily-limit", type=int, default=50, help="Daily email send limit")
+    parser.add_argument("--per-domain-limit", type=int, default=5, help="Per-domain send limit")
+    parser.add_argument("--suppression-file", default="contacts/suppression_list.json", help="Path to suppression list")
