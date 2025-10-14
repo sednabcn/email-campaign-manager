@@ -12,6 +12,7 @@ import hashlib
 import base64
 from pathlib import Path
 import json
+import traceback
 
 # ============================================================================
 # UNSUBSCRIBE SYSTEM
@@ -1623,6 +1624,9 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
         
         # ===== LOAD CONTACTS =====
         print("⚠️  Global contact loading disabled - contacts loaded per-campaign\n")
+        # Track original contact count for logging (set to 0 since we load per-campaign)
+        original_contact_count = 0
+        all_contacts = []  # Empty list, contacts loaded per-campaign
         # ===== APPLY COMPLIANCE FILTERS =====
         print("⚠️  Global compliance filtering disabled - applied per-campaign\n")      
         # ===== INITIALIZE EMAIL SYSTEM =====
@@ -2005,8 +2009,8 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                         import traceback
                         traceback.print_exc()
                         continue
+
         # ===== INITIALIZE TRACKING & LOGGING =====
-         
         log_file = "dryrun.log" if dry_run else "campaign_execution.log"
         with open(log_file, 'w') as f:
             f.write("Domain-Aware Campaign Log\n")
@@ -2014,8 +2018,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
             f.write(f"Queue mode: {queue_emails}\n")
             f.write(f"Compliance mode: {compliance_mode}\n")
             f.write(f"Specific template: {specific_template if specific_template else 'None'}\n")
-            f.write(f"Total contacts loaded: {original_contact_count}\n")
-            f.write(f"Total contacts after filtering: {len(all_contacts)}\n")
+            # Note: Contacts loaded per-campaign, not globally
             f.write(f"Domains found: {len(domain_campaigns)}\n")
             f.write(f"Timestamp: {datetime.now().isoformat()}\n\n")
         
