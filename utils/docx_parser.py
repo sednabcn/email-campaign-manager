@@ -1547,7 +1547,17 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
     total_emails_queued = 0
     total_failures = 0
     campaign_results = []
+
+    # Run campaign manager first to convert TXT → CSV
+    print("🔄 Running campaign manager to prepare contacts...")
     
+    from campaign_manager import CampaignManager
+    manager = CampaignManager(workflow_root=scheduled_root)
+    manager.run()
+    
+    print("✅ Contact files prepared\n")
+    
+
     try:
         # ===== INITIALIZATION & STARTUP LOGGING =====
         print(f"Starting domain-aware campaign system")
