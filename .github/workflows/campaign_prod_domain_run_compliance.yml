@@ -128,13 +128,13 @@ jobs:
           python -c "import docx; print('python-docx verified')" || echo "Warning: python-docx import failed"
           python -c "import gspread; print('Google Sheets API verified')" || echo "Warning: Google Sheets API not available"
 
-      - name: Create enhanced directory structure with absolute paths
+      - name: Create enhanced directory structure
         run: |
           echo "Creating enhanced directory structure..."
-          
+    
           # Use absolute paths to avoid any path resolution issues
           WORK_DIR="$PWD"
-          
+    
           # Create all directories with absolute paths
           mkdir -p "$WORK_DIR/$TEMPLATES_DIR"
           mkdir -p "$WORK_DIR/$CONTACTS_DIR" 
@@ -142,31 +142,43 @@ jobs:
           mkdir -p "$WORK_DIR/$TRACKING_DIR"
           mkdir -p "$WORK_DIR/utils"
           mkdir -p "$WORK_DIR/reports"
-          
+    
+          # Create contacts_used with SAME structure as contacts/
+          mkdir -p "$WORK_DIR/contacts_used"/{csv,excel,docx,urls}
+          echo "✅ Created contacts_used/ with subdirectories: csv, excel, docx, urls"
+    
           # Create comprehensive tracking subdirectories
           mkdir -p "$WORK_DIR/$TRACKING_DIR"/{feedback_responses,domain_stats,execution_logs,batch_reports,reply_tracking}
           mkdir -p "$WORK_DIR/$TEMPLATES_DIR"/{education,finance,healthcare,industry,technology,government}
           mkdir -p "$WORK_DIR/$CONTACTS_DIR"/{csv,excel,docx,urls}
-          
+    
           echo "Enhanced directory structure created:"
           echo "  Working directory: $WORK_DIR"
           echo "  Templates: $WORK_DIR/$TEMPLATES_DIR"
           echo "  Contacts: $WORK_DIR/$CONTACTS_DIR"
+          echo "  Contacts Used: $WORK_DIR/contacts_used"
           echo "  Scheduled: $WORK_DIR/$SCHEDULED_DIR"
           echo "  Tracking: $WORK_DIR/$TRACKING_DIR"
-          
+    
           # Verify directories exist with detailed checking
-          for dir in "$TEMPLATES_DIR" "$CONTACTS_DIR" "$SCHEDULED_DIR" "$TRACKING_DIR" "utils" "reports"; do
-            if [ -d "$WORK_DIR/$dir" ]; then
-              echo "✅ $dir directory created successfully"
-            else
-              echo "❌ Failed to create $dir directory"
-              exit 1
-            fi
+          for dir in "$TEMPLATES_DIR" "$CONTACTS_DIR" "contacts_used" "$SCHEDULED_DIR" "$TRACKING_DIR" "utils" "reports"; do
+                    if [ -d "$WORK_DIR/$dir" ]; then
+                           echo "✅ $dir directory created successfully"
+                    else
+                           echo "❌ Failed to create $dir directory"
+                           exit 1
+                    fi
           done
-
+    
+          # Verify subdirectories
+          echo ""
+          echo "Verifying contacts_used/ structure:"
+          ls -la contacts_used/
+    
       - name: Ensure test data exists for validation
+        if: github.event.inputs.dry_run == 'true' || github.event_name == 'schedule'
         run: |
+          echo "Creating test data for validation (dry-run/scheduled only)..."
           echo "Ensuring test data exists before validation..."
           CONTACTS_PATH="$PWD/$CONTACTS_DIR"
           SCHEDULED_PATH="$PWD/$SCHEDULED_DIR"
@@ -223,9 +235,10 @@ jobs:
           echo "✅ Google credentials configured"
           
       - name: Enhanced system validation using existing scripts
+        if: github.event.inputs.dry_run == 'true' || github.event_name == 'schedule'
         id: validation
         run: |
-          echo "Running comprehensive system validation..."
+          echo "Running comprehensive system validation (dry-run mode)..."
           
           overall_status=0
           validation_report="# Enhanced System Validation Report\n\n"
@@ -650,7 +663,7 @@ jobs:
           echo "✅ Pre-flight compliance checks complete"
 
 
-      
+
       - name: Run Campaign with Compliance
         env:
           DRY_RUN_MODE: ${{ inputs.dry_run }}
@@ -664,40 +677,58 @@ jobs:
           echo "  - Daily Limit: $DAILY_LIMIT"
           echo "  - Per-Domain Limit: $PER_DOMAIN_LIMIT"
           echo ""
+    
+          # Ensure contact_details_used directory exists
+          mkdir -p contact_details_used
+          echo "✅ Archive directory ready: contact_details_used/"
           
           # Build command arguments array
           ARGS=(
-            --contacts "${{ env.CONTACTS_DIR }}"
-            --scheduled "${{ env.SCHEDULED_DIR }}"
-            --tracking "${{ env.TRACKING_DIR }}"
-            --templates "${{ env.TEMPLATES_DIR }}"
-            --alerts "${{ env.ALERT_EMAIL }}"
+          --contacts "${{ env.CONTACTS_DIR }}"
+          --scheduled "${{ env.SCHEDULED_DIR }}"
+          --tracking "${{ env.TRACKING_DIR }}"
+          --templates "${{ env.TEMPLATES_DIR }}"
+          --alerts "${{ env.ALERT_EMAIL }}"
+          --compliance
+          --daily-limit "${DAILY_LIMIT}"
+          --per-domain-limit "${PER_DOMAIN_LIMIT}"
+          --suppression-file "contacts/suppression_list.json"
           )
-          
+    
           # Conditionally add --dry-run flag (only when true)
           if [ "$DRY_RUN_MODE" == "true" ]; then
-            ARGS+=(--dry-run)
-            echo "🧪 DRY-RUN MODE: Simulating campaign execution"
+              ARGS+=(--dry-run)
+              echo "🧪 DRY-RUN MODE: Simulating campaign execution"
           else
-            echo "📤 LIVE MODE: Executing actual campaign"
+              echo "📤 LIVE MODE: Executing actual campaign with contact archiving"
           fi
-          
+    
           # Execute integrated runner
           echo ""
           echo "Executing: python utils/integrated_runner.py ${ARGS[@]}"
           echo ""
-          
+    
           python utils/integrated_runner.py "${ARGS[@]}"
-          
+    
           EXIT_CODE=$?
           echo ""
           echo "Exit code: $EXIT_CODE"
-          
+    
+          # Verify archiving happened in live mode
+          if [ "$DRY_RUN_MODE" != "true" ] && [ $EXIT_CODE -eq 0 ]; then
+                if [ -d "contacts_used" ] && [ "$(ls -A contacts_used 2>/dev/null)" ]; then
+                    echo "✅ Contact archiving verified:"
+                    find contacts_used -type d -maxdepth 2
+                else
+                     echo "⚠️ WARNING: No archived contacts found (may indicate no campaigns were sent)"
+                fi
+          fi
+    
           if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ Campaign execution completed successfully"
+             echo "✅ Campaign execution completed successfully"
           else
-            echo "❌ Campaign execution failed"
-            exit $EXIT_CODE
+              echo "❌ Campaign execution failed"
+              exit $EXIT_CODE
           fi
       
           

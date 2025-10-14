@@ -1369,13 +1369,15 @@ Campaign Details:
         print(f"Warning: Could not send summary alert: {e}")
 
 
-def archive_used_contacts(contacts_path, archive_root="contact_details_used"):
+def archive_used_contacts(contacts_path, archive_root="contacts_used", campaign_id=None, sector=None):
     """
-    Archive processed contact files or directories
+    Archive processed contact files with same directory structure as contacts/
     
     Args:
         contacts_path: Path to contact file/directory that was processed
-        archive_root: Root directory for archived contacts
+        archive_root: Root directory for archived contacts (default: contacts_used)
+        campaign_id: Campaign identifier for organizing archives
+        sector: Sector/domain for organizing archives
     """
     import shutil
     from pathlib import Path
@@ -1383,43 +1385,117 @@ def archive_used_contacts(contacts_path, archive_root="contact_details_used"):
     
     try:
         source = Path(contacts_path)
-        
-        if not source.exists():
-            print(f"  ⚠️ Source not found: {contacts_path}")
-            return False
-        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         archive_base = Path(archive_root)
         
-        # Handle both files and directories
-        if source.is_file():
-            # Archive single file
-            relative_path = source.relative_to(Path.cwd()) if source.is_absolute() else source
+        # Ensure archive root exists with same subdirectories as contacts/
+        archive_base.mkdir(parents=True, exist_ok=True)
+        for subdir in ['csv', 'excel', 'docx', 'urls']:
+            (archive_base / subdir).mkdir(exist_ok=True)
+        
+        # CASE 1: Archiving entire "contacts" directory
+        if source.name == "contacts" and source.is_dir():
+            print(f"  📦 Archiving contacts directory...")
             
-            # Preserve directory structure
-            target_dir = archive_base / relative_path.parent
+            # Create campaign-specific archive directory
+            if campaign_id and sector:
+                campaign_archive = archive_base / sector / campaign_id / timestamp
+            elif campaign_id:
+                campaign_archive = archive_base / campaign_id / timestamp
+            else:
+                campaign_archive = archive_base / timestamp
+            
+            campaign_archive.mkdir(parents=True, exist_ok=True)
+            
+            # Copy all contact files, preserving subdirectory structure
+            files_archived = 0
+            for item in source.rglob('*'):
+                if item.is_file() and not item.name.startswith('.'):
+                    # Preserve relative path structure
+                    rel_path = item.relative_to(source)
+                    target_file = campaign_archive / rel_path
+                    target_file.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    shutil.copy2(item, target_file)
+                    files_archived += 1
+                    print(f"    📄 {rel_path}")
+            
+            print(f"  ✅ Archived {files_archived} files")
+            print(f"     → {campaign_archive}")
+            
+            # Clear original files but keep directory structure
+            for item in source.rglob('*'):
+                if item.is_file() and not item.name.startswith('.'):
+                    # Don't delete compliance files
+                    if item.name not in ['suppression_list.json', 'suppression_log.jsonl', 'reply_log.jsonl']:
+                        item.unlink()
+            
+            print(f"  🗑️  Cleared {files_archived} contact files (structure preserved)")
+            return True
+            
+        # CASE 2: Archiving specific subdirectory (e.g., contacts/csv/)
+        elif source.parent.name == "contacts" and source.is_dir():
+            subdir_name = source.name  # e.g., "csv", "excel"
+            
+            if campaign_id and sector:
+                target_dir = archive_base / sector / campaign_id / subdir_name / timestamp
+            elif campaign_id:
+                target_dir = archive_base / campaign_id / subdir_name / timestamp
+            else:
+                target_dir = archive_base / subdir_name / timestamp
+            
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Copy all files from subdirectory
+            files_archived = 0
+            for item in source.iterdir():
+                if item.is_file() and not item.name.startswith('.'):
+                    shutil.copy2(item, target_dir / item.name)
+                    files_archived += 1
+                    print(f"    📄 {subdir_name}/{item.name}")
+                    item.unlink()  # Delete original
+            
+            print(f"  ✅ Archived {files_archived} files from {subdir_name}/")
+            print(f"     → {target_dir}")
+            return True
+            
+        # CASE 3: Archiving individual contact file
+        elif source.is_file():
+            # Determine which subdirectory it belongs to
+            file_ext = source.suffix.lower()
+            if file_ext == '.csv':
+                subdir = 'csv'
+            elif file_ext in ['.xlsx', '.xls']:
+                subdir = 'excel'
+            elif file_ext == '.docx':
+                subdir = 'docx'
+            elif file_ext == '.url':
+                subdir = 'urls'
+            else:
+                subdir = 'other'
+            
+            if campaign_id and sector:
+                target_dir = archive_base / sector / campaign_id / subdir
+            elif campaign_id:
+                target_dir = archive_base / campaign_id / subdir
+            else:
+                target_dir = archive_base / subdir
+            
             target_dir.mkdir(parents=True, exist_ok=True)
             
             archived_name = f"{source.stem}_used_{timestamp}{source.suffix}"
             target_file = target_dir / archived_name
             
-            shutil.move(str(source), str(target_file))
-            print(f"  ✅ Archived file: {source.name}")
+            shutil.copy2(source, target_file)
+            source.unlink()  # Delete original
+            
+            print(f"  ✅ Archived: {source.name}")
             print(f"     → {target_file}")
+            return True
             
-        elif source.is_dir():
-            # Archive entire directory
-            target_dir = archive_base / f"{source.name}_used_{timestamp}"
-            
-            shutil.move(str(source), str(target_dir))
-            print(f"  ✅ Archived directory: {source}")
-            print(f"     → {target_dir}")
-            
-            # Create empty directory to replace archived one (optional)
-            source.mkdir(parents=True, exist_ok=True)
-            print(f"  📁 Created empty replacement: {source}")
-        
-        return True
+        else:
+            print(f"  ⚠️ Source not found or invalid: {contacts_path}")
+            return False
         
     except Exception as e:
         print(f"  ❌ Error archiving: {e}")
@@ -2061,7 +2137,9 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                             print(f"  📦 Archiving processed contacts...")
                             archive_success = archive_used_contacts(
                                 contacts_path, 
-                                archive_root=str(isolation['archive_dir'])
+                                archive_root="contacts_used",  # Changed from contact_details_used
+                                campaign_id=isolation['campaign_id'],
+                                sector=config.get('sector', domain)
                             )
                             if archive_success:
                                 print(f"  ✅ Contacts archived to {isolation['archive_dir']}")
