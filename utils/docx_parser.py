@@ -786,9 +786,7 @@ try:
                 print(f"Body: {body[:200]}...")
             else:
                 super().send_alert(subject, body)
-\\
-
-        
+                
 except ImportError:
     print("Warning: email_sender module not found, using fallback")
     EMAIL_SENDER_AVAILABLE = False
