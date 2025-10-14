@@ -2,9 +2,9 @@
   "name": "Education Outreach Campaign",
   "sector": "education",
   "templates": ["campaign-templates/education/adult_education/adult_education_letter.docx"],
-  "contacts": "contacts/edu_adults_contacts_20251003_194314.csv",
+  "contacts": "contact_details/education/adult_education",
   "mode": "immediate",
-  "date": "2025-10-03",
+  "date": "2025-10-14",
   "smtp": {
     "host": "${SMTP_HOST}",
     "port": "${SMTP_PORT}",

@@ -786,7 +786,9 @@ try:
                 print(f"Body: {body[:200]}...")
             else:
                 super().send_alert(subject, body)
+\\
 
+        
 except ImportError:
     print("Warning: email_sender module not found, using fallback")
     EMAIL_SENDER_AVAILABLE = False
@@ -1005,7 +1007,101 @@ def is_valid_docx(filepath):
     except Exception as e:
         return False, f"Validation error: {str(e)}"
 
+def validate_campaign_schedule(config):
+    """
+    Validate campaign schedule based on mode and date
+    
+    Args:
+        config: Campaign configuration dictionary
+        
+    Returns:
+        tuple: (is_valid, reason)
+    """
+    from datetime import datetime, date
+    
+    try:
+        mode = config.get('mode', 'immediate')
+        campaign_date_str = config.get('date')
+        
+        print(f"  📅 Validating schedule: mode={mode}, date={campaign_date_str}")
+        
+        # Parse campaign date
+        if campaign_date_str:
+            try:
+                campaign_date = datetime.strptime(campaign_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return False, f"Invalid date format: {campaign_date_str} (expected YYYY-MM-DD)"
+        else:
+            # No date specified - allow immediate mode only
+            if mode == 'immediate':
+                return True, "Immediate mode with no date restriction"
+            else:
+                return False, "Date required for non-immediate mode"
+        
+        today = date.today()
+        
+        # Mode-based validation
+        if mode == 'immediate':
+            # Immediate mode: date must be today or future
+            if campaign_date < today:
+                return False, f"Campaign date {campaign_date} is in the past (today: {today})"
+            return True, f"Immediate mode: valid for {campaign_date}"
+        
+        elif mode == 'schedule':
+            # Schedule mode: date must be today or future
+            if campaign_date < today:
+                return False, f"Scheduled date {campaign_date} has passed (today: {today})"
+            elif campaign_date > today:
+                return False, f"Scheduled for future date {campaign_date} (today: {today})"
+            return True, f"Scheduled for today: {campaign_date}"
+        
+        elif mode == 'schedule_now':
+            # Schedule now: date must be today
+            if campaign_date < today:
+                return False, f"Campaign date {campaign_date} is in the past"
+            elif campaign_date > today:
+                return False, f"Scheduled for future: {campaign_date} (not today)"
+            return True, f"Schedule now: executing for {campaign_date}"
+        
+        else:
+            return False, f"Unknown mode: {mode}"
+        
+    except Exception as e:
+        return False, f"Schedule validation error: {e}"
 
+
+def prepare_campaign_isolation(config, campaign_file):
+    """
+    Prepare isolated tracking and archiving for each campaign
+    
+    Args:
+        config: Campaign configuration
+        campaign_file: Path to campaign JSON
+        
+    Returns:
+        dict with isolated paths
+    """
+    from pathlib import Path
+    from datetime import datetime
+    
+    campaign_name = config.get('name', Path(campaign_file).stem)
+    sector = config.get('sector', 'general')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Create isolated paths
+    isolation = {
+        'campaign_id': f"{sector}_{campaign_name}_{timestamp}".replace(' ', '_'),
+        'tracking_dir': Path('tracking') / sector / campaign_name,
+        'archive_dir': Path('contact_details_used') / sector / campaign_name,
+        'log_file': f"campaign_{sector}_{campaign_name}_{timestamp}.log"
+    }
+    
+    # Create directories
+    isolation['tracking_dir'].mkdir(parents=True, exist_ok=True)
+    isolation['archive_dir'].mkdir(parents=True, exist_ok=True)
+    
+    return isolation
+    
 def load_campaign_content(campaign_path):
     """
     Load campaign content from various file formats with validation
@@ -1114,80 +1210,6 @@ def load_campaign_content(campaign_path):
 #    - Verify required XML files are present
 #    - Provide helpful error messages
 #    - Continue processing other files if one fails
-
-
-def load_json_campaign(campaign_path):
-    """Load and process JSON campaign file - supports both content and config formats"""
-    try:
-        with open(campaign_path, 'r', encoding='utf-8') as f:
-            campaign_data = json.load(f)
-        
-        print(f"Loaded JSON campaign: {campaign_path}")
-        
-        # Format 1: Simple content format with subject/content
-        if 'subject' in campaign_data and 'content' in campaign_data:
-            return {
-                'subject': None,
-                'content': campaign_data['content'],
-                'from_name': campaign_data.get('from_name', 'Campaign System'),
-                'content_type': campaign_data.get('content_type', 'html'),
-                'metadata': campaign_data.get('metadata', {})
-            }
-        
-        # Format 2: Config format with templates array
-        elif 'templates' in campaign_data and isinstance(campaign_data['templates'], list):
-            if not campaign_data['templates']:
-                print(f"Warning: No templates specified in config {campaign_path}")
-                return None
-            
-            # Get the first template file
-            template_file = campaign_data['templates'][0]
-            template_path = Path(template_file)
-            
-            # If path is relative, resolve it
-            if not template_path.is_absolute():
-                template_path = Path(campaign_path).parent.parent / template_file
-            
-            if not template_path.exists():
-                print(f"Warning: Template file not found: {template_path}")
-                return None
-            
-            # Load the actual template content
-            template_content = load_campaign_content(str(template_path))
-            if not template_content:
-                print(f"Warning: Could not load template content from {template_path}")
-                return None
-            
-            # Build campaign data from config
-            return {
-                'subject': campaign_data.get('subject', 'Campaign'),
-                'content': template_content if isinstance(template_content, str) else template_content.get('content', ''),
-                'from_name': campaign_data.get('from_name', 'Campaign System'),
-                'content_type': 'html',
-                'config': campaign_data,
-                'template_source': str(template_path)
-            }
-        
-        # Format 3: campaigns array
-        elif 'campaigns' in campaign_data:
-            if campaign_data['campaigns']:
-                first_campaign = campaign_data['campaigns'][0]
-                return {
-                    'subject': first_campaign.get('subject', 'Campaign'),
-                    'content': first_campaign.get('content', ''),
-                    'from_name': first_campaign.get('from_name', 'Campaign System'),
-                    'content_type': first_campaign.get('content_type', 'html'),
-                    'metadata': campaign_data.get('metadata', {})
-                }
-        
-        print(f"Warning: Unknown JSON campaign format in {campaign_path}")
-        return None
-        
-    except Exception as e:
-        print(f"Error loading JSON campaign {campaign_path}: {str(e)}")
-        traceback.print_exc()
-        return None
-
 
 def extract_subject_from_content(content):
     """Extract subject line from content if present"""
@@ -1336,6 +1358,150 @@ Campaign Details:
         print(f"Warning: Could not send summary alert: {e}")
 
 
+def archive_used_contacts(contacts_path, archive_root="contact_details_used"):
+    """
+    Archive processed contact files or directories
+    
+    Args:
+        contacts_path: Path to contact file/directory that was processed
+        archive_root: Root directory for archived contacts
+    """
+    import shutil
+    from pathlib import Path
+    from datetime import datetime
+    
+    try:
+        source = Path(contacts_path)
+        
+        if not source.exists():
+            print(f"  ⚠️ Source not found: {contacts_path}")
+            return False
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        archive_base = Path(archive_root)
+        
+        # Handle both files and directories
+        if source.is_file():
+            # Archive single file
+            relative_path = source.relative_to(Path.cwd()) if source.is_absolute() else source
+            
+            # Preserve directory structure
+            target_dir = archive_base / relative_path.parent
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            archived_name = f"{source.stem}_used_{timestamp}{source.suffix}"
+            target_file = target_dir / archived_name
+            
+            shutil.move(str(source), str(target_file))
+            print(f"  ✅ Archived file: {source.name}")
+            print(f"     → {target_file}")
+            
+        elif source.is_dir():
+            # Archive entire directory
+            target_dir = archive_base / f"{source.name}_used_{timestamp}"
+            
+            shutil.move(str(source), str(target_dir))
+            print(f"  ✅ Archived directory: {source}")
+            print(f"     → {target_dir}")
+            
+            # Create empty directory to replace archived one (optional)
+            source.mkdir(parents=True, exist_ok=True)
+            print(f"  📁 Created empty replacement: {source}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"  ❌ Error archiving: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def load_json_campaign(campaign_path):
+    """Load and process JSON campaign file - supports both content and config formats"""
+    try:
+        with open(campaign_path, 'r', encoding='utf-8') as f:
+            campaign_data = json.load(f)
+        
+        print(f"📄 Loaded JSON campaign: {campaign_path}")
+        
+        # ===== VALIDATE SCHEDULE FIRST =====
+        is_valid, reason = validate_campaign_schedule(campaign_data)
+        
+        if not is_valid:
+            print(f"  ⏭️  SKIPPING: {reason}")
+            return None
+        else:
+            print(f"  ✅ {reason}")
+        
+        # Format 1: Simple content format with subject/content
+        if 'subject' in campaign_data and 'content' in campaign_data:
+            return {
+                'subject': campaign_data.get('subject'),
+                'content': campaign_data['content'],
+                'from_name': campaign_data.get('from_name', 'Campaign System'),
+                'content_type': campaign_data.get('content_type', 'html'),
+                'metadata': campaign_data.get('metadata', {}),
+                'config': campaign_data  # Include full config
+            }
+        
+        # Format 2: Config format with templates array
+        elif 'templates' in campaign_data and isinstance(campaign_data['templates'], list):
+            if not campaign_data['templates']:
+                print(f"  ⚠️  No templates specified in config")
+                return None
+            
+            # Get the first template file
+            template_file = campaign_data['templates'][0]
+            template_path = Path(template_file)
+            
+            # If path is relative, resolve it
+            if not template_path.is_absolute():
+                template_path = Path(campaign_path).parent.parent / template_file
+            
+            if not template_path.exists():
+                print(f"  ⚠️  Template file not found: {template_path}")
+                return None
+            
+            # Load the actual template content
+            template_content = load_campaign_content(str(template_path))
+            if not template_content:
+                print(f"  ⚠️  Could not load template content from {template_path}")
+                return None
+            
+            # Build campaign data from config
+            return {
+                'subject': campaign_data.get('subject', 'Campaign'),
+                'content': template_content if isinstance(template_content, str) else template_content.get('content', ''),
+                'from_name': campaign_data.get('from_name', 'Campaign System'),
+                'content_type': 'html',
+                'config': campaign_data,
+                'template_source': str(template_path)
+            }
+        
+        # Format 3: campaigns array
+        elif 'campaigns' in campaign_data:
+            if campaign_data['campaigns']:
+                first_campaign = campaign_data['campaigns'][0]
+                return {
+                    'subject': first_campaign.get('subject', 'Campaign'),
+                    'content': first_campaign.get('content', ''),
+                    'from_name': first_campaign.get('from_name', 'Campaign System'),
+                    'content_type': first_campaign.get('content_type', 'html'),
+                    'metadata': campaign_data.get('metadata', {}),
+                    'config': campaign_data
+                }
+        
+        print(f"  ⚠️  Unknown JSON campaign format")
+        return None
+        
+    except Exception as e:
+        print(f"  ❌ Error loading JSON campaign: {e}")
+        traceback.print_exc()
+        return None
+
+
+    
 def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email, 
                   dry_run=False, queue_emails=False, specific_template=None, 
                   feedback_email=None, target_domain=None, campaign_filter=None, 
@@ -1365,6 +1531,12 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
         delay: Delay between batches in seconds
         **kwargs: Additional arguments for future expansion
     """
+    campaigns_processed = 0
+    total_emails_sent = 0
+    total_emails_queued = 0
+    total_failures = 0
+    campaign_results = []
+    
     try:
         # ===== INITIALIZATION & STARTUP LOGGING =====
         print(f"Starting domain-aware campaign system")
@@ -1445,6 +1617,21 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
             print()
         
         # ===== LOAD CONTACTS =====
+        # Check if we're processing a specific config file with contacts path
+        contacts_to_load = contacts_root
+        
+        # If processing specific template, try to extract contacts path from it
+        if specific_template and specific_template.endswith('.json'):
+            try:
+                with open(specific_template, 'r') as f:
+                    config_data = json.load(f)
+                    if 'contacts' in config_data:
+                        config_contacts_path = config_data['contacts']
+                        print(f"📋 Using contacts path from config: {config_contacts_path}")
+                        contacts_to_load = config_contacts_path
+            except Exception as e:
+                print(f"⚠️ Could not extract contacts from config: {e}")
+                
         if DATA_LOADER_AVAILABLE:
             print("Using professional data_loader module")
             all_contacts = load_contacts_directory(contacts_root)
@@ -1532,10 +1719,104 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                 alerts_email=alerts_email,
                 dry_run=dry_run
             )
-        
-        # ===== SCAN & LOAD CAMPAIGNS =====
+
+        # ===== SCAN & LOAD CAMPAIGNS WITH SCHEDULE FILTERING =====
         domain_campaigns = scan_domain_campaigns(scheduled_root, specific_file=specific_template)
         
+        if not domain_campaigns:
+            print(f"ERROR: No campaigns found")
+            return
+        
+        # ===== ORGANIZE CAMPAIGNS BY SCHEDULE PRIORITY =====
+        scheduled_campaigns = {
+            'immediate': [],      # mode=immediate, date=today
+            'schedule_now': [],   # mode=schedule_now, date=today
+            'scheduled': []       # mode=schedule, date=today
+        }
+        
+        skipped_campaigns = []
+        
+        print(f"\n{'='*70}")
+        print(f"SCANNING AND VALIDATING CAMPAIGNS")
+        print(f"{'='*70}\n")
+        
+        for domain, campaign_files in domain_campaigns.items():
+            print(f"Domain: {domain.upper()}")
+            
+            for campaign_file in campaign_files:
+                campaign_name = campaign_file.stem
+                
+                # Load and validate
+                campaign_content = load_campaign_content(str(campaign_file))
+                
+                if not campaign_content:
+                    print(f"  ⏭️  Skipped: {campaign_name} (failed to load)")
+                    skipped_campaigns.append((domain, campaign_name, "Failed to load"))
+                    continue
+                
+                # Extract config
+                if isinstance(campaign_content, dict):
+                    config = campaign_content.get('config', {})
+                else:
+                    config = {}
+                
+                # Validate schedule
+                is_valid, reason = validate_campaign_schedule(config)
+                
+                if not is_valid:
+                    print(f"  ⏭️  Skipped: {campaign_name} - {reason}")
+                    skipped_campaigns.append((domain, campaign_name, reason))
+                    continue
+                
+                # Categorize by mode
+                mode = config.get('mode', 'immediate')
+                
+                campaign_info = {
+                    'domain': domain,
+                    'file': campaign_file,
+                    'name': campaign_name,
+                    'content': campaign_content,
+                    'config': config,
+                    'sector': config.get('sector', domain)
+                }
+                
+                if mode == 'immediate':
+                    scheduled_campaigns['immediate'].append(campaign_info)
+                    print(f"  ✅ Queued (IMMEDIATE): {campaign_name}")
+                elif mode == 'schedule_now':
+                    scheduled_campaigns['schedule_now'].append(campaign_info)
+                    print(f"  ✅ Queued (SCHEDULE NOW): {campaign_name}")
+                elif mode == 'schedule':
+                    scheduled_campaigns['scheduled'].append(campaign_info)
+                    print(f"  ✅ Queued (SCHEDULED): {campaign_name}")
+            
+            print()
+        
+        # Summary
+        total_queued = (len(scheduled_campaigns['immediate']) + 
+                       len(scheduled_campaigns['schedule_now']) + 
+                       len(scheduled_campaigns['scheduled']))
+        
+        print(f"{'='*70}")
+        print(f"CAMPAIGN QUEUE SUMMARY")
+        print(f"{'='*70}")
+        print(f"Immediate:     {len(scheduled_campaigns['immediate'])} campaigns")
+        print(f"Schedule Now:  {len(scheduled_campaigns['schedule_now'])} campaigns")
+        print(f"Scheduled:     {len(scheduled_campaigns['scheduled'])} campaigns")
+        print(f"Total Queued:  {total_queued} campaigns")
+        print(f"Skipped:       {len(skipped_campaigns)} campaigns")
+        print(f"{'='*70}\n")
+        
+        if skipped_campaigns:
+            print("Skipped Campaigns:")
+            for domain, name, reason in skipped_campaigns:
+                print(f"  - {domain}/{name}: {reason}")
+            print()
+        
+        if total_queued == 0:
+            print("No valid campaigns to process")
+            return
+                
         if not domain_campaigns:
             print(f"ERROR: No campaigns found in {scheduled_root}")
             print("Supported formats: .docx, .txt, .html, .md, .json")
@@ -1544,14 +1825,193 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
             print("  2. Flat: {scheduled_root}/*.docx")
             print("  3. Specific file: --template-file path/to/file.docx")
             return
+        # ===== PROCESS CAMPAIGNS IN PRIORITY ORDER =====
+        processing_order = ['immediate', 'schedule_now', 'scheduled']
         
+        for priority in processing_order:
+            campaigns = scheduled_campaigns[priority]
+            
+            if not campaigns:
+                continue
+            
+            print(f"\n{'='*70}")
+            print(f"PROCESSING {priority.upper()} CAMPAIGNS ({len(campaigns)})")
+            print(f"{'='*70}\n")
+            
+            for campaign_info in campaigns:
+                domain = campaign_info['domain']
+                campaign_name = campaign_info['name']
+                campaign_content = campaign_info['content']
+                config = campaign_info['config']
+                campaign_file = campaign_info['file']
+                
+                print(f"\n--- Campaign: {domain}/{campaign_name} ---")
+                
+                # Create isolation for this campaign
+                isolation = prepare_campaign_isolation(config, campaign_file)
+                
+                print(f"  Campaign ID: {isolation['campaign_id']}")
+                print(f"  Tracking: {isolation['tracking_dir']}")
+                print(f"  Archive: {isolation['archive_dir']}")
+                
+                # Load contacts specific to this campaign
+                contacts_path = config.get('contacts', contacts_root)
+                print(f"  Loading contacts from: {contacts_path}")
+                
+                if DATA_LOADER_AVAILABLE:
+                    campaign_contacts = load_contacts_directory(contacts_path)
+                    if campaign_contacts:
+                        stats, campaign_contacts = validate_contact_data(campaign_contacts)
+                        print(f"    Loaded: {len(campaign_contacts)} valid contacts")
+                else:
+                    campaign_contacts = fallback_load_contacts_from_directory(contacts_path)
+                    print(f"    Loaded: {len(campaign_contacts)} contacts")
+                
+                if not campaign_contacts:
+                    print(f"  ⚠️  No contacts loaded - skipping")
+                    continue
+                
+                # Apply compliance filters for this campaign
+                if compliance_mode:
+                    original_count = len(campaign_contacts)
+                    
+                    # Filter suppressed
+                    if suppression_list:
+                        campaign_contacts = [c for c in campaign_contacts 
+                                           if c.get('email', '').lower() not in suppression_list]
+                    
+                    # Check per-domain limit
+                    if per_domain_limit > 0:
+                        domain_count = rate_data['domain_counts'].get(domain, 0)
+                        available = per_domain_limit - domain_count
+                        
+                        if available <= 0:
+                            print(f"  ⚠️  Per-domain limit reached for {domain} ({per_domain_limit})")
+                            continue
+                        elif len(campaign_contacts) > available:
+                            print(f"  ⚠️  Limiting to {available} contacts (per-domain limit)")
+                            campaign_contacts = campaign_contacts[:available]
+                    
+                    filtered_count = original_count - len(campaign_contacts)
+                    if filtered_count > 0:
+                        print(f"  🔒 Filtered {filtered_count} contacts (compliance)")
+                
+                # Extract campaign details
+                if isinstance(campaign_content, dict):
+                    subject = campaign_content.get('subject', f"Campaign: {campaign_name}")
+                    content = campaign_content.get('content', '')
+                    from_name = campaign_content.get('from_name', 'Campaign System')
+                else:
+                    subject = extract_subject_from_content(campaign_content) or f"Campaign: {campaign_name}"
+                    content = str(campaign_content)
+                    from_name = "Campaign System"
+                
+                # Generate tracking ID
+                tracking_id = generate_tracking_id(domain, campaign_name, campaign_file.name)
+                
+                # Prepare contacts with IDs and unsubscribe links
+                contacts_with_ids = []
+                for i, contact in enumerate(campaign_contacts):
+                    email = contact.get('email', '').strip()
+
+                    # Check unsubscribe (only filter in actual send mode, not dry-run)
+                    if not self.dry_run and hasattr(self, 'unsubscribe_manager'):
+                        if self.unsubscribe_manager.is_unsubscribed(email, campaign_name):
+                            continue
+                    
+                    contact_copy = contact.copy()
+                    contact_copy['recipient_id'] = f"{isolation['campaign_id']}_{i+1}"
+                    contact_copy['campaign_id'] = campaign_name
+                    contact_copy['domain'] = domain
+                    contact_copy['tracking_id'] = tracking_id
+                    contact_copy['unsubscribe_link'] = unsubscribe_manager.generate_unsubscribe_link(
+                        email, campaign_name
+                    )
+                    
+                    contacts_with_ids.append(contact_copy)
+                
+                if not contacts_with_ids:
+                    print(f"  ⚠️  No eligible contacts after filtering")
+                    continue
+                
+                print(f"  📧 Ready to process: {len(contacts_with_ids)} contacts")
+                
+                # Send campaign
+                try:
+                    campaign_result = emailer.send_campaign(
+                        campaign_name=f"{domain}/{campaign_name}",
+                        subject=subject,
+                        content=content,
+                        recipients=contacts_with_ids,
+                        from_name=from_name,
+                        tracking_id=tracking_id,
+                        contact_mapping=config.get('contact_mapping', {})
+                    )
+                    
+                    campaigns_processed += 1
+                    sent_count = campaign_result.get('sent', 0)
+                    queued_count = campaign_result.get('queued', 0)
+                    
+                    total_emails_sent += sent_count
+                    total_emails_queued += queued_count
+                    total_failures += campaign_result['failed']
+                    
+                    campaign_results.append(campaign_result)
+                    
+                    # Update rate limits
+                    if compliance_mode:
+                        rate_data['daily_sent'] = rate_data.get('daily_sent', 0) + sent_count
+                        rate_data['domain_counts'][domain] = rate_data['domain_counts'].get(domain, 0) + sent_count
+                    
+                    # Save tracking data with isolation
+                    tracking_data = {
+                        'tracking_id': tracking_id,
+                        'campaign_id': isolation['campaign_id'],
+                        'domain': domain,
+                        'campaign_name': campaign_name,
+                        'sector': config.get('sector', domain),
+                        'mode': config.get('mode'),
+                        'date': config.get('date'),
+                        'subject': subject,
+                        'from_name': from_name,
+                        'timestamp': datetime.now().isoformat(),
+                        'total_recipients': len(contacts_with_ids),
+                        'sent': sent_count,
+                        'queued': queued_count,
+                        'failed': campaign_result['failed'],
+                        'contacts_source': contacts_path,
+                        'isolation': {
+                            'tracking_dir': str(isolation['tracking_dir']),
+                            'archive_dir': str(isolation['archive_dir']),
+                            'log_file': isolation['log_file']
+                        }
+                    }
+                    
+                    # Save to isolated tracking directory
+                    tracking_file = isolation['tracking_dir'] / f"{tracking_id}.json"
+                    with open(tracking_file, 'w') as f:
+                        json.dump(tracking_data, f, indent=2)
+                    
+                    print(f"  ✅ Sent: {sent_count}, Queued: {queued_count}, Failed: {campaign_result['failed']}")
+                    
+                    # Archive contacts after successful send
+                    if (sent_count > 0 or queued_count > 0) and not dry_run and not queue_emails:
+                        print(f"\n  📦 Archiving processed contacts...")
+                        archive_success = archive_used_contacts(
+                            contacts_path, 
+                            archive_root=str(isolation['archive_dir'])
+                        )
+                        if archive_success:
+                            print(f"  ✅ Contacts archived successfully")
+                    
+                except Exception as e:
+                    print(f"  ❌ Error processing campaign: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    continue
+                
         # ===== INITIALIZE TRACKING & LOGGING =====
-        campaigns_processed = 0
-        total_emails_sent = 0
-        total_emails_queued = 0
-        total_failures = 0
-        campaign_results = []
-        
+         
         log_file = "dryrun.log" if dry_run else "campaign_execution.log"
         with open(log_file, 'w') as f:
             f.write("Domain-Aware Campaign Log\n")
@@ -1685,7 +2145,17 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
                     campaigns_processed += 1
                     sent_count = campaign_result.get('sent', 0)
                     queued_count = campaign_result.get('queued', 0)
-                    
+
+                    # Archive contacts after successful send
+                    if (sent_count > 0 or queued_count > 0) and not dry_run and not queue_emails:
+                         # Get contacts file from config
+                         if isinstance(campaign_content, dict) and campaign_content.get('config'):
+                                contacts_file = campaign_content['config'].get('contacts')
+                                if contacts_file:
+                                    print(f"\n📦 Archiving processed contacts...")
+                                    archive_used_contacts(contacts_file)
+                                else:
+                                    print(f"  ℹ️  No contacts file path in config - skipping archive")
                     total_emails_sent += sent_count
                     total_emails_queued += queued_count
                     total_failures += campaign_result['failed']
@@ -1835,6 +2305,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
         print(f"ERROR: {str(e)}")
         traceback.print_exc()
         sys.exit(1)
+
 
         
 # ============================================================================
