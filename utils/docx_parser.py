@@ -1549,13 +1549,13 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
     campaign_results = []
 
     # Run campaign manager first to convert TXT → CSV
-    print("🔄 Running campaign manager to prepare contacts...")
+    # print("🔄 Running campaign manager to prepare contacts...")
     
-    from campaign_manager import CampaignManager
-    manager = CampaignManager(workflow_root=scheduled_root)
-    manager.run()
+    # from campaign_manager import CampaignManager
+    # manager = CampaignManager(workflow_root=scheduled_root)
+    # manager.run()
     
-    print("✅ Contact files prepared\n")
+    # print("✅ Contact files prepared\n")
     
 
     try:
