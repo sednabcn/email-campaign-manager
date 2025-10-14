@@ -1,6 +1,8 @@
 {
   "name": "Education Outreach Campaign",
-  "sector": "education",  
+  "sector": "education",
+  "domain":"education",
+  "subdomain":"adult_education",  
   "templates": ["campaign-templates/education/adult_education/adult_education_letter.docx"],
   "contacts": "contacts/education/adult_education",
   "mode": "immediate",

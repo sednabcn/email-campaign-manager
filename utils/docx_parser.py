@@ -1548,16 +1548,6 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
     total_failures = 0
     campaign_results = []
 
-    # Run campaign manager first to convert TXT → CSV
-    # print("🔄 Running campaign manager to prepare contacts...")
-    
-    # from campaign_manager import CampaignManager
-    # manager = CampaignManager(workflow_root=scheduled_root)
-    # manager.run()
-    
-    # print("✅ Contact files prepared\n")
-    
-
     try:
         # ===== INITIALIZATION & STARTUP LOGGING =====
         print(f"Starting domain-aware campaign system")
@@ -1718,6 +1708,10 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
         }
         
         skipped_campaigns = []
+
+        # Track processed campaigns to avoid duplicates
+        processed_campaign_files = set()
+
         
         print(f"\n{'='*70}")
         print(f"SCANNING AND VALIDATING CAMPAIGNS")
@@ -1820,20 +1814,18 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
             print(f"\n{'='*70}")
             print(f"PROCESSING {priority.upper()} CAMPAIGNS ({len(campaigns)})")
             print(f"{'='*70}\n")
-    
+
             for campaign_info in campaigns:
                 domain = campaign_info['domain']
                 campaign_name = campaign_info['name']
                 campaign_content = campaign_info['content']
                 config = campaign_info['config']
                 campaign_file = campaign_info['file']
-        
+    
+                # Track this campaign as processed
+                processed_campaign_files.add(str(campaign_file))  # ← ADD THIS LINE
+
                 print(f"\n--- Campaign: {domain}/{campaign_name} ---")
-        
-                # Create isolation for this campaign
-                isolation = prepare_campaign_isolation(config, campaign_file)
-        
-                print(f"  Campaign ID: {isolation['campaign_id']}")
                 print(f"  Tracking: {isolation['tracking_dir']}")
                 print(f"  Archive: {isolation['archive_dir']}")
         
@@ -2087,12 +2079,19 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
             f.write(f"Domains found: {len(domain_campaigns)}\n")
             f.write(f"Timestamp: {datetime.now().isoformat()}\n\n")
         
-        # ===== PROCESS CAMPAIGNS BY DOMAIN =====
+        # ===== PROCESS CAMPAIGNS BY DOMAIN (SKIP IF ALREADY PROCESSED) =
         for domain, campaign_files in domain_campaigns.items():
+            # Skip campaigns already processed by priority system
+            unprocessed = [f for f in campaign_files if str(f) not in processed_campaign_files]
+    
+            if not unprocessed:
+                print(f"ℹ️  Domain {domain}: All campaigns already processed")
+                continue
+    
             print(f"\n{'='*70}")
             print(f"PROCESSING DOMAIN: {domain.upper()}")
             print(f"{'='*70}")
-            
+                
             # Create domain tracking structure
             domain_tracking = Path(tracking_root) / domain
             (domain_tracking / "campaigns").mkdir(parents=True, exist_ok=True)
@@ -2102,7 +2101,7 @@ def campaign_main(contacts_root, scheduled_root, tracking_root, alerts_email,
             domain_emails_sent = 0
             
             # Process each campaign
-            for campaign_file in campaign_files:
+            for campaign_file in unprocessed:
                 campaign_name = campaign_file.stem
                 campaign_path = str(campaign_file)
                 
