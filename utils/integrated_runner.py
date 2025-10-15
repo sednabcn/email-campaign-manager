@@ -62,15 +62,19 @@ def load_contacts_unified(contacts_dir):
         print(f"❌ Contacts directory not found: {contacts_dir}")
         return contacts
     
-    # Check if data_loader.py exists
-    if not os.path.exists('data_loader.py'):
-        print("❌ data_loader.py not found - cannot load contacts")
+    # FIXED: Check for data_loader.py in utils/ directory
+    utils_dir = Path(__file__).parent
+    data_loader_path = utils_dir / 'data_loader.py'
+    
+    if not data_loader_path.exists():
+        print(f"❌ data_loader.py not found at: {data_loader_path}")
+        print(f"   Looking in: {utils_dir}")
         return contacts
     
-    print(f"🔍 Loading contacts from directory: {contacts_dir}")
+    print(f"📁 Loading contacts from directory: {contacts_dir}")
     
     # Import data_loader dynamically to handle import errors
-    sys.path.insert(0, '.')
+    sys.path.insert(0, str(utils_dir))
     try:
         from data_loader import load_contacts
         print("✅ Successfully imported data_loader")
@@ -95,7 +99,7 @@ def load_contacts_unified(contacts_dir):
         
         file_ext = os.path.splitext(filename)[1].lower()
         if file_ext not in supported_extensions:
-            print(f"⏭️  Skipping unsupported file: {filename}")
+            print(f"⏭️ Skipping unsupported file: {filename}")
             continue
         
         try:
@@ -107,7 +111,7 @@ def load_contacts_unified(contacts_dir):
                 contacts.extend(file_contacts)
                 processed_files += 1
             else:
-                print(f"⚠️  No contacts found in {filename}")
+                print(f"⚠️ No contacts found in {filename}")
                 
         except Exception as e:
             print(f"❌ Error loading {filename}: {e}")
@@ -121,6 +125,7 @@ def load_contacts_unified(contacts_dir):
     unique_contacts = {}
     for contact in contacts:
         email = contact.get('email', '').lower().strip()
+    
         if email and email not in unique_contacts:
             unique_contacts[email] = contact
         elif email:
@@ -173,13 +178,27 @@ def validate_setup(args):
     elif args.templates:
         print(f"✅ Found templates directory: {args.templates}")
     
-    # Check required Python files
-    required_files = ['data_loader.py', 'docx_parser.py', 'generate_summary.py']
-    for file_name in required_files:
-        if not os.path.exists(file_name):
-            issues.append(f"Missing required file: {file_name}")
+    # FIXED: Check required Python files in utils/ directory
+    utils_dir = Path(__file__).parent
+    required_files = {
+        'data_loader.py': utils_dir / 'data_loader.py',
+        'docx_parser.py': utils_dir / 'docx_parser.py',
+        'generate_summary.py': utils_dir / 'generate_summary.py'
+    }
+    
+    print(f"\n📂 Checking utils directory: {utils_dir}")
+    
+    for name, path in required_files.items():
+        if path.exists():
+            print(f"✅ Found {name}")
         else:
-            print(f"✅ Found required file: {file_name}")
+            # Also check current directory as fallback
+            alt_path = Path(name)
+            if alt_path.exists():
+                print(f"✅ Found {name} (in current directory)")
+            else:
+                warnings.append(f"Optional file not found: {name}")
+                print(f"⚠️ {name} not found (some features may be limited)")
     
     # Check contacts directory has files
     if os.path.exists(args.contacts):
@@ -213,7 +232,7 @@ def validate_setup(args):
         warnings.append("pandas library not available - Excel files may not work optimally")
     
     if warnings:
-        print(f"\n⚠️  Warnings:")
+        print(f"\n⚠️ Warnings:")
         for warning in warnings:
             print(f"   - {warning}")
     
@@ -233,6 +252,12 @@ def save_execution_metadata(args, contacts_count, tracking_dir):
             'templates': args.templates
         },
         'alerts_email': args.alerts,
+        'compliance': {
+            'enabled': args.compliance,
+            'daily_limit': args.daily_limit,
+            'per_domain_limit': args.per_domain_limit,
+            'suppression_file': args.suppression_file
+        },
         'system_info': {
             'python_version': sys.version,
             'working_directory': os.getcwd(),
@@ -260,6 +285,12 @@ def main():
     parser.add_argument("--summary-only", action="store_true", help="Only generate summary from existing logs")
     parser.add_argument("--force-continue", action="store_true", help="Continue even if validation fails")
     
+    # Compliance arguments
+    parser.add_argument("--compliance", action="store_true", help="Enable compliance mode")
+    parser.add_argument("--daily-limit", type=int, default=50, help="Daily email send limit")
+    parser.add_argument("--per-domain-limit", type=int, default=5, help="Per-domain send limit")
+    parser.add_argument("--suppression-file", default="contacts/suppression_list.json", help="Path to suppression list")
+    
     args = parser.parse_args()
     
     print("="*80)
@@ -272,6 +303,12 @@ def main():
     print(f"Tracking dir: {args.tracking}")
     print(f"Templates dir: {args.templates}")
     print(f"Alerts email: {args.alerts}")
+    
+    if args.compliance:
+        print(f"\n🔒 COMPLIANCE MODE ENABLED")
+        print(f"   Daily limit: {args.daily_limit}")
+        print(f"   Per-domain limit: {args.per_domain_limit}")
+        print(f"   Suppression file: {args.suppression_file}")
     
     # Create required directories
     os.makedirs(args.tracking, exist_ok=True)
@@ -330,9 +367,13 @@ def main():
         print("STEP 2: CAMPAIGN PROCESSING")
         print("="*80)
         
+        # FIXED: Use utils/docx_parser.py
+        utils_dir = Path(__file__).parent
+        docx_parser = utils_dir / 'docx_parser.py'
+        
         # Build docx_parser command
         cmd = [
-            'python', 'docx_parser.py',
+            'python', str(docx_parser),
             '--contacts', args.contacts,
             '--scheduled', args.scheduled, 
             '--tracking', args.tracking,
@@ -342,6 +383,17 @@ def main():
         
         if args.dry_run:
             cmd.append('--dry-run')
+        
+        # Add compliance arguments if enabled
+        if args.compliance:
+            cmd.extend(['--compliance'])
+            cmd.extend(['--daily-limit', str(args.daily_limit)])
+            cmd.extend(['--per-domain-limit', str(args.per_domain_limit)])
+            cmd.extend(['--suppression-file', args.suppression_file])
+            print(f"🔒 Compliance Mode Enabled:")
+            print(f"   Daily Limit: {args.daily_limit}")
+            print(f"   Per-Domain Limit: {args.per_domain_limit}")
+            print(f"   Suppression File: {args.suppression_file}")
         
         success, stdout, stderr = run_command(cmd, "Campaign Processing", timeout=600)
         
@@ -369,8 +421,12 @@ def main():
     if log_file:
         print(f"Using log file: {log_file}")
         
+        # FIXED: Use utils/generate_summary.py
+        utils_dir = Path(__file__).parent
+        generate_summary = utils_dir / 'generate_summary.py'
+        
         summary_cmd = [
-            'python', 'generate_summary.py',
+            'python', str(generate_summary),
             '--log-file', log_file,
             '--mode', 'dry-run' if args.dry_run else 'live',
             '--contacts-dir', args.contacts,
@@ -414,6 +470,8 @@ def main():
         final_status = "PARTIAL"
     
     print(f"Mode: {'DRY-RUN' if args.dry_run else 'LIVE'}")
+    if args.compliance:
+        print(f"Compliance: ENABLED")
     
     # List generated files
     if os.path.exists(args.tracking):
