@@ -6,7 +6,7 @@
   "templates": ["campaign-templates/education/adult_education/adult_education_letter.docx"],
   "contacts": "contacts/education/adult_education",
   "mode": "immediate",
-  "date": "2025-10-14",
+  "date": "2025-10-15",
   "smtp": {
     "host": "${SMTP_HOST}",
     "port": "${SMTP_PORT}",

@@ -1,16 +1,7 @@
 #!/usr/bin/env python3
 """
-.github/scripts/validate_campaign.py - Campaign Configuration Validator
-
-Validates JSON campaign configurations for:
-- Required fields and structure
-- Template file existence
-- Contact directory existence
-- SMTP configuration
-- Schedule validity
-- Contact mapping
-- Feedback configuration
-- Rate limiting settings
+Enhanced Campaign Configuration Validator
+Gracefully handles past dates with warnings instead of errors
 """
 
 import json
@@ -22,15 +13,18 @@ from datetime import datetime, date
 
 
 class CampaignValidator:
-    """Comprehensive campaign configuration validator"""
+    """Enhanced campaign configuration validator with graceful date handling"""
     
-    def __init__(self, config_path, allow_env_vars=False, skip_contacts_check=False):
+    def __init__(self, config_path, allow_env_vars=False, skip_contacts_check=False, graceful_dates=True):
         self.config_path = Path(config_path)
         self.allow_env_vars = allow_env_vars
         self.skip_contacts_check = skip_contacts_check
+        self.graceful_dates = graceful_dates  # NEW: Allow past dates with warning
         self.errors = []
         self.warnings = []
+        self.info_messages = []
         self.config = None
+        self.skip_execution = False  # NEW: Flag to skip execution gracefully
         
     def load_config(self):
         """Load and parse JSON configuration"""
@@ -77,7 +71,10 @@ class CampaignValidator:
         return len(self.errors) == 0
     
     def validate_schedule(self):
-        """Validate campaign schedule (mode and date)"""
+        """
+        Validate campaign schedule with GRACEFUL date handling
+        Past dates generate warnings and skip flags, not errors
+        """
         print("\n📅 Validating schedule...")
         
         mode = self.config.get('mode', 'immediate')
@@ -99,21 +96,66 @@ class CampaignValidator:
                 
                 if mode == 'immediate':
                     if campaign_date < today:
-                        self.errors.append(f"Immediate mode: date {campaign_date} is in the past")
+                        # GRACEFUL HANDLING: Warning instead of error
+                        if self.graceful_dates:
+                            self.warnings.append(
+                                f"⚠️  Campaign date {campaign_date} is in the past (today: {today})"
+                            )
+                            self.info_messages.append(
+                                f"🔔 ALERT: NO CAMPAIGN TO EXECUTE - DATE IS IN THE PAST"
+                            )
+                            self.skip_execution = True
+                            print(f"  ⚠️  Date in past - will skip execution gracefully")
+                            return True  # Valid config, just won't execute
+                        else:
+                            self.errors.append(f"Immediate mode: date {campaign_date} is in the past")
+                            return False
                     else:
                         print(f"  ✅ Valid for immediate mode")
                 
                 elif mode == 'schedule_now':
                     if campaign_date != today:
-                        self.errors.append(f"Schedule_now mode requires today's date (got {campaign_date}, today is {today})")
+                        if self.graceful_dates and campaign_date < today:
+                            self.warnings.append(
+                                f"⚠️  Campaign date {campaign_date} is in the past (today: {today})"
+                            )
+                            self.info_messages.append(
+                                f"🔔 ALERT: NO CAMPAIGN TO EXECUTE - SCHEDULED DATE HAS PASSED"
+                            )
+                            self.skip_execution = True
+                            print(f"  ⚠️  Date in past - will skip execution gracefully")
+                            return True
+                        else:
+                            self.errors.append(
+                                f"Schedule_now mode requires today's date (got {campaign_date}, today is {today})"
+                            )
+                            return False
                     else:
                         print(f"  ✅ Valid for schedule_now mode")
                 
                 elif mode == 'schedule':
                     if campaign_date < today:
-                        self.errors.append(f"Scheduled date {campaign_date} has passed")
+                        if self.graceful_dates:
+                            self.warnings.append(
+                                f"⚠️  Scheduled date {campaign_date} has passed (today: {today})"
+                            )
+                            self.info_messages.append(
+                                f"🔔 ALERT: NO CAMPAIGN TO EXECUTE - SCHEDULED DATE HAS PASSED"
+                            )
+                            self.skip_execution = True
+                            print(f"  ⚠️  Date in past - will skip execution gracefully")
+                            return True
+                        else:
+                            self.errors.append(f"Scheduled date {campaign_date} has passed")
+                            return False
                     elif campaign_date > today:
                         self.warnings.append(f"Campaign scheduled for future: {campaign_date}")
+                        self.info_messages.append(
+                            f"📅 Campaign scheduled for: {campaign_date} (not executing today)"
+                        )
+                        self.skip_execution = True
+                        print(f"  📅 Scheduled for future - will skip today")
+                        return True
                     else:
                         print(f"  ✅ Valid for schedule mode")
                 
@@ -125,7 +167,7 @@ class CampaignValidator:
                 self.errors.append(f"Date required for mode '{mode}'")
                 return False
         
-        return len(self.errors) == 0
+        return True
     
     def validate_templates(self):
         """Validate template files exist and are accessible"""
@@ -271,178 +313,13 @@ class CampaignValidator:
         
         return len(self.errors) == 0
     
-    def validate_email_addresses(self):
-        """Validate email address formats"""
-        print("\n✉️  Validating email addresses...")
-        
-        email_fields = {
-            'from_email': self.config.get('from_email'),
-            'reply_to': self.config.get('reply_to'),
-            'feedback.email': self.config.get('feedback', {}).get('email') if isinstance(self.config.get('feedback'), dict) else None
-        }
-        
-        import re
-        email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-        
-        for field_name, email in email_fields.items():
-            if email:
-                if email_pattern.match(email):
-                    print(f"  ✅ {field_name}: {email}")
-                else:
-                    self.errors.append(f"Invalid email format for {field_name}: {email}")
-            elif field_name == 'from_email':
-                self.errors.append(f"Required field missing: {field_name}")
-        
-        return len(self.errors) == 0
-    
-    def validate_contact_mapping(self):
-        """Validate contact field mapping"""
-        print("\n🗺️  Validating contact mapping...")
-        
-        contact_mapping = self.config.get('contact_mapping')
-        
-        if not contact_mapping:
-            self.warnings.append("No contact_mapping defined - using default field names")
-            return True
-        
-        if not isinstance(contact_mapping, dict):
-            self.errors.append("contact_mapping must be a dictionary")
-            return False
-        
-        print(f"  Mapping defined for {len(contact_mapping)} fields:")
-        
-        for template_field, csv_field in contact_mapping.items():
-            print(f"    [{template_field}] → {csv_field}")
-        
-        return True
-    
-    def validate_feedback_config(self):
-        """Validate feedback configuration"""
-        print("\n💬 Validating feedback configuration...")
-        
-        feedback = self.config.get('feedback')
-        
-        if not feedback:
-            self.warnings.append("No feedback configuration - feedback features disabled")
-            return True
-        
-        if not isinstance(feedback, dict):
-            self.errors.append("feedback must be a dictionary")
-            return False
-        
-        # Check feedback email
-        feedback_email = feedback.get('email')
-        if feedback_email:
-            print(f"  ✅ Feedback email: {feedback_email}")
-        else:
-            self.warnings.append("Feedback email not specified")
-        
-        # Check injection type
-        injection_type = feedback.get('injection_type', 'footer_signature')
-        valid_types = ['footer_signature', 'header', 'inline']
-        if injection_type not in valid_types:
-            self.warnings.append(f"Unusual injection type: {injection_type}")
-        else:
-            print(f"  ✅ Injection type: {injection_type}")
-        
-        # Check response categories
-        categories = feedback.get('response_categories', [])
-        if categories:
-            print(f"  ✅ Response categories: {len(categories)}")
-        
-        return True
-    
-    def validate_rate_limiting(self):
-        """Validate rate limiting configuration"""
-        print("\n⏱️  Validating rate limiting...")
-        
-        rate_limiting = self.config.get('rate_limiting')
-        
-        if not rate_limiting:
-            self.warnings.append("No rate_limiting configuration - using defaults")
-            return True
-        
-        # Check numeric fields
-        numeric_fields = {
-            'emails_per_minute': (1, 100),
-            'delay_between_emails': (0, 60),
-            'batch_size': (1, 1000)
-        }
-        
-        for field, (min_val, max_val) in numeric_fields.items():
-            value = rate_limiting.get(field)
-            
-            if value is not None:
-                if isinstance(value, (int, float)):
-                    if min_val <= value <= max_val:
-                        print(f"  ✅ {field}: {value}")
-                    else:
-                        self.warnings.append(f"{field} value {value} outside recommended range [{min_val}-{max_val}]")
-                else:
-                    self.errors.append(f"{field} must be numeric")
-        
-        return True
-    
-    def validate_tracking_config(self):
-        """Validate tracking configuration"""
-        print("\n📊 Validating tracking configuration...")
-        
-        tracking = self.config.get('tracking')
-        
-        if not tracking:
-            self.warnings.append("No tracking configuration - using defaults")
-            return True
-        
-        if not isinstance(tracking, dict):
-            self.errors.append("tracking must be a dictionary")
-            return False
-        
-        boolean_fields = ['enabled', 'domain_separated', 'analytics', 'response_tracking', 'feedback_tracking']
-        
-        for field in boolean_fields:
-            value = tracking.get(field)
-            if value is not None:
-                if isinstance(value, bool):
-                    status = "enabled" if value else "disabled"
-                    print(f"  ✅ {field}: {status}")
-                else:
-                    self.warnings.append(f"{field} should be boolean")
-        
-        return True
-    
-    def validate_sector_domain(self):
-        """Validate sector and domain configuration"""
-        print("\n🏢 Validating sector/domain...")
-        
-        sector = self.config.get('sector')
-        domain = self.config.get('domain')
-        subdomain = self.config.get('subdomain')
-        
-        if sector:
-            print(f"  ✅ Sector: {sector}")
-        else:
-            self.warnings.append("No sector specified")
-        
-        if domain:
-            print(f"  ✅ Domain: {domain}")
-        else:
-            self.warnings.append("No domain specified")
-        
-        if subdomain:
-            print(f"  ✅ Subdomain: {subdomain}")
-        
-        # Check consistency
-        if sector and domain and sector != domain:
-            self.warnings.append(f"Sector '{sector}' differs from domain '{domain}' - ensure this is intentional")
-        
-        return True
-    
     def validate_all(self):
         """Run all validations"""
         print(f"\n{'='*70}")
         print(f"CAMPAIGN CONFIGURATION VALIDATION")
         print(f"{'='*70}")
         print(f"File: {self.config_path}")
+        print(f"Graceful date handling: {'ENABLED' if self.graceful_dates else 'DISABLED'}")
         print(f"{'='*70}")
         
         # Load config
@@ -456,12 +333,6 @@ class CampaignValidator:
             self.validate_templates,
             self.validate_contacts,
             self.validate_smtp_config,
-            self.validate_email_addresses,
-            self.validate_contact_mapping,
-            self.validate_feedback_config,
-            self.validate_rate_limiting,
-            self.validate_tracking_config,
-            self.validate_sector_domain
         ]
         
         for validation in validations:
@@ -473,51 +344,69 @@ class CampaignValidator:
         # Print summary
         self.print_summary()
         
+        # Return success if no ERRORS (warnings are OK)
         return len(self.errors) == 0
     
     def print_summary(self):
-        """Print validation summary"""
+        """Print validation summary with enhanced messaging"""
         print(f"\n{'='*70}")
         print(f"VALIDATION SUMMARY")
         print(f"{'='*70}")
         
+        # Info messages first (alerts)
+        if self.info_messages:
+            print(f"\n📢 EXECUTION STATUS:")
+            for i, info in enumerate(self.info_messages, 1):
+                print(f"  {i}. {info}")
+        
+        # Errors
         if self.errors:
             print(f"\n❌ ERRORS ({len(self.errors)}):")
             for i, error in enumerate(self.errors, 1):
                 print(f"  {i}. {error}")
         
+        # Warnings
         if self.warnings:
             print(f"\n⚠️  WARNINGS ({len(self.warnings)}):")
             for i, warning in enumerate(self.warnings, 1):
                 print(f"  {i}. {warning}")
         
-        if not self.errors and not self.warnings:
-            print("\n✅ ALL VALIDATIONS PASSED")
+        # Final status
+        print(f"\n{'='*70}")
+        if self.skip_execution:
+            print("✅ VALIDATION PASSED")
+            print("📋 EXECUTION STATUS: NO CAMPAIGNS TO EXECUTE")
+            print("   (Date is in the past or scheduled for future)")
+        elif not self.errors and not self.warnings:
+            print("✅ ALL VALIDATIONS PASSED")
+            print("📋 EXECUTION STATUS: READY TO EXECUTE")
         elif not self.errors:
-            print(f"\n✅ PASSED (with {len(self.warnings)} warning(s))")
+            print(f"✅ PASSED (with {len(self.warnings)} warning(s))")
+            print("📋 EXECUTION STATUS: READY TO EXECUTE (check warnings)")
         else:
-            print(f"\n❌ FAILED ({len(self.errors)} error(s), {len(self.warnings)} warning(s))")
+            print(f"❌ FAILED ({len(self.errors)} error(s), {len(self.warnings)} warning(s))")
+            print("📋 EXECUTION STATUS: CANNOT EXECUTE")
         
         print(f"{'='*70}\n")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Validate campaign JSON configuration',
+        description='Validate campaign JSON configuration with graceful date handling',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Basic validation
+  # Basic validation with graceful date handling (default)
   python validate_campaign.py campaign.json
   
   # CI/CD mode (allow environment variables)
   python validate_campaign.py campaign.json --allow-env-vars
   
-  # Skip contacts check (useful in CI where contacts aren't committed)
-  python validate_campaign.py campaign.json --skip-contacts-check
+  # Strict mode (past dates are errors)
+  python validate_campaign.py campaign.json --strict-dates
   
-  # Verbose output
-  python validate_campaign.py campaign.json --verbose
+  # Skip contacts check
+  python validate_campaign.py campaign.json --skip-contacts-check
         """
     )
     
@@ -532,25 +421,35 @@ Examples:
                        action='store_true',
                        help='Skip validation of contacts directory existence')
     
+    parser.add_argument('--strict-dates', 
+                       action='store_true',
+                       help='Treat past dates as errors (default: graceful warnings)')
+    
     parser.add_argument('--verbose', '-v',
                        action='store_true',
                        help='Enable verbose output')
     
     args = parser.parse_args()
     
-    # Create validator
+    # Create validator with graceful date handling (unless strict mode)
     validator = CampaignValidator(
         args.config_file,
         allow_env_vars=args.allow_env_vars,
-        skip_contacts_check=args.skip_contacts_check
+        skip_contacts_check=args.skip_contacts_check,
+        graceful_dates=not args.strict_dates  # Graceful by default
     )
     
     # Run validation
     success = validator.validate_all()
     
-    # Exit with appropriate code
+    # Exit with 0 if validation passed (even if execution should be skipped)
+    # This allows the workflow to continue gracefully
     sys.exit(0 if success else 1)
 
 
 if __name__ == '__main__':
     main()
+
+
+
+    

@@ -1963,8 +1963,20 @@ jobs:
           
           echo "✅ Campaign validation passed"
 
+      - name: Check if campaigns should execute
+        id: should_execute
+        run: |
+          # Validation passed, check for skip message
+          if grep -q "NO CAMPAIGNS TO EXECUTE" validation_output.txt; then
+             echo "should_execute=false" >> $GITHUB_OUTPUT
+             echo "⚠️  No campaigns to execute (date in past or future)"
+          else
+             echo "should_execute=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run campaign from JSON configuration
         id: run-json-campaign
+        if: steps.should_execute.outputs.should_execute == 'true'
         continue-on-error: true
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
