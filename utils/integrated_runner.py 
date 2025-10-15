@@ -71,7 +71,7 @@ def load_contacts_unified(contacts_dir):
         print(f"   Looking in: {utils_dir}")
         return contacts
     
-    print(f"🔍 Loading contacts from directory: {contacts_dir}")
+    print(f"📁 Loading contacts from directory: {contacts_dir}")
     
     # Import data_loader dynamically to handle import errors
     sys.path.insert(0, str(utils_dir))
@@ -252,6 +252,12 @@ def save_execution_metadata(args, contacts_count, tracking_dir):
             'templates': args.templates
         },
         'alerts_email': args.alerts,
+        'compliance': {
+            'enabled': args.compliance,
+            'daily_limit': args.daily_limit,
+            'per_domain_limit': args.per_domain_limit,
+            'suppression_file': args.suppression_file
+        },
         'system_info': {
             'python_version': sys.version,
             'working_directory': os.getcwd(),
@@ -279,6 +285,12 @@ def main():
     parser.add_argument("--summary-only", action="store_true", help="Only generate summary from existing logs")
     parser.add_argument("--force-continue", action="store_true", help="Continue even if validation fails")
     
+    # Compliance arguments
+    parser.add_argument("--compliance", action="store_true", help="Enable compliance mode")
+    parser.add_argument("--daily-limit", type=int, default=50, help="Daily email send limit")
+    parser.add_argument("--per-domain-limit", type=int, default=5, help="Per-domain send limit")
+    parser.add_argument("--suppression-file", default="contacts/suppression_list.json", help="Path to suppression list")
+    
     args = parser.parse_args()
     
     print("="*80)
@@ -291,6 +303,12 @@ def main():
     print(f"Tracking dir: {args.tracking}")
     print(f"Templates dir: {args.templates}")
     print(f"Alerts email: {args.alerts}")
+    
+    if args.compliance:
+        print(f"\n🔒 COMPLIANCE MODE ENABLED")
+        print(f"   Daily limit: {args.daily_limit}")
+        print(f"   Per-domain limit: {args.per_domain_limit}")
+        print(f"   Suppression file: {args.suppression_file}")
     
     # Create required directories
     os.makedirs(args.tracking, exist_ok=True)
@@ -365,6 +383,17 @@ def main():
         
         if args.dry_run:
             cmd.append('--dry-run')
+        
+        # Add compliance arguments if enabled
+        if args.compliance:
+            cmd.extend(['--compliance'])
+            cmd.extend(['--daily-limit', str(args.daily_limit)])
+            cmd.extend(['--per-domain-limit', str(args.per_domain_limit)])
+            cmd.extend(['--suppression-file', args.suppression_file])
+            print(f"🔒 Compliance Mode Enabled:")
+            print(f"   Daily Limit: {args.daily_limit}")
+            print(f"   Per-Domain Limit: {args.per_domain_limit}")
+            print(f"   Suppression File: {args.suppression_file}")
         
         success, stdout, stderr = run_command(cmd, "Campaign Processing", timeout=600)
         
@@ -441,6 +470,8 @@ def main():
         final_status = "PARTIAL"
     
     print(f"Mode: {'DRY-RUN' if args.dry_run else 'LIVE'}")
+    if args.compliance:
+        print(f"Compliance: ENABLED")
     
     # List generated files
     if os.path.exists(args.tracking):
@@ -475,21 +506,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-    
-    parser = argparse.ArgumentParser(description='Integrated Email Campaign System Orchestrator')
-    parser.add_argument("--contacts", default="contacts", help="Contacts directory")
-    parser.add_argument("--scheduled", default="scheduled-campaigns", help="Scheduled campaigns directory") 
-    parser.add_argument("--tracking", default="tracking", help="Tracking directory")
-    parser.add_argument("--templates", default="campaign-templates", help="Templates directory")
-    parser.add_argument("--alerts", required=True, help="Alerts email address")
-    parser.add_argument("--dry-run", action="store_true", help="Run in dry-run mode")
-    parser.add_argument("--skip-validation", action="store_true", help="Skip initial validation")
-    parser.add_argument("--contacts-only", action="store_true", help="Only load and validate contacts")
-    parser.add_argument("--summary-only", action="store_true", help="Only generate summary from existing logs")
-    parser.add_argument("--force-continue", action="store_true", help="Continue even if validation fails")
-    
-    # Compliance arguments
-    parser.add_argument("--compliance", action="store_true", help="Enable compliance mode")
-    parser.add_argument("--daily-limit", type=int, default=50, help="Daily email send limit")
-    parser.add_argument("--per-domain-limit", type=int, default=5, help="Per-domain send limit")
-    parser.add_argument("--suppression-file", default="contacts/suppression_list.json", help="Path to suppression list")
