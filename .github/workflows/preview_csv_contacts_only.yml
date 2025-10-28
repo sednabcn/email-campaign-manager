@@ -21,11 +21,11 @@ permissions:
 
 jobs:
   contact-extraction:
-    uses: sednabcn/.github/workflows/contact-extractor.yml@dev
+    uses: sednabcn/email-campaign-manager/.github/workflows/contact-extractor.yml@dev
     with:
       source_directory: "contact_details"
       output_directory: "contacts"
-
+      
   preview:
     runs-on: ubuntu-latest
     needs: contact-extraction
