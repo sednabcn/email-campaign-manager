@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   contact-extraction:
-    uses: .github/workflows/contact-extractor.yml@dev
+    uses: sednabcn/email-campaign-manager/.github/workflows/contact-extractor.yml@dev
     with:
       source_directory: "contact_details"
       output_directory: "contacts"
